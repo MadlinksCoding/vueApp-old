@@ -444,7 +444,7 @@
       </div>
 
       <button @click="$emit('preview-schedule')"
-        class="px-2 py-2.5 rounded-full outline-none border border-[#F1C1D9] text-brand-textPink text-xs font-medium flex items-center gap-2 hover:bg-pink-100 transition-colors order-2 lg:order-3 whitespace-nowrap">
+        class="px-2 py-2.5 rounded-full outline-none border border-[#F1C1D9] text-[#F06] text-xs font-medium flex items-center gap-2 hover:bg-[#F06] hover:border-[#F06] hover:text-white transition-colors order-2 lg:order-3 whitespace-nowrap">
         {{ t("common_preview_booking_schedule") }}
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"
           stroke-linecap="round" stroke-linejoin="round" class="mb-[0.063rem]">

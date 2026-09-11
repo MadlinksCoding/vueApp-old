@@ -7,7 +7,7 @@
       :data-year="cursor.getFullYear()">
 
       <div class="grid grid-cols-7 text-[0.75rem] font-bold  uppercase tracking-wide ">
-        <div v-for="(w, idx) in tinyWeekdays" :key="idx" :class="['text-center w-[2.339rem] h-[1.25rem]', idx===0 ? 'text-[#FF6A6A]' : '']">{{ w }}</div>
+        <div v-for="(w, idx) in tinyWeekdays" :key="idx" :class="['text-center h-[1.25rem]', idx===0 ? 'text-[#FF6A6A]' : '']">{{ w }}</div>
       </div>
 
       <div class="grid grid-cols-7 gap-0  ">
