@@ -38,6 +38,7 @@
   var activeOneOnOnePopup = null;
   var activeBookingDetailsPopup = null;
   var activeEventsEmbeds = [];
+  var bookingDetailsVisibleIframes = new Set();
   var activeBookingNoticesController = null;
   var EVENTS_EMBED_ROOT_CLASS = "fs-events-embed";
   var EVENTS_EMBED_IFRAME_CLASS = "fs-events-embed__iframe";
@@ -67,6 +68,24 @@
   var fanBookingSkeletonTemplateCache = null;
   var fanBookingSkeletonTemplatePromise = null;
   var TOKEN_BALANCE_REFRESH_STATE_KEY = "__fsTokenBalanceUiRefreshState";
+
+  function hasActiveBookingDetailsSurface() {
+    return bookingDetailsVisibleIframes.size > 0
+      || !!activeBookingDetailsPopup
+      || !!document.querySelector("[data-fs-booking-details-popup]");
+  }
+
+  function syncBookingDetailsNoticeLayer() {
+    if (!activeBookingNoticesController || typeof activeBookingNoticesController.setBookingDetailsActive !== "function") return;
+    activeBookingNoticesController.setBookingDetailsActive(hasActiveBookingDetailsSurface());
+  }
+
+  function setEmbeddedBookingDetailsVisibility(iframe, open) {
+    if (!iframe) return;
+    if (open) bookingDetailsVisibleIframes.add(iframe);
+    else bookingDetailsVisibleIframes.delete(iframe);
+    syncBookingDetailsNoticeLayer();
+  }
 
   function getTokenBalanceRefreshState() {
     var state = global[TOKEN_BALANCE_REFRESH_STATE_KEY];
@@ -772,10 +791,12 @@
       }
 
       if (data.type === FS_EVENTS_BOOKING_DETAILS_VISIBILITY) {
+        var bookingDetailsOpen = Boolean(data.payload && data.payload.open);
         iframe.classList.toggle(
           EVENTS_EMBED_IFRAME_BOOKING_DETAILS_OPEN_CLASS,
-          Boolean(data.payload && data.payload.open),
+          bookingDetailsOpen,
         );
+        setEmbeddedBookingDetailsVisibility(iframe, bookingDetailsOpen);
       }
     }
 
@@ -797,6 +818,7 @@
       updateAuth: updateAuth,
       destroy: function () {
         iframe.classList.remove(EVENTS_EMBED_IFRAME_BOOKING_DETAILS_OPEN_CLASS);
+        setEmbeddedBookingDetailsVisibility(iframe, false);
         window.removeEventListener("message", onMessage);
         window.removeEventListener("beforeunload", onBeforeUnload);
         window.removeEventListener("resize", syncViewportIframeHeight);
@@ -1294,12 +1316,10 @@
       }
       unlockBodyScroll();
       if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
-      if (activeBookingNoticesController && typeof activeBookingNoticesController.setBookingDetailsActive === "function") {
-        activeBookingNoticesController.setBookingDetailsActive(false);
-      }
       if (activeBookingDetailsPopup && activeBookingDetailsPopup.iframe === iframe) {
         activeBookingDetailsPopup = null;
       }
+      syncBookingDetailsNoticeLayer();
       restoreFocus();
       if (destroyOptions.invokeOnClose) invokeOnClose();
     }
@@ -1454,9 +1474,7 @@
     window.addEventListener("keydown", onKeyDown);
     iframe.addEventListener("load", sendBootstrap);
     document.body.appendChild(overlay);
-    if (activeBookingNoticesController && typeof activeBookingNoticesController.setBookingDetailsActive === "function") {
-      activeBookingNoticesController.setBookingDetailsActive(true);
-    }
+    syncBookingDetailsNoticeLayer();
 
     // Force the lightweight HTML shell to be revalidated so a deployment cannot
     // strand an already-open dashboard on stale hashed bundles. Booking IDs and
@@ -1497,7 +1515,7 @@
     var destroyed = false;
     var media = global.matchMedia ? global.matchMedia("(max-width: 639px)") : null;
     var popupObserver = null;
-    var bookingDetailsActive = !!document.querySelector("[data-fs-booking-details-popup]");
+    var bookingDetailsActive = hasActiveBookingDetailsSurface();
     var scheduledCallActive = global.__FSScheduledCallOverlayActive === true;
     var summaryVisibility = { noticeId: "", isOpen: false, known: false, allItemIds: new Set(), visibleItemIds: new Set() };
     var desktopPositions = ["top-left", "top-center", "top-right", "center-left", "center-center", "center-right", "bottom-left", "bottom-center", "bottom-right"];

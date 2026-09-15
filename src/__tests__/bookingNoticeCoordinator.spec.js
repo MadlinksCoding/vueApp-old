@@ -42,7 +42,7 @@ describe("FSBookingNoticeCoordinator", () => {
       openBookingDetailsPopup: vi.fn(),
       mountBookingNotices: vi.fn((options) => {
         options.onReady({ position: "top-right" });
-        return { update: vi.fn(), setConfig: vi.fn(), destroy: vi.fn() };
+        return { update: vi.fn(), setConfig: vi.fn(), setBookingDetailsActive: vi.fn(), destroy: vi.fn() };
       }),
     };
   });
@@ -52,6 +52,8 @@ describe("FSBookingNoticeCoordinator", () => {
     document.body.innerHTML = "";
     delete window.apiLoader;
     delete window.FSScheduledCallOverlay;
+    delete window.FSOpenCreatorBookingDetails;
+    delete window.FSOpenFanBookingDetails;
     delete window.showToast;
     window.history.replaceState({}, "", "/");
     vi.unstubAllGlobals();
@@ -68,6 +70,7 @@ describe("FSBookingNoticeCoordinator", () => {
     window.FSBookingNoticeCoordinator.refresh("calendar-change");
     await vi.advanceTimersByTimeAsync(50);
     expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(new URL(fetchMock.mock.calls[0][0]).searchParams.get("nocache")).toBe("1");
 
     release({ ok: true, json: async () => feed });
     await vi.runAllTicks();
@@ -503,6 +506,63 @@ describe("FSBookingNoticeCoordinator", () => {
     expect(mountOptions.notices.some((item) => item.id === notice.id)).toBe(true);
     delete window.siteData;
     delete window.userData;
+  });
+
+  it.each([
+    ["creator", "FSOpenCreatorBookingDetails"],
+    ["fan", "FSOpenFanBookingDetails"],
+  ])("demotes notices before opening an existing %s booking-details slide-in", async (role, openerName) => {
+    const opener = vi.fn();
+    window[openerName] = opener;
+    vi.stubGlobal("fetch", vi.fn(async () => ({
+      ok: true,
+      json: async () => ({ ...feed, viewer: { ...feed.viewer, role } }),
+    })));
+    window.eval(coordinatorSource);
+    await vi.advanceTimersByTimeAsync(50);
+    await vi.runAllTicks();
+
+    const mountOptions = window.FSEventsEmbed.mountBookingNotices.mock.calls[0][0];
+    const noticeController = window.FSEventsEmbed.mountBookingNotices.mock.results[0].value;
+    mountOptions.onDetail({ noticeId: "detail-stays-open", item: { bookingId: "booking-detail" } });
+
+    expect(noticeController.setBookingDetailsActive).toHaveBeenCalledWith(true);
+    expect(opener).toHaveBeenCalledWith("booking-detail", null, {});
+  });
+
+  it("restores notice layering when an existing booking-details opener throws", async () => {
+    window.FSOpenFanBookingDetails = vi.fn(() => {
+      throw new Error("details failed");
+    });
+    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, json: async () => feed })));
+    window.eval(coordinatorSource);
+    await vi.advanceTimersByTimeAsync(50);
+    await vi.runAllTicks();
+
+    const mountOptions = window.FSEventsEmbed.mountBookingNotices.mock.calls[0][0];
+    const noticeController = window.FSEventsEmbed.mountBookingNotices.mock.results[0].value;
+    expect(() => {
+      mountOptions.onDetail({ noticeId: "detail-stays-open", item: { bookingId: "booking-detail" } });
+    }).toThrow("details failed");
+    expect(noticeController.setBookingDetailsActive.mock.calls.map(([active]) => active)).toEqual([true, false]);
+  });
+
+  it("restores the layer and uses the fallback when an existing details opener declines to open", async () => {
+    window.FSOpenFanBookingDetails = vi.fn(() => false);
+    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, json: async () => feed })));
+    window.eval(coordinatorSource);
+    await vi.advanceTimersByTimeAsync(50);
+    await vi.runAllTicks();
+
+    const mountOptions = window.FSEventsEmbed.mountBookingNotices.mock.calls[0][0];
+    const noticeController = window.FSEventsEmbed.mountBookingNotices.mock.results[0].value;
+    mountOptions.onDetail({ noticeId: "detail-stays-open", item: { bookingId: "booking-detail" } });
+
+    expect(noticeController.setBookingDetailsActive.mock.calls.map(([active]) => active)).toEqual([true, false, true]);
+    expect(window.FSEventsEmbed.openBookingDetailsPopup).toHaveBeenCalledWith(expect.objectContaining({
+      bookingId: "booking-detail",
+      userRole: "fan",
+    }));
   });
 
   it("passes the booked-slot counterparty ID to ready-to-join notice items", async () => {
