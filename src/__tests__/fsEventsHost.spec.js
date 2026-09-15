@@ -327,6 +327,134 @@ describe("fs-events-host openFanBookingPopup", () => {
     controller.destroy();
   });
 
+  it("keeps embedded booking details above notices until every events iframe closes", () => {
+    const firstContainer = document.createElement("div");
+    const secondContainer = document.createElement("div");
+    document.body.append(firstContainer, secondContainer);
+    const firstEmbed = window.FSEventsEmbed.mount(firstContainer, {
+      creatorId: 1407,
+      userRole: "creator",
+      initialRoute: "events",
+    });
+    const secondEmbed = window.FSEventsEmbed.mount(secondContainer, {
+      fanId: 2615,
+      userRole: "fan",
+      initialRoute: "events",
+    });
+    const controller = window.FSEventsEmbed.mountBookingNotices({
+      src: "/bookings-embed/notices.html",
+      notices: [{ id: "request", type: "booking-request" }],
+    });
+    const host = document.querySelector(".fs-booking-notices-host");
+    const setVisibility = (embed, open) => {
+      window.dispatchEvent(new MessageEvent("message", {
+        source: embed.iframe.contentWindow,
+        data: {
+          type: "FS_EVENTS_BOOKING_DETAILS_VISIBILITY",
+          payload: { open },
+        },
+        origin: window.location.origin,
+      }));
+    };
+
+    setVisibility(firstEmbed, true);
+    expect(host.classList.contains("fs-booking-notices-host--below-booking-details")).toBe(true);
+    expect(host.hasAttribute("popover")).toBe(false);
+    expect(host.hasAttribute("inert")).toBe(true);
+    expect(host.getAttribute("aria-hidden")).toBe("true");
+
+    setVisibility(secondEmbed, true);
+    setVisibility(firstEmbed, false);
+    expect(host.classList.contains("fs-booking-notices-host--below-booking-details")).toBe(true);
+    expect(host.hasAttribute("inert")).toBe(true);
+
+    secondEmbed.destroy();
+    expect(host.classList.contains("fs-booking-notices-host--below-booking-details")).toBe(false);
+    expect(host.getAttribute("popover")).toBe("manual");
+    expect(host.hasAttribute("inert")).toBe(false);
+    expect(host.hasAttribute("aria-hidden")).toBe(false);
+    expect(host.dataset.noticeCount).toBe("1");
+
+    firstEmbed.destroy();
+    controller.destroy();
+  });
+
+  it("mounts notices below booking details that were already open in an events iframe", () => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const embed = window.FSEventsEmbed.mount(container, {
+      creatorId: 1407,
+      userRole: "creator",
+      initialRoute: "events",
+    });
+    window.dispatchEvent(new MessageEvent("message", {
+      source: embed.iframe.contentWindow,
+      data: {
+        type: "FS_EVENTS_BOOKING_DETAILS_VISIBILITY",
+        payload: { open: true },
+      },
+      origin: window.location.origin,
+    }));
+
+    const controller = window.FSEventsEmbed.mountBookingNotices({
+      src: "/bookings-embed/notices.html",
+      notices: [{ id: "request", type: "booking-request" }],
+    });
+    const host = document.querySelector(".fs-booking-notices-host");
+    expect(host.classList.contains("fs-booking-notices-host--below-booking-details")).toBe(true);
+    expect(host.hasAttribute("popover")).toBe(false);
+    expect(host.hasAttribute("inert")).toBe(true);
+
+    embed.destroy();
+    controller.destroy();
+  });
+
+  it("does not restore notices when a standalone details popup closes over an open embedded slide-in", () => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const embed = window.FSEventsEmbed.mount(container, {
+      creatorId: 1407,
+      userRole: "creator",
+      initialRoute: "events",
+    });
+    const controller = window.FSEventsEmbed.mountBookingNotices({
+      src: "/bookings-embed/notices.html",
+      notices: [{ id: "request", type: "booking-request" }],
+    });
+    const host = document.querySelector(".fs-booking-notices-host");
+    window.dispatchEvent(new MessageEvent("message", {
+      source: embed.iframe.contentWindow,
+      data: {
+        type: "FS_EVENTS_BOOKING_DETAILS_VISIBILITY",
+        payload: { open: true },
+      },
+      origin: window.location.origin,
+    }));
+    const popup = window.FSEventsEmbed.openBookingDetailsPopup({
+      bookingId: "standalone-booking",
+      creatorId: 1407,
+      userRole: "creator",
+    });
+
+    popup.close();
+    expect(host.classList.contains("fs-booking-notices-host--below-booking-details")).toBe(true);
+    expect(host.hasAttribute("inert")).toBe(true);
+
+    window.dispatchEvent(new MessageEvent("message", {
+      source: embed.iframe.contentWindow,
+      data: {
+        type: "FS_EVENTS_BOOKING_DETAILS_VISIBILITY",
+        payload: { open: false },
+      },
+      origin: window.location.origin,
+    }));
+    expect(host.classList.contains("fs-booking-notices-host--below-booking-details")).toBe(false);
+    expect(host.hasAttribute("inert")).toBe(false);
+
+    embed.destroy();
+    controller.destroy();
+  });
+
   it("places the scheduled-call iframe above notices and restores notices after the call closes", () => {
     const controller = window.FSEventsEmbed.mountBookingNotices({
       src: "/bookings-embed/notices.html",
@@ -1124,10 +1252,13 @@ describe("fs-events-host openFanBookingPopup", () => {
   });
 
   it("limits the fixed full-viewport booking-details host layer to mobile", () => {
+    const desktopRule = hostCss.match(/\.fs-events-embed__iframe--booking-details-open\s*\{([^}]*)\}/)?.[1] || "";
     const mobileRuleStart = hostCss.indexOf("@media screen and (max-width: 1023px)");
     const mobileCss = mobileRuleStart >= 0 ? hostCss.slice(mobileRuleStart) : "";
     const rule = mobileCss.match(/\.fs-events-embed__iframe--booking-details-open\s*\{([^}]*)\}/)?.[1] || "";
 
+    expect(desktopRule).toContain("position: relative");
+    expect(desktopRule).toContain("z-index: 100200");
     expect(mobileRuleStart).toBeGreaterThanOrEqual(0);
     expect(rule).toContain("position: fixed");
     expect(rule).toContain("inset: 0");
