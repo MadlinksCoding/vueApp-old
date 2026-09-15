@@ -80,15 +80,20 @@ describe('BookingDetailsPopup compact variation', () => {
     expect(wrapper.get('[data-test="booking-details-compact-schedule"]').text()).toContain('2027');
     expect(wrapper.get('[data-test="booking-details-information"]').text()).toContain('grapegatsby');
     expect(wrapper.get('[data-test="booking-details-compact-requests"]').text()).toContain('Record live call');
-    expect(wrapper.get('[data-test="event-details-fan-session-cost-value"]').text()).toBe('1,200');
+    expect(wrapper.get('[data-test="event-details-fan-session-cost-value"]').text()).toBe('1,335');
     const costTiles = wrapper.get('[data-test="booking-details-cost-tiles"]');
+    const feeTiles = wrapper.get('[data-test="booking-details-fee-tiles"]');
     const sessionCost = wrapper.get('[data-test="booking-details-session-cost-tile"]');
     const cancellationFee = wrapper.get('[data-test="booking-details-active-cancellation-fee"]');
     const bookingFee = wrapper.get('[data-test="booking-details-active-booking-fee"]');
-    expect(costTiles.classes()).toEqual(expect.arrayContaining(['flex-row', 'flex-wrap']));
+    expect(costTiles.classes()).toContain('flex-col');
+    expect(feeTiles.classes()).toEqual(expect.arrayContaining(['flex-row', 'flex-wrap']));
     expect(sessionCost.element.parentElement).toBe(costTiles.element);
-    expect(cancellationFee.element.parentElement).toBe(costTiles.element);
-    expect(bookingFee.element.parentElement).toBe(costTiles.element);
+    expect(feeTiles.element.parentElement).toBe(costTiles.element);
+    expect(bookingFee.element.parentElement).toBe(feeTiles.element);
+    expect(cancellationFee.element.parentElement).toBe(feeTiles.element);
+    expect(feeTiles.element.children[0]).toBe(bookingFee.element);
+    expect(feeTiles.element.children[1]).toBe(cancellationFee.element);
     expect(cancellationFee.text()).toContain('100');
     expect(bookingFee.text()).toContain('35');
     expect(wrapper.text()).not.toContain('Session Deposit');
@@ -100,26 +105,27 @@ describe('BookingDetailsPopup compact variation', () => {
   it.each([
     ['zero session cost without fees', { total: 0 }, '0', false, false],
     ['missing session cost without fees', {}, 'Not set', false, false],
-    ['cancellation fee only', { total: 12, allocations: { cancellationFee: 2 } }, '10', true, false],
-    ['booking fee only', { total: 11, allocations: { bookingFee: 1 } }, '10', false, true],
-    ['both fees', { total: 10, allocations: { cancellationFee: 2, bookingFee: 1 } }, '7', true, true],
-    ['fees above the total', { total: 2, allocations: { cancellationFee: 2, bookingFee: 1 } }, '0', true, true],
+    ['cancellation fee only', { total: 12, allocations: { cancellationFee: 2 } }, '12', true, false],
+    ['booking fee only', { total: 11, allocations: { bookingFee: 1 } }, '11', false, true],
+    ['both fees', { total: 10, allocations: { cancellationFee: 2, bookingFee: 1 } }, '10', true, true],
+    ['fees above the total', { total: 2, allocations: { cancellationFee: 2, bookingFee: 1 } }, '2', true, true],
     ['missing cost with a fee', { allocations: { bookingFee: 1 } }, 'Not set', false, true],
-  ])('keeps the unified wrapping cost row for %s', (_label, payment, expectedCost, showsCancellationFee, showsBookingFee) => {
+  ])('keeps session cost above the optional fee row for %s', (_label, payment, expectedCost, showsCancellationFee, showsBookingFee) => {
     const wrapper = mountCompact(booking({ status: 'confirmed', payment, meta: {} }));
 
     const costTiles = wrapper.get('[data-test="booking-details-cost-tiles"]');
-    expect(costTiles.classes()).toEqual(expect.arrayContaining(['flex-row', 'flex-wrap']));
+    expect(costTiles.classes()).toContain('flex-col');
     expect(wrapper.get('[data-test="booking-details-session-cost-tile"]').element.parentElement).toBe(costTiles.element);
     expect(wrapper.get('[data-test="booking-details-session-cost-tile"]').text()).toContain(expectedCost);
     expect(wrapper.find('[data-test="booking-details-active-cancellation-fee"]').exists()).toBe(showsCancellationFee);
     expect(wrapper.find('[data-test="booking-details-active-booking-fee"]').exists()).toBe(showsBookingFee);
+    expect(wrapper.find('[data-test="booking-details-fee-tiles"]').exists()).toBe(showsCancellationFee || showsBookingFee);
     expect(wrapper.text()).not.toContain('Session Deposit');
 
     wrapper.unmount();
   });
 
-  it('keeps both active fees in the unified row during a pending price adjustment', () => {
+  it('keeps both active fees together below a pending price adjustment', () => {
     const wrapper = mountCompact(booking({
       meta: {
         currentCounterOffer: 'adjust',
@@ -133,10 +139,12 @@ describe('BookingDetailsPopup compact variation', () => {
     }));
 
     const costTiles = wrapper.get('[data-test="booking-details-cost-tiles"]');
-    expect(wrapper.get('[data-test="event-details-fan-session-cost-original"]').text()).toBe('1,200');
-    expect(wrapper.get('[data-test="event-details-fan-session-cost-proposed"]').text()).toBe('1,365');
-    expect(wrapper.get('[data-test="booking-details-active-cancellation-fee"]').element.parentElement).toBe(costTiles.element);
-    expect(wrapper.get('[data-test="booking-details-active-booking-fee"]').element.parentElement).toBe(costTiles.element);
+    const feeTiles = wrapper.get('[data-test="booking-details-fee-tiles"]');
+    expect(wrapper.get('[data-test="event-details-fan-session-cost-original"]').text()).toBe('1,335');
+    expect(wrapper.get('[data-test="event-details-fan-session-cost-proposed"]').text()).toBe('1,500');
+    expect(feeTiles.element.parentElement).toBe(costTiles.element);
+    expect(wrapper.get('[data-test="booking-details-active-booking-fee"]').element.parentElement).toBe(feeTiles.element);
+    expect(wrapper.get('[data-test="booking-details-active-cancellation-fee"]').element.parentElement).toBe(feeTiles.element);
 
     wrapper.unmount();
   });
@@ -319,6 +327,7 @@ describe('BookingDetailsPopup compact variation', () => {
     expect(wrapper.find('[data-test="booking-details-cost-tiles"]').exists()).toBe(true);
     expect(wrapper.find('[data-test="booking-details-active-cancellation-fee"]').exists()).toBe(false);
     expect(wrapper.find('[data-test="booking-details-active-booking-fee"]').exists()).toBe(false);
+    expect(wrapper.find('[data-test="booking-details-fee-tiles"]').exists()).toBe(false);
     expect(wrapper.find('[data-test="booking-details-compact-accept"]').exists()).toBe(false);
     expect(wrapper.get('[data-test="event-details-fan-session-cost-value"]').text()).toBe('1,335');
 

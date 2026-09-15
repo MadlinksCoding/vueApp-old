@@ -368,6 +368,14 @@ describe("BookingFlowStep3", () => {
     }));
   });
 
+  async function confirmOpenAttendancePopup(wrapper) {
+    const popup = wrapper.findComponent({ name: "ReadAndUnderstandPopup" });
+    if (!popup.exists() || !popup.props("modelValue")) return;
+
+    popup.vm.$emit("confirm");
+    await flushAsync();
+  }
+
   async function mountAndSubmitStep3(engine, props = {}, translations = {}) {
     const { default: BookingFlowStep3 } = await import("@/components/FanBookingFlow/OneOnOneBookingFlow/BookingFlowStep3.vue");
     const wrapper = mount(BookingFlowStep3, {
@@ -391,6 +399,7 @@ describe("BookingFlowStep3", () => {
     const buttons = wrapper.findAll("button");
     await buttons[buttons.length - 1].trigger("click");
     await flushAsync();
+    await confirmOpenAttendancePopup(wrapper);
 
     return wrapper;
   }
@@ -729,7 +738,7 @@ describe("BookingFlowStep3", () => {
     expect(engine.callFlow.mock.calls.filter(([name]) => name === "bookings.createBooking")).toHaveLength(0);
   });
 
-  it("bypasses the popup when the private attendance policy is checked", async () => {
+  it("opens the attendance popup when the private attendance policy is already checked", async () => {
     tokenGet.mockResolvedValue({ data: { balance: 1900 } });
     const engine = createEngine();
     engine.callFlow.mockResolvedValue({ ok: true, data: { bookingId: "booking_policy_checked" } });
@@ -741,7 +750,14 @@ describe("BookingFlowStep3", () => {
     await wrapper.findAll("button").at(-1).trigger("click");
     await flushAsync();
 
-    expect(wrapper.getComponent({ name: "ReadAndUnderstandPopup" }).props("modelValue")).toBe(false);
+    const popup = wrapper.getComponent({ name: "ReadAndUnderstandPopup" });
+    expect(popup.props("modelValue")).toBe(true);
+    expect(engine.callFlow.mock.calls.filter(([name]) => name === "bookings.createBooking")).toHaveLength(0);
+
+    popup.vm.$emit("confirm");
+    await flushAsync();
+
+    expect(popup.props("modelValue")).toBe(false);
     expect(engine.callFlow.mock.calls.filter(([name]) => name === "bookings.createBooking")).toHaveLength(1);
   });
 
@@ -776,7 +792,7 @@ describe("BookingFlowStep3", () => {
     expect(engine.forceSubstep).toHaveBeenCalledWith("topup", { intent: "topup-needed" });
   });
 
-  it("keeps the attendance policy accepted when a private booking fails and is retried", async () => {
+  it("reopens the attendance popup when a private booking fails and is retried", async () => {
     tokenGet.mockResolvedValue({ data: { balance: 1900 } });
     const engine = createEngine();
     engine.callFlow.mockResolvedValue({ ok: false, error: { code: "internal_error" } });
@@ -789,11 +805,28 @@ describe("BookingFlowStep3", () => {
     const actionButton = wrapper.findAll("button").at(-1);
     await actionButton.trigger("click");
     await flushAsync();
+
+    const popup = wrapper.getComponent({ name: "ReadAndUnderstandPopup" });
+    expect(popup.props("modelValue")).toBe(true);
+    expect(engine.callFlow.mock.calls.filter(([name]) => name === "bookings.createBooking")).toHaveLength(0);
+
+    popup.vm.$emit("confirm");
+    await flushAsync();
+
+    expect(popup.props("modelValue")).toBe(false);
+    expect(engine.callFlow.mock.calls.filter(([name]) => name === "bookings.createBooking")).toHaveLength(1);
+
     await actionButton.trigger("click");
     await flushAsync();
 
     expect(policyCheckbox.element.checked).toBe(true);
-    expect(wrapper.getComponent({ name: "ReadAndUnderstandPopup" }).props("modelValue")).toBe(false);
+    expect(popup.props("modelValue")).toBe(true);
+    expect(engine.callFlow.mock.calls.filter(([name]) => name === "bookings.createBooking")).toHaveLength(1);
+
+    popup.vm.$emit("confirm");
+    await flushAsync();
+
+    expect(popup.props("modelValue")).toBe(false);
     expect(engine.callFlow.mock.calls.filter(([name]) => name === "bookings.createBooking")).toHaveLength(2);
   });
 
@@ -806,6 +839,9 @@ describe("BookingFlowStep3", () => {
     await flushAsync();
 
     expect(wrapper.find("[data-testid='booking-attendance-policy-agreement']").exists()).toBe(false);
+    await wrapper.findAll("button").at(-1).trigger("click");
+    await flushAsync();
+    expect(wrapper.getComponent({ name: "ReadAndUnderstandPopup" }).props("modelValue")).toBe(false);
   });
 
   it("accepts invite-only event links for authenticated fans before booking", async () => {
@@ -1098,6 +1134,7 @@ describe("BookingFlowStep3", () => {
     const buttons = wrapper.findAll("button");
     await buttons[buttons.length - 1].trigger("click");
     await flushAsync();
+    await confirmOpenAttendancePopup(wrapper);
 
     expect(engine.callFlow).toHaveBeenCalledWith(
       "bookings.createTemporaryHold",
@@ -1141,6 +1178,7 @@ describe("BookingFlowStep3", () => {
     await flushAsync();
     await wrapper.get("[data-testid='booking-attendance-policy-agreement'] input").setValue(true);
     await wrapper.findAll("button").at(-1).trigger("click");
+    await confirmOpenAttendancePopup(wrapper);
     await vi.waitFor(() => {
       expect(engine.forceSubstep).toHaveBeenCalledWith("topup", { intent: "topup-needed" });
     });
@@ -1153,6 +1191,7 @@ describe("BookingFlowStep3", () => {
     await flushAsync();
 
     await wrapper.findAll("button").at(-1).trigger("click");
+    await confirmOpenAttendancePopup(wrapper);
     await vi.waitFor(() => {
       expect(engine.callFlow.mock.calls.filter(([name]) => name === "bookings.getTemporaryHoldStatus").length).toBeGreaterThanOrEqual(2);
     });
@@ -1206,6 +1245,7 @@ describe("BookingFlowStep3", () => {
     await flushAsync();
     await wrapper.get("[data-testid='booking-attendance-policy-agreement'] input").setValue(true);
     await wrapper.findAll("button").at(-1).trigger("click");
+    await confirmOpenAttendancePopup(wrapper);
     await vi.waitFor(() => {
       expect(engine.forceSubstep).toHaveBeenCalledWith("topup", { intent: "topup-needed" });
     });
@@ -1263,6 +1303,7 @@ describe("BookingFlowStep3", () => {
     await flushAsync();
     await wrapper.get("[data-testid='booking-attendance-policy-agreement'] input").setValue(true);
     await wrapper.findAll("button").at(-1).trigger("click");
+    await confirmOpenAttendancePopup(wrapper);
     await vi.waitFor(() => {
       expect(engine.forceSubstep).toHaveBeenCalledWith("topup", { intent: "topup-needed" });
     });

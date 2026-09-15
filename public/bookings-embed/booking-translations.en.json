@@ -906,6 +906,7 @@
   "fan_booking_toast_detail": "Detail",
   "fan_booking_today_at": "Today @ {time}",
   "fan_booking_token_balance_failed": "Could not retrieve token balance.",
+  "fan_booking_token_used": "Token USED",
   "fan_booking_tokens": "Tokens",
   "fan_booking_tomorrow": "Tomorrow",
   "fan_booking_top_up_amount": "TOP UP AMOUNT",

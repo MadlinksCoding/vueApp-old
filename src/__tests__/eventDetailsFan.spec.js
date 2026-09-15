@@ -105,7 +105,7 @@ describe('EventDetailsFan', () => {
     expect(wrapper.get('[data-test="event-details-fan-session-cost-arrow"]').attributes('src')).toBe(priceArrowIcon);
     expect(wrapper.get('[data-test="event-details-fan-session-cost-proposed-icon"]').attributes('src')).toBe(tokenIcon);
     expect(wrapper.get('[data-test="event-details-fan-session-cost-proposed"]').text()).toBe('135');
-    expect(wrapper.get('[data-test="booking-details-cost-tiles"]').classes()).toEqual(expect.arrayContaining(['flex-row', 'flex-wrap']));
+    expect(wrapper.get('[data-test="booking-details-cost-tiles"]').classes()).toContain('flex-col');
     expect(wrapper.get('[data-test="booking-details-session-cost-tile"]').classes()).toContain('flex-col');
     expect(wrapper.get('[data-test="event-details-fan"]').element.style.getPropertyValue('--event-color')).toBe('#FACC15');
     expect(wrapper.get('[data-test="event-details-fan-event-type-badge"]').element.style.backgroundColor).toBe('rgb(250, 204, 21)');
@@ -302,9 +302,17 @@ describe('EventDetailsFan', () => {
       status,
     }), 'side-panel', { userRole });
 
-    expect(wrapper.get('[data-test="event-details-fan-session-cost-value"]').text()).toBe('1,200');
-    expect(wrapper.get('[data-test="booking-details-cancellation-fee"]').text()).toContain('100');
-    expect(wrapper.get('[data-test="booking-details-booking-fee"]').text()).toContain('35');
+    const costTiles = wrapper.get('[data-test="booking-details-cost-tiles"]');
+    const feeTiles = wrapper.get('[data-test="booking-details-fee-tiles"]');
+    const bookingFee = wrapper.get('[data-test="booking-details-booking-fee"]');
+    const cancellationFee = wrapper.get('[data-test="booking-details-cancellation-fee"]');
+    expect(wrapper.get('[data-test="event-details-fan-session-cost-value"]').text()).toBe('1,335');
+    expect(costTiles.classes()).toContain('flex-col');
+    expect(feeTiles.element.parentElement).toBe(costTiles.element);
+    expect(bookingFee.text()).toContain('35');
+    expect(cancellationFee.text()).toContain('100');
+    expect(feeTiles.element.children[0]).toBe(bookingFee.element);
+    expect(feeTiles.element.children[1]).toBe(cancellationFee.element);
     wrapper.unmount();
   });
 
@@ -319,13 +327,13 @@ describe('EventDetailsFan', () => {
 
     expect(wrapper.get('[data-test="booking-details-cancellation-fee"]').text()).toContain('11');
     expect(wrapper.get('[data-test="booking-details-booking-fee"]').text()).toContain('6');
-    expect(wrapper.get('[data-test="event-details-fan-session-cost-value"]').text()).toBe('83');
+    expect(wrapper.get('[data-test="event-details-fan-session-cost-value"]').text()).toBe('100');
     wrapper.unmount();
   });
 
   it.each([
-    ['cancellation fee only', { cancellationFee: '12', bookingFee: 0 }, '88', true, false],
-    ['booking fee only', { cancellationFee: 'invalid', bookingFee: '7' }, '93', false, true],
+    ['cancellation fee only', { cancellationFee: '12', bookingFee: 0 }, '100', true, false],
+    ['booking fee only', { cancellationFee: 'invalid', bookingFee: '7' }, '100', false, true],
     ['no positive fees', { cancellationFee: 0, bookingFee: null }, '100', false, false],
   ])('shows each active fee independently for %s', (_label, allocations, expectedCost, showsCancellationFee, showsBookingFee) => {
     const wrapper = mountDetails(booking({
@@ -338,16 +346,17 @@ describe('EventDetailsFan', () => {
     expect(wrapper.get('[data-test="event-details-fan-session-cost-value"]').text()).toBe(expectedCost);
     expect(wrapper.find('[data-test="booking-details-cancellation-fee"]').exists()).toBe(showsCancellationFee);
     expect(wrapper.find('[data-test="booking-details-booking-fee"]').exists()).toBe(showsBookingFee);
+    expect(wrapper.find('[data-test="booking-details-fee-tiles"]').exists()).toBe(showsCancellationFee || showsBookingFee);
     wrapper.unmount();
   });
 
-  it('nets active fees from the displayed pending adjustment without changing the action payload', async () => {
+  it('keeps gross pending adjustment prices while showing active fees below', async () => {
     const wrapper = mountDetails(booking({
       payment: { total: 100, allocations: { cancellationFee: 10, bookingFee: 5 } },
     }));
 
-    expect(wrapper.get('[data-test="event-details-fan-session-cost-original"]').text()).toBe('85');
-    expect(wrapper.get('[data-test="event-details-fan-session-cost-proposed"]').text()).toBe('120');
+    expect(wrapper.get('[data-test="event-details-fan-session-cost-original"]').text()).toBe('100');
+    expect(wrapper.get('[data-test="event-details-fan-session-cost-proposed"]').text()).toBe('135');
     expect(wrapper.get('[data-test="booking-details-cancellation-fee"]').text()).toContain('10');
     expect(wrapper.get('[data-test="booking-details-booking-fee"]').text()).toContain('5');
     await wrapper.get('[data-test="event-details-fan-accept-adjustment"]').trigger('click');
@@ -952,8 +961,9 @@ describe('EventDetailsFan', () => {
     expect(wrapper.get('[data-test="booking-details-cancelled-refund"]').text()).toContain('335');
     expect(wrapper.get('[data-test="booking-details-cancellation-fee"]').text()).toContain('100');
     expect(wrapper.get('[data-test="booking-details-booking-fee"]').text()).toContain('20');
-    expect(wrapper.get('[data-test="booking-details-cost-tiles"]').classes()).toEqual(expect.arrayContaining(['flex-row', 'flex-wrap']));
-    expect(wrapper.get('[data-test="event-details-fan-session-cost-value"]').text()).toBe('315');
+    expect(wrapper.get('[data-test="booking-details-cost-tiles"]').classes()).toContain('flex-col');
+    expect(wrapper.get('[data-test="booking-details-fee-tiles"]').classes()).toEqual(expect.arrayContaining(['flex-row', 'flex-wrap']));
+    expect(wrapper.get('[data-test="event-details-fan-session-cost-value"]').text()).toBe('435');
     expect(wrapper.get('[data-test="booking-details-cancellation-fee"]').classes()).toContain('flex-col');
     expect(wrapper.get('[data-test="booking-details-booking-fee"]').classes()).toContain('flex-col');
     expect(wrapper.find('[data-test="event-details-fan-session-cost-standard"]').exists()).toBe(true);
