@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
     userRole: "creator",
     apiBaseUrl: "https://api.example.com",
     hostViewportWidth: 820,
+    initialAction: "",
   },
 }));
 
@@ -36,7 +37,7 @@ vi.mock("@/embeds/events/bridge.js", () => ({
 vi.mock("@/features/events/DashboardEventsFeature.vue", () => ({
   default: {
     name: "DashboardEventsFeature",
-    props: ["creatorId", "fanId", "userRole", "apiBaseUrl", "responsiveViewportWidth", "embedded"],
+    props: ["creatorId", "fanId", "userRole", "apiBaseUrl", "responsiveViewportWidth", "initialAction", "embedded"],
     emits: ["create-event", "edit-event", "open-url", "booking-details-visibility"],
     methods: {
       resetEmbeddedMobileScrollToTop: mocks.resetDashboardScroll,
@@ -85,6 +86,7 @@ describe("EventsEmbedEventsPage", () => {
     };
     setWindowWidth(500);
     mocks.bootstrap.hostViewportWidth = 820;
+    mocks.bootstrap.initialAction = "";
   });
 
   afterEach(() => {
@@ -110,6 +112,14 @@ describe("EventsEmbedEventsPage", () => {
     const wrapper = mount(EventsEmbedEventsPage);
 
     expect(wrapper.getComponent({ name: "DashboardEventsFeature" }).props("responsiveViewportWidth")).toBe(820);
+  });
+
+  it("passes the booking-notice Pending action into the dashboard calendar", async () => {
+    mocks.bootstrap.initialAction = "review-pending";
+    const { default: EventsEmbedEventsPage } = await import("@/embeds/events/pages/EventsEmbedEventsPage.vue");
+    const wrapper = mount(EventsEmbedEventsPage);
+
+    expect(wrapper.getComponent({ name: "DashboardEventsFeature" }).props("initialAction")).toBe("review-pending");
   });
 
   it("routes group create events to the embedded booking form", async () => {

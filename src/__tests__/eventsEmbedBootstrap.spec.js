@@ -72,7 +72,7 @@ describe("events embed bootstrap", () => {
     window.history.replaceState(
       {},
       "",
-      "/?creatorId=55&userRole=agent&initialRoute=create-private&apiBaseUrl=https%3A%2F%2Fapi.example.com&tokenHandlerApiUrl=https%3A%2F%2Ftokens.example.com%2Fdev&creatorAvatar=https%3A%2F%2Fexample.com%2Favatar.webp&creatorName=Creator%20Name&creatorVerified=true",
+      "/?creatorId=55&userRole=agent&initialRoute=create-private&initialAction=review-pending&apiBaseUrl=https%3A%2F%2Fapi.example.com&tokenHandlerApiUrl=https%3A%2F%2Ftokens.example.com%2Fdev&creatorAvatar=https%3A%2F%2Fexample.com%2Favatar.webp&creatorName=Creator%20Name&creatorVerified=true",
     );
 
     const { readEventsEmbedBootstrapFromUrl } = await import("@/embeds/events/bootstrap.js");
@@ -86,7 +86,7 @@ describe("events embed bootstrap", () => {
       tokenHandlerApiUrl: "https://tokens.example.com/dev",
       jwtToken: "",
       initialRoute: "create-private",
-      initialAction: "",
+      initialAction: "review-pending",
       bookingId: "",
       bookingSnapshot: null,
       hostViewportWidth: window.innerWidth,

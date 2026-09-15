@@ -7,6 +7,7 @@
       :user-role="bootstrap.userRole"
       :api-base-url="bootstrap.apiBaseUrl"
       :responsive-viewport-width="bootstrap.hostViewportWidth"
+      :initial-action="bootstrap.initialAction"
       :embedded="true"
       @create-event="handleCreateEvent"
       @edit-event="handleEditEvent"

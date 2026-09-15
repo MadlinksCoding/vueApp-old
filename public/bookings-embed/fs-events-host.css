@@ -3,6 +3,183 @@
   width: 100%;
 }
 
+.fs-booking-notices-host {
+  position: fixed;
+  z-index: var(--fs-booking-notices-z, 2147483647);
+  box-sizing: border-box;
+  width: 0;
+  height: 0;
+  max-width: 100vw;
+  max-height: 100vh;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  overflow: visible;
+  background: transparent;
+  pointer-events: none;
+}
+
+.fs-booking-notices-host:popover-open { inset: auto; }
+.fs-booking-notices-host[data-position="top-left"] { top: 8px; left: 8px; }
+.fs-booking-notices-host[data-position="top-center"] { top: 8px; left: 50%; transform: translateX(-50%); }
+.fs-booking-notices-host[data-position="top-right"] { top: 8px; right: 8px; }
+.fs-booking-notices-host[data-position="center-left"] { top: 50%; left: 8px; transform: translateY(-50%); }
+.fs-booking-notices-host[data-position="center-center"] { top: 50%; left: 50%; transform: translate(-50%, -50%); }
+.fs-booking-notices-host[data-position="center-right"] { top: 50%; right: 8px; transform: translateY(-50%); }
+.fs-booking-notices-host[data-position="bottom-left"] { bottom: 8px; left: 8px; }
+.fs-booking-notices-host[data-position="bottom-center"] { bottom: 8px; left: 50%; transform: translateX(-50%); }
+.fs-booking-notices-host[data-position="bottom-right"] { right: 8px; bottom: 8px; }
+.fs-booking-notices-host[data-position="top"] { top: 0; left: 0; }
+.fs-booking-notices-host[data-position="center"] { top: 50%; left: 0; transform: translateY(-50%); }
+.fs-booking-notices-host[data-position="bottom"] { bottom: 0; left: 0; }
+
+.fs-booking-notices-host__iframe {
+  display: block;
+  width: 0;
+  height: 0;
+  max-width: 100vw;
+  max-height: 100vh;
+  border: 0;
+  overflow: hidden;
+  background: transparent;
+  pointer-events: auto;
+}
+
+/* Booking details and scheduled calls are intentional exceptions to the notice top-layer rule.
+   The host script removes the Popover top-layer state while this class is
+   active, and this fallback order keeps those interactive surfaces above
+   notices in browsers without Popover support. */
+.fs-booking-notices-host--below-booking-details {
+  z-index: 100100;
+}
+
+.fs-booking-pending-menu-link {
+  position: relative;
+  overflow: visible !important;
+}
+
+.fs-booking-pending-menu-anchor {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  overflow: visible;
+}
+
+.fs-booking-pending-menu-anchor--active::before {
+  position: absolute;
+  z-index: 0;
+  inset: -5px;
+  border: 2px solid rgba(238, 47, 104, 0.7);
+  border-radius: 999px;
+  content: "";
+  pointer-events: none;
+  animation: fs-booking-pending-menu-pulse 1.5s ease-out infinite;
+}
+
+.fs-booking-pending-menu-anchor > [data-sidebar-menu-icon] {
+  position: relative;
+  z-index: 1;
+}
+
+.fs-booking-pending-menu-badge {
+  position: absolute;
+  z-index: 3;
+  top: -10px;
+  right: -13px;
+  display: inline-flex;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: #ee2f68;
+  box-shadow: 0 2px 5px rgba(52, 64, 84, 0.18);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.fs-booking-pending-menu-badge[hidden] {
+  display: none;
+}
+
+.fs-booking-pending-menu-tooltip {
+  display: none;
+}
+
+@keyframes fs-booking-pending-menu-pulse {
+  0% {
+    opacity: 0.8;
+    transform: scale(0.82);
+  }
+  70%, 100% {
+    opacity: 0;
+    transform: scale(1.35);
+  }
+}
+
+@media (min-width: 768px) {
+  .fs-booking-pending-menu-tooltip {
+    position: absolute;
+    z-index: 20;
+    top: 50%;
+    left: calc(100% + 12px);
+    display: block;
+    padding: 12px 18px;
+    border-radius: 8px;
+    background: #ee2f68;
+    box-shadow: 0 8px 18px rgba(52, 64, 84, 0.2);
+    color: #fff;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 20px;
+    opacity: 0;
+    visibility: hidden;
+    white-space: nowrap;
+    transform: translateY(-50%) translateX(-4px);
+    transition: opacity 150ms ease, transform 150ms ease, visibility 150ms ease;
+    pointer-events: none;
+  }
+
+  .fs-booking-pending-menu-tooltip::before {
+    position: absolute;
+    top: 50%;
+    left: -8px;
+    border-top: 8px solid transparent;
+    border-right: 8px solid #ee2f68;
+    border-bottom: 8px solid transparent;
+    content: "";
+    transform: translateY(-50%);
+  }
+
+  .fs-booking-pending-menu-link:hover .fs-booking-pending-menu-tooltip,
+  .fs-booking-pending-menu-link:focus-visible .fs-booking-pending-menu-tooltip,
+  .fs-booking-pending-menu-link:focus-within .fs-booking-pending-menu-tooltip {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(-50%) translateX(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fs-booking-pending-menu-anchor--active::before {
+    opacity: 0.55;
+    transform: none;
+    animation: none;
+  }
+}
+
+@media (max-width: 639px) {
+  .fs-booking-notices-host { left: 0 !important; right: auto !important; width: 100vw; transform: none; }
+  .fs-booking-notices-host[data-position="center"] { transform: translateY(-50%); }
+}
+
 .fs-events-embed__iframe {
   display: block;
   width: 100%;

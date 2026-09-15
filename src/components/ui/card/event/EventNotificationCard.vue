@@ -1,689 +1,542 @@
 <template>
-<div class="flex flex-col gap-10">
+  <div
+    v-if="isVisible && delayComplete"
+    class="booking-notice-motion-shell"
+    :class="[entranceClass, exitClass]"
+  >
+  <article
+    class="booking-notice-card"
+    :class="[attentionClass, variationClass, viewportMode ? `booking-notice-card--embedded-${viewportMode}` : '']"
+    :data-notice-type="notice.type"
+    tabindex="-1"
+    @mouseenter="pauseTimer"
+    @mouseleave="resumeTimer"
+    @focusin="pauseTimer"
+    @focusout="resumeTimer"
+  >
+    <button
+      type="button"
+      class="booking-notice-close"
+      aria-label="Close notice"
+      data-test="notice-close"
+      @click="dismiss('close')"
+    >
+      <img :src="XCloseIcon" alt="" class="h-4 w-4 invert" />
+    </button>
 
-<div class=" relative w-full sm:w-[368px] mt-10 self-stretch min-h-20 p-3 bg-[#5FE9D0]/5 sm:rounded-[10px] blink-border-effect-pink inline-flex justify-end items-start gap-1.5">
-    <div class="absolute top-2 right-2 sm:top-[-8px] sm:right-[-8px] flex items-center justify-center w-6 h-6 rounded-full sm:bg-[#EAECF0] sm:shadow-[0_0_4px_0_rgba(0,0,0,0.25)] cursor-pointer">
-        <img :src="XCloseIcon" alt="Close Icon" class="h-4 w-4 invert"/>
-    </div>
-  <div class="w-1 self-stretch bg-white rounded-[10px]" />
-  <div class="flex-1 inline-flex flex-col justify-start items-start gap-4">
-    <div class="size- inline-flex justify-center items-center gap-2">
-      <div data-svg-wrapper class="size-5 relative">
-        <img :src="CalendarPinkIcon" alt="Calendar Icon" class="h-5 w-5"/>
-      </div>
-      <div class="justify-start text-[#F06] text-sm font-semibold  leading-5">New event booking received:</div>
-    </div>
-    <div class="self-stretch h-20 inline-flex justify-start items-center gap-1.5">
-      <div data-property-1="DATE" class="w-14 self-stretch min-h-12 py-2 inline-flex flex-col justify-start items-center gap-2">
-        <div class="size- flex flex-col justify-center items-center">
-          <div class="justify-center text-gray-900 text-xs font-semibold  leading-4">APRIL</div>
-          <div class="size-5 justify-center text-gray-900 text-lg font-semibold  leading-7">25</div>
+    <div v-if="showAccent" class="booking-notice-accent" :style="{ backgroundColor: appearance.accent }" />
+    <div class="booking-notice-content min-w-0 flex-1" :class="{ 'booking-notice-content--summary': notice.type === noticeTypes.SUMMARY }">
+      <template v-if="notice.type === noticeTypes.SUMMARY">
+        <h3
+          v-if="resolvedConfig.summary.showGreeting"
+          class="px-6 text-center text-lg font-semibold text-[#344054]"
+          data-test="summary-greeting"
+        >
+          {{ greeting }}
+        </h3>
+
+        <div v-if="summary.isEmpty" class="mt-4 text-sm text-[#667085]">{{ resolvedConfig.summary.emptyMessage }}</div>
+        <div v-else class="mt-4 flex flex-col gap-4">
+          <section v-for="section in summary.sections" :key="section.id" data-test="summary-section">
+            <h4
+              class="mb-1 flex items-center gap-2 text-sm font-semibold"
+              :style="{ color: summarySectionPresentation(section).color }"
+              :data-summary-section-variant="section.variant || section.type"
+              data-test="summary-section-heading"
+            >
+              <img :src="summarySectionPresentation(section).icon" alt="" class="h-5 w-5 shrink-0" />
+              <span>{{ summarySectionPresentation(section).heading }}</span>
+            </h4>
+            <EventNotificationItem
+              v-for="item in section.items"
+              :key="item.id"
+              :item="item"
+              :variant="section.type"
+              :ready-label="readyLabelForItem(item)"
+              :show-detail="showPerItemDetail && section.type !== noticeTypes.READY_TO_JOIN"
+              :show-join="section.type === noticeTypes.READY_TO_JOIN"
+              :attention-animation="resolvedConfig.attentionAnimation"
+              @detail="emitDetail"
+              @join="performItemJoin"
+            />
+          </section>
         </div>
-      </div>
-      <div class="flex-1 inline-flex flex-col justify-start items-start gap-2">
-        <div class="self-stretch inline-flex justify-start items-center gap-1">
-          <div class="flex-1 flex justify-start items-center gap-1">
-            <div data-svg-wrapper class="size-3.5 relative">
-              <svg width="100%" height="100%" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M4.88849 5.16446C5.29449 6.01007 5.84795 6.80261 6.54887 7.50353C7.24979 8.20445 8.04234 8.75791 8.88795 9.16391C8.96068 9.19883 8.99705 9.21629 9.04307 9.22971C9.20661 9.27738 9.40743 9.24314 9.54593 9.14396C9.5849 9.11606 9.61824 9.08271 9.68493 9.01603C9.88886 8.8121 9.99083 8.71013 10.0934 8.64346C10.4801 8.39205 10.9786 8.39205 11.3652 8.64346C11.4678 8.71013 11.5698 8.8121 11.7737 9.01603L11.8874 9.12971C12.1974 9.43971 12.3524 9.59472 12.4366 9.76119C12.604 10.0923 12.604 10.4833 12.4366 10.8143C12.3524 10.9808 12.1974 11.1358 11.8874 11.4458L11.7954 11.5378C11.4865 11.8467 11.332 12.0012 11.122 12.1192C10.8889 12.2501 10.527 12.3442 10.2597 12.3434C10.0188 12.3427 9.85416 12.296 9.5249 12.2025C7.75542 11.7003 6.08571 10.7527 4.69272 9.35968C3.29973 7.9667 2.35212 6.29699 1.84989 4.5275C1.75643 4.19824 1.70971 4.03361 1.70899 3.79273C1.70819 3.52543 1.80232 3.16348 1.93323 2.93043C2.05121 2.72041 2.20568 2.56594 2.51463 2.25699L2.60659 2.16504C2.91659 1.85503 3.0716 1.70003 3.23807 1.61583C3.56915 1.44837 3.96014 1.44837 4.29121 1.61583C4.45768 1.70003 4.61269 1.85503 4.9227 2.16504L5.03637 2.27871C5.24031 2.48265 5.34228 2.58462 5.40894 2.68716C5.66036 3.07384 5.66036 3.57235 5.40894 3.95903C5.34228 4.06157 5.24031 4.16354 5.03637 4.36748C4.96969 4.43416 4.93635 4.4675 4.90844 4.50647C4.80927 4.64497 4.77502 4.84579 4.8227 5.00933C4.83611 5.05535 4.85357 5.09172 4.88849 5.16446Z" stroke="#0E9384" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-            </div>
-            <div data-emphasized="true" data-icon="false" data-size="caption" class="size- flex justify-start items-center gap-2">
-              <div class="justify-start text-[#0E9384] text-sm font-semibold  leading-5">Maid cafe simulator</div>
-            </div>
-            <div data-svg-wrapper data-property-1="pending" data-size="Default" class="size-4 relative">
-              <svg width="100%" height="100%" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <g clip-path="url(#clip0_3292_19308)">
-              <path d="M6.06004 5.99967C6.21678 5.55412 6.52614 5.17841 6.93334 4.9391C7.34055 4.69978 7.8193 4.6123 8.28482 4.69215C8.75035 4.772 9.17258 5.01402 9.47676 5.37536C9.78093 5.7367 9.94741 6.19402 9.94671 6.66634C9.94671 7.99967 7.94671 8.66634 7.94671 8.66634M8.00004 11.333H8.00671M14.6667 7.99967C14.6667 11.6816 11.6819 14.6663 8.00004 14.6663C4.31814 14.6663 1.33337 11.6816 1.33337 7.99967C1.33337 4.31778 4.31814 1.33301 8.00004 1.33301C11.6819 1.33301 14.6667 4.31778 14.6667 7.99967Z" stroke="#667085" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-              </g>
-              <defs>
-              <clipPath id="clip0_3292_19308">
-              <rect width="16" height="16" fill="white"/>
-              </clipPath>
-              </defs>
-              </svg>
-            </div>
+
+        <button
+          v-if="summary.overflowText"
+          type="button"
+          class="booking-notice-overflow"
+          :aria-label="overflowAriaLabel(summary.hiddenCount)"
+          data-test="summary-overflow"
+          @click="showMore"
+        >
+          {{ summary.overflowText }}
+        </button>
+      </template>
+
+      <template v-else>
+        <header class="flex items-start gap-2 pr-6">
+          <img :src="appearance.icon" alt="" class="h-5 w-5 shrink-0" />
+          <h3 class="text-sm font-semibold leading-5" :style="{ color: appearance.headingColor }">{{ heading }}</h3>
+        </header>
+        <div class="booking-notice-items-region">
+          <div class="mt-3 flex flex-col gap-2">
+            <EventNotificationItem
+              v-for="item in visibleItems"
+              :key="item.id"
+              :item="item"
+              :variant="notice.type"
+              :ready-label="readyLabelForItem(item)"
+              :show-detail="showPerItemDetail"
+              :show-accent="isGroupedBookingRequest"
+              @detail="emitDetail"
+            />
           </div>
+          <button
+            v-if="resolvedConfig.summary.showOverflow && standaloneHiddenCount > 0"
+            type="button"
+            class="booking-notice-overflow"
+            :aria-label="overflowAriaLabel(standaloneHiddenCount)"
+            data-test="notice-overflow"
+            @click="showMore"
+          >
+            {{ formatOverflow(standaloneHiddenCount) }}
+          </button>
         </div>
-        <div class="self-stretch inline-flex justify-end items-end gap-1.5">
-          <div class="flex-1 self-stretch inline-flex flex-col justify-start items-start gap-2">
-            <div class="justify-center text-slate-700 text-xs font-semibold  leading-4">2:15pm - 9:30pm</div>
-          </div>
-        </div>
-        <div data-property-1="single user" class="size- inline-flex justify-start items-center gap-1">
-          <img class="size-5 rounded-full object-cover" src="https://i.ibb.co/jkjtwC9C/svgviewer-png-output-17.webp" alt="Ellipse 284" />
-          <div class="justify-center text-gray-900 text-xs font-normal  leading-4">The grape gatsby</div>
-        </div>
-      </div>
+      </template>
+
+      <button
+        v-if="effectiveAction"
+        type="button"
+        class="booking-notice-action"
+        :class="actionClass"
+        data-test="notice-primary-action"
+        @click="performPrimaryAction"
+      >
+        <span v-if="showActionIcon" class="booking-notice-action-icon" aria-hidden="true">
+          <img :src="actionIcon" alt="" />
+          <span v-if="isBookingRequestReviewAction" class="booking-notice-action-dot" />
+        </span>
+        {{ effectiveAction.label }}
+        <img v-if="effectiveAction.showArrow" :src="WhiteArrowUpRightIcon" alt="" class="booking-notice-action-arrow" />
+      </button>
     </div>
-    <div class="self-stretch flex flex-col justify-center items-start gap-2">
-      <div class="self-stretch h-9 px-2 py-1 bg-white rounded-[0.25rem] outline outline-1 outline-offset-[-0.50px] outline-[#FF4405] inline-flex justify-center items-center gap-4 cursor-pointer">
-        <div data-svg-wrapper class="size-5 relative">
-          <img :src="FileBlackIcon" alt="File Icon" class="h-5 w-5"/>
-          <div class="absolute top-[-2px] right-[0px]">
-              <IndicatorDot size="7" color="#FF4405" />
-          </div>
-        </div>
-        <div class="justify-start text-[#FF4405] text-base font-medium  leading-6">REVIEW</div>
-      </div>
-    </div>
+  </article>
   </div>
-</div>
-
-<!-- When have more notifications -->
-<div class=" relative w-full sm:w-[368px] mt-10 self-stretch min-h-20 p-3 bg-[#5FE9D0]/5 rounded-[10px] blink-border-effect-pink inline-flex justify-end items-start gap-1.5">
-    <div class="absolute top-2 right-2 sm:top-[-8px] sm:right-[-8px] flex items-center justify-center w-6 h-6 rounded-full sm:bg-[#EAECF0] sm:shadow-[0_0_4px_0_rgba(0,0,0,0.25)] cursor-pointer">
-        <img :src="XCloseIcon" alt="Close Icon" class="h-4 w-4 invert"/>
-    </div>
-    <div class="flex-1 inline-flex flex-col justify-start items-start gap-3">
-    
-    <!-- Today events -->
-    <div class="flex-1 self-stretch inline-flex flex-col justify-start items-start gap-3">
-    <div class="size- inline-flex justify-center items-center gap-2">
-        <div data-svg-wrapper class="size-5 relative">
-        <img :src="CalendarGreenCheckIcon" alt="Calendar Icon" class="h-5 w-5"/>
-        </div>
-        <div class="justify-start text-[#107569] text-sm font-semibold  leading-5">You have 2 events today:</div>
-    </div>
-    <div class="flex flex-col gap-4">
-        <div class="self-stretch h-[74px] inline-flex justify-start items-center gap-1.5">
-            <div class="w-1 self-stretch bg-white rounded-[10px]" />
-            <div data-property-1="DATE" class="w-14 self-stretch min-h-12 py-2 inline-flex flex-col justify-start items-center gap-2">
-            <div class="size- flex flex-col justify-center items-center flex-1">
-                <div class="justify-center text-[#344054] text-xs font-semibold  leading-4">2:15pm - 9:30pm</div>
-            </div>
-            </div>
-            <div class="flex-1 inline-flex flex-col justify-start items-start gap-2">
-            <div class="self-stretch inline-flex justify-start items-center gap-1">
-                <div class="flex-1 flex justify-start items-center gap-1">
-                <div data-svg-wrapper class="size-3.5 relative">
-                    <svg width="100%" height="100%" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M4.88849 5.16446C5.29449 6.01007 5.84795 6.80261 6.54887 7.50353C7.24979 8.20445 8.04234 8.75791 8.88795 9.16391C8.96068 9.19883 8.99705 9.21629 9.04307 9.22971C9.20661 9.27738 9.40743 9.24314 9.54593 9.14396C9.5849 9.11606 9.61824 9.08271 9.68493 9.01603C9.88886 8.8121 9.99083 8.71013 10.0934 8.64346C10.4801 8.39205 10.9786 8.39205 11.3652 8.64346C11.4678 8.71013 11.5698 8.8121 11.7737 9.01603L11.8874 9.12971C12.1974 9.43971 12.3524 9.59472 12.4366 9.76119C12.604 10.0923 12.604 10.4833 12.4366 10.8143C12.3524 10.9808 12.1974 11.1358 11.8874 11.4458L11.7954 11.5378C11.4865 11.8467 11.332 12.0012 11.122 12.1192C10.8889 12.2501 10.527 12.3442 10.2597 12.3434C10.0188 12.3427 9.85416 12.296 9.5249 12.2025C7.75542 11.7003 6.08571 10.7527 4.69272 9.35968C3.29973 7.9667 2.35212 6.29699 1.84989 4.5275C1.75643 4.19824 1.70971 4.03361 1.70899 3.79273C1.70819 3.52543 1.80232 3.16348 1.93323 2.93043C2.05121 2.72041 2.20568 2.56594 2.51463 2.25699L2.60659 2.16504C2.91659 1.85503 3.0716 1.70003 3.23807 1.61583C3.56915 1.44837 3.96014 1.44837 4.29121 1.61583C4.45768 1.70003 4.61269 1.85503 4.9227 2.16504L5.03637 2.27871C5.24031 2.48265 5.34228 2.58462 5.40894 2.68716C5.66036 3.07384 5.66036 3.57235 5.40894 3.95903C5.34228 4.06157 5.24031 4.16354 5.03637 4.36748C4.96969 4.43416 4.93635 4.4675 4.90844 4.50647C4.80927 4.64497 4.77502 4.84579 4.8227 5.00933C4.83611 5.05535 4.85357 5.09172 4.88849 5.16446Z" stroke="#0E9384" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                </div>
-                <div data-emphasized="true" data-icon="false" data-size="caption" class="size- flex justify-start items-center gap-2">
-                    <div class="justify-start text-[#0E9384] text-sm font-semibold  leading-5">Maid cafe simulator</div>
-                </div>
-                <IndicatorDot size="10" color="#07F468" />
-                </div>
-            </div>
-            <div data-property-1="single user" class="size- inline-flex justify-start items-center gap-1">
-                <img class="size-5 rounded-full object-cover" src="https://i.ibb.co/jkjtwC9C/svgviewer-png-output-17.webp" alt="Ellipse 284" />
-                <div class="justify-center text-gray-900 text-xs font-normal  leading-4">The grape gatsby</div>
-            </div>
-            </div>
-        </div>
-        <div class="self-stretch h-[74px] inline-flex justify-start items-center gap-1.5">
-            <div class="w-1 self-stretch bg-white rounded-[10px]" />
-            <div data-property-1="DATE" class="w-14 self-stretch min-h-12 py-2 inline-flex flex-col justify-start items-center gap-2">
-            <div class="size- flex flex-col justify-center items-center flex-1">
-                <div class="justify-center text-[#344054] text-xs font-semibold  leading-4">2:15pm - 9:30pm</div>
-            </div>
-            </div>
-            <div class="flex-1 inline-flex flex-col justify-start items-start gap-2">
-            <div class="self-stretch inline-flex justify-start items-center gap-1">
-                <div class="flex-1 flex justify-start items-center gap-1">
-                <div data-svg-wrapper class="size-3.5 relative">
-                    <svg width="100%" height="100%" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M4.88849 5.16446C5.29449 6.01007 5.84795 6.80261 6.54887 7.50353C7.24979 8.20445 8.04234 8.75791 8.88795 9.16391C8.96068 9.19883 8.99705 9.21629 9.04307 9.22971C9.20661 9.27738 9.40743 9.24314 9.54593 9.14396C9.5849 9.11606 9.61824 9.08271 9.68493 9.01603C9.88886 8.8121 9.99083 8.71013 10.0934 8.64346C10.4801 8.39205 10.9786 8.39205 11.3652 8.64346C11.4678 8.71013 11.5698 8.8121 11.7737 9.01603L11.8874 9.12971C12.1974 9.43971 12.3524 9.59472 12.4366 9.76119C12.604 10.0923 12.604 10.4833 12.4366 10.8143C12.3524 10.9808 12.1974 11.1358 11.8874 11.4458L11.7954 11.5378C11.4865 11.8467 11.332 12.0012 11.122 12.1192C10.8889 12.2501 10.527 12.3442 10.2597 12.3434C10.0188 12.3427 9.85416 12.296 9.5249 12.2025C7.75542 11.7003 6.08571 10.7527 4.69272 9.35968C3.29973 7.9667 2.35212 6.29699 1.84989 4.5275C1.75643 4.19824 1.70971 4.03361 1.70899 3.79273C1.70819 3.52543 1.80232 3.16348 1.93323 2.93043C2.05121 2.72041 2.20568 2.56594 2.51463 2.25699L2.60659 2.16504C2.91659 1.85503 3.0716 1.70003 3.23807 1.61583C3.56915 1.44837 3.96014 1.44837 4.29121 1.61583C4.45768 1.70003 4.61269 1.85503 4.9227 2.16504L5.03637 2.27871C5.24031 2.48265 5.34228 2.58462 5.40894 2.68716C5.66036 3.07384 5.66036 3.57235 5.40894 3.95903C5.34228 4.06157 5.24031 4.16354 5.03637 4.36748C4.96969 4.43416 4.93635 4.4675 4.90844 4.50647C4.80927 4.64497 4.77502 4.84579 4.8227 5.00933C4.83611 5.05535 4.85357 5.09172 4.88849 5.16446Z" stroke="#B54708" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                </div>
-                <div data-emphasized="true" data-icon="false" data-size="caption" class="size- flex justify-start items-center gap-2">
-                    <div class="justify-start text-[#B54708] text-sm font-semibold  leading-5">Maid cafe simulator</div>
-                </div>
-                <IndicatorDot size="10" color="#07F468" />
-                </div>
-            </div>
-            <div data-property-1="single user" class="size- inline-flex justify-start items-center gap-1">
-                <img class="size-5 rounded-full object-cover" src="https://i.ibb.co/jkjtwC9C/svgviewer-png-output-17.webp" alt="Ellipse 284" />
-                <div class="justify-center text-gray-900 text-xs font-normal  leading-4">The grape gatsby</div>
-            </div>
-            </div>
-        </div>
-    </div>
-    </div>
-
-    <div class="size- inline-flex justify-center items-center gap-2">
-        <div data-svg-wrapper class="size-5 relative">
-        <img :src="CalendarPinkIcon" alt="Calendar Icon" class="h-5 w-5"/>
-        </div>
-    <div class="justify-start text-[#F06] text-sm font-semibold  leading-5">You have 5 new pending bookings:</div>
-    </div>
-    <div class="flex flex-col gap-4">
-        <div class="self-stretch h-20 inline-flex justify-start items-center gap-1.5">
-            <div class="w-1 self-stretch bg-white rounded-[10px]" />
-            <div data-property-1="DATE" class="w-14 self-stretch min-h-12 py-2 inline-flex flex-col justify-start items-center gap-2">
-            <div class="size- flex flex-col justify-center items-center">
-                <div class="justify-center text-gray-900 text-xs font-semibold  leading-4">APRIL</div>
-                <div class="size-5 justify-center text-gray-900 text-lg font-semibold  leading-7">25</div>
-            </div>
-            </div>
-            <div class="flex-1 inline-flex flex-col justify-start items-start gap-2">
-            <div class="self-stretch inline-flex justify-start items-center gap-1">
-                <div class="flex-1 flex justify-start items-center gap-1">
-                <div data-svg-wrapper class="size-3.5 relative">
-                    <svg width="100%" height="100%" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M4.88849 5.16446C5.29449 6.01007 5.84795 6.80261 6.54887 7.50353C7.24979 8.20445 8.04234 8.75791 8.88795 9.16391C8.96068 9.19883 8.99705 9.21629 9.04307 9.22971C9.20661 9.27738 9.40743 9.24314 9.54593 9.14396C9.5849 9.11606 9.61824 9.08271 9.68493 9.01603C9.88886 8.8121 9.99083 8.71013 10.0934 8.64346C10.4801 8.39205 10.9786 8.39205 11.3652 8.64346C11.4678 8.71013 11.5698 8.8121 11.7737 9.01603L11.8874 9.12971C12.1974 9.43971 12.3524 9.59472 12.4366 9.76119C12.604 10.0923 12.604 10.4833 12.4366 10.8143C12.3524 10.9808 12.1974 11.1358 11.8874 11.4458L11.7954 11.5378C11.4865 11.8467 11.332 12.0012 11.122 12.1192C10.8889 12.2501 10.527 12.3442 10.2597 12.3434C10.0188 12.3427 9.85416 12.296 9.5249 12.2025C7.75542 11.7003 6.08571 10.7527 4.69272 9.35968C3.29973 7.9667 2.35212 6.29699 1.84989 4.5275C1.75643 4.19824 1.70971 4.03361 1.70899 3.79273C1.70819 3.52543 1.80232 3.16348 1.93323 2.93043C2.05121 2.72041 2.20568 2.56594 2.51463 2.25699L2.60659 2.16504C2.91659 1.85503 3.0716 1.70003 3.23807 1.61583C3.56915 1.44837 3.96014 1.44837 4.29121 1.61583C4.45768 1.70003 4.61269 1.85503 4.9227 2.16504L5.03637 2.27871C5.24031 2.48265 5.34228 2.58462 5.40894 2.68716C5.66036 3.07384 5.66036 3.57235 5.40894 3.95903C5.34228 4.06157 5.24031 4.16354 5.03637 4.36748C4.96969 4.43416 4.93635 4.4675 4.90844 4.50647C4.80927 4.64497 4.77502 4.84579 4.8227 5.00933C4.83611 5.05535 4.85357 5.09172 4.88849 5.16446Z" stroke="#0E9384" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                </div>
-                <div data-emphasized="true" data-icon="false" data-size="caption" class="size- flex justify-start items-center gap-2">
-                    <div class="justify-start text-[#0E9384] text-sm font-semibold  leading-5">Maid cafe simulator</div>
-                </div>
-                <div data-svg-wrapper data-property-1="pending" data-size="Default" class="size-4 relative">
-                    <svg width="100%" height="100%" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <g clip-path="url(#clip0_3292_19308)">
-                    <path d="M6.06004 5.99967C6.21678 5.55412 6.52614 5.17841 6.93334 4.9391C7.34055 4.69978 7.8193 4.6123 8.28482 4.69215C8.75035 4.772 9.17258 5.01402 9.47676 5.37536C9.78093 5.7367 9.94741 6.19402 9.94671 6.66634C9.94671 7.99967 7.94671 8.66634 7.94671 8.66634M8.00004 11.333H8.00671M14.6667 7.99967C14.6667 11.6816 11.6819 14.6663 8.00004 14.6663C4.31814 14.6663 1.33337 11.6816 1.33337 7.99967C1.33337 4.31778 4.31814 1.33301 8.00004 1.33301C11.6819 1.33301 14.6667 4.31778 14.6667 7.99967Z" stroke="#667085" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                    </g>
-                    <defs>
-                    <clipPath id="clip0_3292_19308">
-                    <rect width="16" height="16" fill="white"/>
-                    </clipPath>
-                    </defs>
-                    </svg>
-                </div>
-                </div>
-            </div>
-            <div class="self-stretch inline-flex justify-end items-end gap-1.5">
-                <div class="flex-1 self-stretch inline-flex flex-col justify-start items-start gap-2">
-                <div class="justify-center text-slate-700 text-xs font-semibold  leading-4">2:15pm - 9:30pm</div>
-                </div>
-            </div>
-            <div data-property-1="single user" class="size- inline-flex justify-start items-center gap-1">
-                <img class="size-5 rounded-full object-cover" src="https://i.ibb.co/jkjtwC9C/svgviewer-png-output-17.webp" alt="Ellipse 284" />
-                <div class="justify-center text-gray-900 text-xs font-normal  leading-4">The grape gatsby</div>
-            </div>
-            </div>
-        </div>
-        <div class="self-stretch h-20 inline-flex justify-start items-center gap-1.5">
-            <div class="w-1 self-stretch bg-white rounded-[10px]" />
-            <div data-property-1="DATE" class="w-14 self-stretch min-h-12 py-2 inline-flex flex-col justify-start items-center gap-2">
-            <div class="size- flex flex-col justify-center items-center">
-                <div class="justify-center text-gray-900 text-xs font-semibold  leading-4">APRIL</div>
-                <div class="size-5 justify-center text-gray-900 text-lg font-semibold  leading-7">25</div>
-            </div>
-            </div>
-            <div class="flex-1 inline-flex flex-col justify-start items-start gap-2">
-            <div class="self-stretch inline-flex justify-start items-center gap-1">
-                <div class="flex-1 flex justify-start items-center gap-1">
-                <div data-svg-wrapper class="size-3.5 relative">
-                    <svg width="100%" height="100%" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M4.88849 5.16446C5.29449 6.01007 5.84795 6.80261 6.54887 7.50353C7.24979 8.20445 8.04234 8.75791 8.88795 9.16391C8.96068 9.19883 8.99705 9.21629 9.04307 9.22971C9.20661 9.27738 9.40743 9.24314 9.54593 9.14396C9.5849 9.11606 9.61824 9.08271 9.68493 9.01603C9.88886 8.8121 9.99083 8.71013 10.0934 8.64346C10.4801 8.39205 10.9786 8.39205 11.3652 8.64346C11.4678 8.71013 11.5698 8.8121 11.7737 9.01603L11.8874 9.12971C12.1974 9.43971 12.3524 9.59472 12.4366 9.76119C12.604 10.0923 12.604 10.4833 12.4366 10.8143C12.3524 10.9808 12.1974 11.1358 11.8874 11.4458L11.7954 11.5378C11.4865 11.8467 11.332 12.0012 11.122 12.1192C10.8889 12.2501 10.527 12.3442 10.2597 12.3434C10.0188 12.3427 9.85416 12.296 9.5249 12.2025C7.75542 11.7003 6.08571 10.7527 4.69272 9.35968C3.29973 7.9667 2.35212 6.29699 1.84989 4.5275C1.75643 4.19824 1.70971 4.03361 1.70899 3.79273C1.70819 3.52543 1.80232 3.16348 1.93323 2.93043C2.05121 2.72041 2.20568 2.56594 2.51463 2.25699L2.60659 2.16504C2.91659 1.85503 3.0716 1.70003 3.23807 1.61583C3.56915 1.44837 3.96014 1.44837 4.29121 1.61583C4.45768 1.70003 4.61269 1.85503 4.9227 2.16504L5.03637 2.27871C5.24031 2.48265 5.34228 2.58462 5.40894 2.68716C5.66036 3.07384 5.66036 3.57235 5.40894 3.95903C5.34228 4.06157 5.24031 4.16354 5.03637 4.36748C4.96969 4.43416 4.93635 4.4675 4.90844 4.50647C4.80927 4.64497 4.77502 4.84579 4.8227 5.00933C4.83611 5.05535 4.85357 5.09172 4.88849 5.16446Z" stroke="#B54708" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                </div>
-                <div data-emphasized="true" data-icon="false" data-size="caption" class="size- flex justify-start items-center gap-2">
-                    <div class="justify-start text-[#B54708] text-sm font-semibold  leading-5">Maid cafe simulator</div>
-                </div>
-                <div data-svg-wrapper data-property-1="pending" data-size="Default" class="size-4 relative">
-                    <svg width="100%" height="100%" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <g clip-path="url(#clip0_3292_19308)">
-                    <path d="M6.06004 5.99967C6.21678 5.55412 6.52614 5.17841 6.93334 4.9391C7.34055 4.69978 7.8193 4.6123 8.28482 4.69215C8.75035 4.772 9.17258 5.01402 9.47676 5.37536C9.78093 5.7367 9.94741 6.19402 9.94671 6.66634C9.94671 7.99967 7.94671 8.66634 7.94671 8.66634M8.00004 11.333H8.00671M14.6667 7.99967C14.6667 11.6816 11.6819 14.6663 8.00004 14.6663C4.31814 14.6663 1.33337 11.6816 1.33337 7.99967C1.33337 4.31778 4.31814 1.33301 8.00004 1.33301C11.6819 1.33301 14.6667 4.31778 14.6667 7.99967Z" stroke="#667085" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                    </g>
-                    <defs>
-                    <clipPath id="clip0_3292_19308">
-                    <rect width="16" height="16" fill="white"/>
-                    </clipPath>
-                    </defs>
-                    </svg>
-                </div>
-                </div>
-            </div>
-            <div class="self-stretch inline-flex justify-end items-end gap-1.5">
-                <div class="flex-1 self-stretch inline-flex flex-col justify-start items-start gap-2">
-                <div class="justify-center text-slate-700 text-xs font-semibold  leading-4">2:15pm - 9:30pm</div>
-                </div>
-            </div>
-            <div data-property-1="single user" class="size- inline-flex justify-start items-center gap-1">
-                <img class="size-5 rounded-full object-cover" src="https://i.ibb.co/jkjtwC9C/svgviewer-png-output-17.webp" alt="Ellipse 284" />
-                <div class="justify-center text-gray-900 text-xs font-normal  leading-4">The grape gatsby</div>
-            </div>
-            </div>
-        </div>
-        <div class="self-stretch h-20 inline-flex justify-start items-center gap-1.5">
-            <div class="w-1 self-stretch bg-white rounded-[10px]" />
-            <div data-property-1="DATE" class="w-14 self-stretch min-h-12 py-2 inline-flex flex-col justify-start items-center gap-2">
-            <div class="size- flex flex-col justify-center items-center">
-                <div class="justify-center text-gray-900 text-xs font-semibold  leading-4">APRIL</div>
-                <div class="size-5 justify-center text-gray-900 text-lg font-semibold  leading-7">25</div>
-            </div>
-            </div>
-            <div class="flex-1 inline-flex flex-col justify-start items-start gap-2">
-            <div class="self-stretch inline-flex justify-start items-center gap-1">
-                <div class="flex-1 flex justify-start items-center gap-1">
-                <div data-svg-wrapper class="size-3.5 relative">
-                    <svg width="100%" height="100%" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M4.88849 5.16446C5.29449 6.01007 5.84795 6.80261 6.54887 7.50353C7.24979 8.20445 8.04234 8.75791 8.88795 9.16391C8.96068 9.19883 8.99705 9.21629 9.04307 9.22971C9.20661 9.27738 9.40743 9.24314 9.54593 9.14396C9.5849 9.11606 9.61824 9.08271 9.68493 9.01603C9.88886 8.8121 9.99083 8.71013 10.0934 8.64346C10.4801 8.39205 10.9786 8.39205 11.3652 8.64346C11.4678 8.71013 11.5698 8.8121 11.7737 9.01603L11.8874 9.12971C12.1974 9.43971 12.3524 9.59472 12.4366 9.76119C12.604 10.0923 12.604 10.4833 12.4366 10.8143C12.3524 10.9808 12.1974 11.1358 11.8874 11.4458L11.7954 11.5378C11.4865 11.8467 11.332 12.0012 11.122 12.1192C10.8889 12.2501 10.527 12.3442 10.2597 12.3434C10.0188 12.3427 9.85416 12.296 9.5249 12.2025C7.75542 11.7003 6.08571 10.7527 4.69272 9.35968C3.29973 7.9667 2.35212 6.29699 1.84989 4.5275C1.75643 4.19824 1.70971 4.03361 1.70899 3.79273C1.70819 3.52543 1.80232 3.16348 1.93323 2.93043C2.05121 2.72041 2.20568 2.56594 2.51463 2.25699L2.60659 2.16504C2.91659 1.85503 3.0716 1.70003 3.23807 1.61583C3.56915 1.44837 3.96014 1.44837 4.29121 1.61583C4.45768 1.70003 4.61269 1.85503 4.9227 2.16504L5.03637 2.27871C5.24031 2.48265 5.34228 2.58462 5.40894 2.68716C5.66036 3.07384 5.66036 3.57235 5.40894 3.95903C5.34228 4.06157 5.24031 4.16354 5.03637 4.36748C4.96969 4.43416 4.93635 4.4675 4.90844 4.50647C4.80927 4.64497 4.77502 4.84579 4.8227 5.00933C4.83611 5.05535 4.85357 5.09172 4.88849 5.16446Z" stroke="#0E9384" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                </div>
-                <div data-emphasized="true" data-icon="false" data-size="caption" class="size- flex justify-start items-center gap-2">
-                    <div class="justify-start text-[#0E9384] text-sm font-semibold  leading-5">Maid cafe simulator</div>
-                </div>
-                <div data-svg-wrapper data-property-1="pending" data-size="Default" class="size-4 relative">
-                    <svg width="100%" height="100%" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <g clip-path="url(#clip0_3292_19308)">
-                    <path d="M6.06004 5.99967C6.21678 5.55412 6.52614 5.17841 6.93334 4.9391C7.34055 4.69978 7.8193 4.6123 8.28482 4.69215C8.75035 4.772 9.17258 5.01402 9.47676 5.37536C9.78093 5.7367 9.94741 6.19402 9.94671 6.66634C9.94671 7.99967 7.94671 8.66634 7.94671 8.66634M8.00004 11.333H8.00671M14.6667 7.99967C14.6667 11.6816 11.6819 14.6663 8.00004 14.6663C4.31814 14.6663 1.33337 11.6816 1.33337 7.99967C1.33337 4.31778 4.31814 1.33301 8.00004 1.33301C11.6819 1.33301 14.6667 4.31778 14.6667 7.99967Z" stroke="#667085" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                    </g>
-                    <defs>
-                    <clipPath id="clip0_3292_19308">
-                    <rect width="16" height="16" fill="white"/>
-                    </clipPath>
-                    </defs>
-                    </svg>
-                </div>
-                </div>
-            </div>
-            <div class="self-stretch inline-flex justify-end items-end gap-1.5">
-                <div class="flex-1 self-stretch inline-flex flex-col justify-start items-start gap-2">
-                <div class="justify-center text-slate-700 text-xs font-semibold  leading-4">2:15pm - 9:30pm</div>
-                </div>
-            </div>
-            <div data-property-1="single user" class="size- inline-flex justify-start items-center gap-1">
-                <img class="size-5 rounded-full object-cover" src="https://i.ibb.co/jkjtwC9C/svgviewer-png-output-17.webp" alt="Ellipse 284" />
-                <div class="justify-center text-gray-900 text-xs font-normal  leading-4">The grape gatsby</div>
-            </div>
-            </div>
-        </div>
-    </div>
-    <!-- Review button -->
-        <div class="flex flex-col gap-3 self-stretch">
-        <!-- more section -->
-            <span class="text-[#667085] text-sm font-medium ">and 2 more...</span>
-            <div class="self-stretch flex flex-col justify-center items-start gap-2">
-            <div class="self-stretch h-9 px-2 py-1 bg-white rounded-[0.25rem] outline outline-1 outline-offset-[-0.50px] outline-[#FF4405] inline-flex justify-center items-center gap-1 cursor-pointer">
-                <div data-svg-wrapper class="size-5 relative">
-                <img :src="FileBlackIcon" alt="File Icon" class="h-5 w-5"/>
-                <div class="absolute top-[-2px] right-[0px]">
-                    <IndicatorDot size="7" color="#FF4405" />
-                </div>
-                </div>
-                <div class="justify-start text-[#FF4405] text-base font-medium  leading-6">REVIEW</div>
-            </div>
-            </div>
-
-             <div class="self-stretch flex flex-col justify-center items-start gap-2">
-            <div class="self-stretch h-9 px-2 py-1 bg-[#F06] rounded-[0.25rem] inline-flex justify-center items-center gap-1 cursor-pointer">
-                <div class="justify-start text-white text-base font-medium  leading-6">REVIEW IN EVENT PAGE</div>
-                <img :src="WhiteArrowUpRightIcon" alt="Arrow Icon" class="h-5 w-5"/>
-            </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-
-<!-- When have more notifications -->
-<div class=" relative w-full sm:w-[368px] mt-10 self-stretch min-h-20 p-3 bg-[#5FE9D0]/5 sm:rounded-[10px] blink-border-effect-pink inline-flex justify-end items-start gap-1.5">
-    <div class="absolute top-2 right-2 sm:top-[-8px] sm:right-[-8px] flex items-center justify-center w-6 h-6 rounded-full sm:bg-[#EAECF0] sm:shadow-[0_0_4px_0_rgba(0,0,0,0.25)] cursor-pointer">
-        <img :src="XCloseIcon" alt="Close Icon" class="h-4 w-4 invert"/>
-    </div>
-    <div class="flex-1 inline-flex flex-col justify-start items-start gap-3">
-
-
-    <div class="size- inline-flex justify-center items-center gap-2">
-        <div data-svg-wrapper class="size-5 relative">
-        <img :src="CalendarPinkIcon" alt="Calendar Icon" class="h-5 w-5"/>
-        </div>
-    <div class="justify-start text-[#F06] text-sm font-semibold  leading-5">You have 5 new pending bookings:</div>
-    </div>
-    <div class="flex flex-col gap-4">
-        <div class="self-stretch h-20 inline-flex justify-start items-center gap-1.5">
-            <div class="w-1 self-stretch bg-white rounded-[10px]" />
-            <div data-property-1="DATE" class="w-14 self-stretch min-h-12 py-2 inline-flex flex-col justify-start items-center gap-2">
-            <div class="size- flex flex-col justify-center items-center">
-                <div class="justify-center text-gray-900 text-xs font-semibold  leading-4">APRIL</div>
-                <div class="size-5 justify-center text-gray-900 text-lg font-semibold  leading-7">25</div>
-            </div>
-            </div>
-            <div class="flex-1 inline-flex flex-col justify-start items-start gap-2">
-            <div class="self-stretch inline-flex justify-start items-center gap-1">
-                <div class="flex-1 flex justify-start items-center gap-1">
-                <div data-svg-wrapper class="size-3.5 relative">
-                    <svg width="100%" height="100%" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M4.88849 5.16446C5.29449 6.01007 5.84795 6.80261 6.54887 7.50353C7.24979 8.20445 8.04234 8.75791 8.88795 9.16391C8.96068 9.19883 8.99705 9.21629 9.04307 9.22971C9.20661 9.27738 9.40743 9.24314 9.54593 9.14396C9.5849 9.11606 9.61824 9.08271 9.68493 9.01603C9.88886 8.8121 9.99083 8.71013 10.0934 8.64346C10.4801 8.39205 10.9786 8.39205 11.3652 8.64346C11.4678 8.71013 11.5698 8.8121 11.7737 9.01603L11.8874 9.12971C12.1974 9.43971 12.3524 9.59472 12.4366 9.76119C12.604 10.0923 12.604 10.4833 12.4366 10.8143C12.3524 10.9808 12.1974 11.1358 11.8874 11.4458L11.7954 11.5378C11.4865 11.8467 11.332 12.0012 11.122 12.1192C10.8889 12.2501 10.527 12.3442 10.2597 12.3434C10.0188 12.3427 9.85416 12.296 9.5249 12.2025C7.75542 11.7003 6.08571 10.7527 4.69272 9.35968C3.29973 7.9667 2.35212 6.29699 1.84989 4.5275C1.75643 4.19824 1.70971 4.03361 1.70899 3.79273C1.70819 3.52543 1.80232 3.16348 1.93323 2.93043C2.05121 2.72041 2.20568 2.56594 2.51463 2.25699L2.60659 2.16504C2.91659 1.85503 3.0716 1.70003 3.23807 1.61583C3.56915 1.44837 3.96014 1.44837 4.29121 1.61583C4.45768 1.70003 4.61269 1.85503 4.9227 2.16504L5.03637 2.27871C5.24031 2.48265 5.34228 2.58462 5.40894 2.68716C5.66036 3.07384 5.66036 3.57235 5.40894 3.95903C5.34228 4.06157 5.24031 4.16354 5.03637 4.36748C4.96969 4.43416 4.93635 4.4675 4.90844 4.50647C4.80927 4.64497 4.77502 4.84579 4.8227 5.00933C4.83611 5.05535 4.85357 5.09172 4.88849 5.16446Z" stroke="#0E9384" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                </div>
-                <div data-emphasized="true" data-icon="false" data-size="caption" class="size- flex justify-start items-center gap-2">
-                    <div class="justify-start text-[#0E9384] text-sm font-semibold  leading-5">Maid cafe simulator</div>
-                </div>
-                <div data-svg-wrapper data-property-1="pending" data-size="Default" class="size-4 relative">
-                    <svg width="100%" height="100%" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <g clip-path="url(#clip0_3292_19308)">
-                    <path d="M6.06004 5.99967C6.21678 5.55412 6.52614 5.17841 6.93334 4.9391C7.34055 4.69978 7.8193 4.6123 8.28482 4.69215C8.75035 4.772 9.17258 5.01402 9.47676 5.37536C9.78093 5.7367 9.94741 6.19402 9.94671 6.66634C9.94671 7.99967 7.94671 8.66634 7.94671 8.66634M8.00004 11.333H8.00671M14.6667 7.99967C14.6667 11.6816 11.6819 14.6663 8.00004 14.6663C4.31814 14.6663 1.33337 11.6816 1.33337 7.99967C1.33337 4.31778 4.31814 1.33301 8.00004 1.33301C11.6819 1.33301 14.6667 4.31778 14.6667 7.99967Z" stroke="#667085" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                    </g>
-                    <defs>
-                    <clipPath id="clip0_3292_19308">
-                    <rect width="16" height="16" fill="white"/>
-                    </clipPath>
-                    </defs>
-                    </svg>
-                </div>
-                </div>
-            </div>
-            <div class="self-stretch inline-flex justify-end items-end gap-1.5">
-                <div class="flex-1 self-stretch inline-flex flex-col justify-start items-start gap-2">
-                <div class="justify-center text-slate-700 text-xs font-semibold  leading-4">2:15pm - 9:30pm</div>
-                </div>
-            </div>
-            <div data-property-1="single user" class="size- inline-flex justify-start items-center gap-1">
-                <img class="size-5 rounded-full object-cover" src="https://i.ibb.co/jkjtwC9C/svgviewer-png-output-17.webp" alt="Ellipse 284" />
-                <div class="justify-center text-gray-900 text-xs font-normal  leading-4">The grape gatsby</div>
-            </div>
-            </div>
-        </div>
-        <div class="self-stretch h-20 inline-flex justify-start items-center gap-1.5">
-            <div class="w-1 self-stretch bg-white rounded-[10px]" />
-            <div data-property-1="DATE" class="w-14 self-stretch min-h-12 py-2 inline-flex flex-col justify-start items-center gap-2">
-            <div class="size- flex flex-col justify-center items-center">
-                <div class="justify-center text-gray-900 text-xs font-semibold  leading-4">APRIL</div>
-                <div class="size-5 justify-center text-gray-900 text-lg font-semibold  leading-7">25</div>
-            </div>
-            </div>
-            <div class="flex-1 inline-flex flex-col justify-start items-start gap-2">
-            <div class="self-stretch inline-flex justify-start items-center gap-1">
-                <div class="flex-1 flex justify-start items-center gap-1">
-                <div data-svg-wrapper class="size-3.5 relative">
-                    <svg width="100%" height="100%" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M4.88849 5.16446C5.29449 6.01007 5.84795 6.80261 6.54887 7.50353C7.24979 8.20445 8.04234 8.75791 8.88795 9.16391C8.96068 9.19883 8.99705 9.21629 9.04307 9.22971C9.20661 9.27738 9.40743 9.24314 9.54593 9.14396C9.5849 9.11606 9.61824 9.08271 9.68493 9.01603C9.88886 8.8121 9.99083 8.71013 10.0934 8.64346C10.4801 8.39205 10.9786 8.39205 11.3652 8.64346C11.4678 8.71013 11.5698 8.8121 11.7737 9.01603L11.8874 9.12971C12.1974 9.43971 12.3524 9.59472 12.4366 9.76119C12.604 10.0923 12.604 10.4833 12.4366 10.8143C12.3524 10.9808 12.1974 11.1358 11.8874 11.4458L11.7954 11.5378C11.4865 11.8467 11.332 12.0012 11.122 12.1192C10.8889 12.2501 10.527 12.3442 10.2597 12.3434C10.0188 12.3427 9.85416 12.296 9.5249 12.2025C7.75542 11.7003 6.08571 10.7527 4.69272 9.35968C3.29973 7.9667 2.35212 6.29699 1.84989 4.5275C1.75643 4.19824 1.70971 4.03361 1.70899 3.79273C1.70819 3.52543 1.80232 3.16348 1.93323 2.93043C2.05121 2.72041 2.20568 2.56594 2.51463 2.25699L2.60659 2.16504C2.91659 1.85503 3.0716 1.70003 3.23807 1.61583C3.56915 1.44837 3.96014 1.44837 4.29121 1.61583C4.45768 1.70003 4.61269 1.85503 4.9227 2.16504L5.03637 2.27871C5.24031 2.48265 5.34228 2.58462 5.40894 2.68716C5.66036 3.07384 5.66036 3.57235 5.40894 3.95903C5.34228 4.06157 5.24031 4.16354 5.03637 4.36748C4.96969 4.43416 4.93635 4.4675 4.90844 4.50647C4.80927 4.64497 4.77502 4.84579 4.8227 5.00933C4.83611 5.05535 4.85357 5.09172 4.88849 5.16446Z" stroke="#B54708" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                </div>
-                <div data-emphasized="true" data-icon="false" data-size="caption" class="size- flex justify-start items-center gap-2">
-                    <div class="justify-start text-[#B54708] text-sm font-semibold  leading-5">Maid cafe simulator</div>
-                </div>
-                <div data-svg-wrapper data-property-1="pending" data-size="Default" class="size-4 relative">
-                    <svg width="100%" height="100%" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <g clip-path="url(#clip0_3292_19308)">
-                    <path d="M6.06004 5.99967C6.21678 5.55412 6.52614 5.17841 6.93334 4.9391C7.34055 4.69978 7.8193 4.6123 8.28482 4.69215C8.75035 4.772 9.17258 5.01402 9.47676 5.37536C9.78093 5.7367 9.94741 6.19402 9.94671 6.66634C9.94671 7.99967 7.94671 8.66634 7.94671 8.66634M8.00004 11.333H8.00671M14.6667 7.99967C14.6667 11.6816 11.6819 14.6663 8.00004 14.6663C4.31814 14.6663 1.33337 11.6816 1.33337 7.99967C1.33337 4.31778 4.31814 1.33301 8.00004 1.33301C11.6819 1.33301 14.6667 4.31778 14.6667 7.99967Z" stroke="#667085" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                    </g>
-                    <defs>
-                    <clipPath id="clip0_3292_19308">
-                    <rect width="16" height="16" fill="white"/>
-                    </clipPath>
-                    </defs>
-                    </svg>
-                </div>
-                </div>
-            </div>
-            <div class="self-stretch inline-flex justify-end items-end gap-1.5">
-                <div class="flex-1 self-stretch inline-flex flex-col justify-start items-start gap-2">
-                <div class="justify-center text-slate-700 text-xs font-semibold  leading-4">2:15pm - 9:30pm</div>
-                </div>
-            </div>
-            <div data-property-1="single user" class="size- inline-flex justify-start items-center gap-1">
-                <img class="size-5 rounded-full object-cover" src="https://i.ibb.co/jkjtwC9C/svgviewer-png-output-17.webp" alt="Ellipse 284" />
-                <div class="justify-center text-gray-900 text-xs font-normal  leading-4">The grape gatsby</div>
-            </div>
-            </div>
-        </div>
-        <div class="self-stretch h-20 inline-flex justify-start items-center gap-1.5">
-            <div class="w-1 self-stretch bg-white rounded-[10px]" />
-            <div data-property-1="DATE" class="w-14 self-stretch min-h-12 py-2 inline-flex flex-col justify-start items-center gap-2">
-            <div class="size- flex flex-col justify-center items-center">
-                <div class="justify-center text-gray-900 text-xs font-semibold  leading-4">APRIL</div>
-                <div class="size-5 justify-center text-gray-900 text-lg font-semibold  leading-7">25</div>
-            </div>
-            </div>
-            <div class="flex-1 inline-flex flex-col justify-start items-start gap-2">
-            <div class="self-stretch inline-flex justify-start items-center gap-1">
-                <div class="flex-1 flex justify-start items-center gap-1">
-                <div data-svg-wrapper class="size-3.5 relative">
-                    <svg width="100%" height="100%" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M4.88849 5.16446C5.29449 6.01007 5.84795 6.80261 6.54887 7.50353C7.24979 8.20445 8.04234 8.75791 8.88795 9.16391C8.96068 9.19883 8.99705 9.21629 9.04307 9.22971C9.20661 9.27738 9.40743 9.24314 9.54593 9.14396C9.5849 9.11606 9.61824 9.08271 9.68493 9.01603C9.88886 8.8121 9.99083 8.71013 10.0934 8.64346C10.4801 8.39205 10.9786 8.39205 11.3652 8.64346C11.4678 8.71013 11.5698 8.8121 11.7737 9.01603L11.8874 9.12971C12.1974 9.43971 12.3524 9.59472 12.4366 9.76119C12.604 10.0923 12.604 10.4833 12.4366 10.8143C12.3524 10.9808 12.1974 11.1358 11.8874 11.4458L11.7954 11.5378C11.4865 11.8467 11.332 12.0012 11.122 12.1192C10.8889 12.2501 10.527 12.3442 10.2597 12.3434C10.0188 12.3427 9.85416 12.296 9.5249 12.2025C7.75542 11.7003 6.08571 10.7527 4.69272 9.35968C3.29973 7.9667 2.35212 6.29699 1.84989 4.5275C1.75643 4.19824 1.70971 4.03361 1.70899 3.79273C1.70819 3.52543 1.80232 3.16348 1.93323 2.93043C2.05121 2.72041 2.20568 2.56594 2.51463 2.25699L2.60659 2.16504C2.91659 1.85503 3.0716 1.70003 3.23807 1.61583C3.56915 1.44837 3.96014 1.44837 4.29121 1.61583C4.45768 1.70003 4.61269 1.85503 4.9227 2.16504L5.03637 2.27871C5.24031 2.48265 5.34228 2.58462 5.40894 2.68716C5.66036 3.07384 5.66036 3.57235 5.40894 3.95903C5.34228 4.06157 5.24031 4.16354 5.03637 4.36748C4.96969 4.43416 4.93635 4.4675 4.90844 4.50647C4.80927 4.64497 4.77502 4.84579 4.8227 5.00933C4.83611 5.05535 4.85357 5.09172 4.88849 5.16446Z" stroke="#0E9384" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                </div>
-                <div data-emphasized="true" data-icon="false" data-size="caption" class="size- flex justify-start items-center gap-2">
-                    <div class="justify-start text-[#0E9384] text-sm font-semibold  leading-5">Maid cafe simulator</div>
-                </div>
-                <div data-svg-wrapper data-property-1="pending" data-size="Default" class="size-4 relative">
-                    <svg width="100%" height="100%" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <g clip-path="url(#clip0_3292_19308)">
-                    <path d="M6.06004 5.99967C6.21678 5.55412 6.52614 5.17841 6.93334 4.9391C7.34055 4.69978 7.8193 4.6123 8.28482 4.69215C8.75035 4.772 9.17258 5.01402 9.47676 5.37536C9.78093 5.7367 9.94741 6.19402 9.94671 6.66634C9.94671 7.99967 7.94671 8.66634 7.94671 8.66634M8.00004 11.333H8.00671M14.6667 7.99967C14.6667 11.6816 11.6819 14.6663 8.00004 14.6663C4.31814 14.6663 1.33337 11.6816 1.33337 7.99967C1.33337 4.31778 4.31814 1.33301 8.00004 1.33301C11.6819 1.33301 14.6667 4.31778 14.6667 7.99967Z" stroke="#667085" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                    </g>
-                    <defs>
-                    <clipPath id="clip0_3292_19308">
-                    <rect width="16" height="16" fill="white"/>
-                    </clipPath>
-                    </defs>
-                    </svg>
-                </div>
-                </div>
-            </div>
-            <div class="self-stretch inline-flex justify-end items-end gap-1.5">
-                <div class="flex-1 self-stretch inline-flex flex-col justify-start items-start gap-2">
-                <div class="justify-center text-slate-700 text-xs font-semibold  leading-4">2:15pm - 9:30pm</div>
-                </div>
-            </div>
-            <div data-property-1="single user" class="size- inline-flex justify-start items-center gap-1">
-                <img class="size-5 rounded-full object-cover" src="https://i.ibb.co/jkjtwC9C/svgviewer-png-output-17.webp" alt="Ellipse 284" />
-                <div class="justify-center text-gray-900 text-xs font-normal  leading-4">The grape gatsby</div>
-            </div>
-            </div>
-        </div>
-    </div>
-    <!-- Review button -->
-        <div class="flex flex-col gap-3 self-stretch">
-        <!-- more section -->
-            <span class="text-[#667085] text-sm font-medium ">and 2 more...</span>
-            <div class="self-stretch flex flex-col justify-center items-start gap-2">
-            <div class="self-stretch h-9 px-2 py-1 bg-white rounded-[0.25rem] outline outline-1 outline-offset-[-0.50px] outline-[#FF4405] inline-flex justify-center items-center gap-1 cursor-pointer">
-                <div data-svg-wrapper class="size-5 relative">
-                <img :src="FileBlackIcon" alt="File Icon" class="h-5 w-5"/>
-                <div class="absolute top-[-2px] right-[0px]">
-                    <IndicatorDot size="7" color="#FF4405" />
-                </div>
-                </div>
-                <div class="justify-start text-[#FF4405] text-base font-medium  leading-6">REVIEW</div>
-            </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-
-
-<!-- Event with adjustments -->
-  <div class="relative w-full sm:w-[368px] mt-10 self-stretch min-h-20 p-3 bg-[#5FE9D0]/5 sm:rounded-[10px] blink-border-effect-pink inline-flex justify-end items-start gap-1.5">
-    <div class="absolute top-2 right-2 sm:top-[-8px] sm:right-[-8px] flex items-center justify-center w-6 h-6 rounded-full sm:bg-[#EAECF0] sm:shadow-[0_0_4px_0_rgba(0,0,0,0.25)] cursor-pointer">
-        <img :src="XCloseIcon" alt="Close Icon" class="h-4 w-4 invert"/>
-    </div>
-  <div class="w-1 self-stretch bg-[#FDB022] rounded-[10px]" />
-  <div class="flex-1 inline-flex flex-col justify-start items-start gap-4">
-    <div class="size- inline-flex justify-center items-start gap-2">
-      <div data-svg-wrapper class="size-5 relative">
-        <img :src="notificationState.icon" :alt="notificationState.text" class="min-h-5 min-w-5"/>
-      </div>
-      <div :class="notificationState.textColor" class="justify-start text-sm font-semibold leading-5 pr-4">{{ notificationState.text }}</div>
-    </div>
-    <div class="self-stretch h-20 inline-flex justify-start items-center gap-1.5">
-      <div data-property-1="DATE" class="w-14 self-stretch min-h-12 py-2 inline-flex flex-col justify-start items-center gap-2">
-        <div class="size- flex flex-col justify-center items-center">
-          <div class="justify-center text-gray-900 text-xs font-semibold  leading-4">APRIL</div>
-          <div class="size-5 justify-center text-gray-900 text-lg font-semibold  leading-7">25</div>
-        </div>
-      </div>
-      <div class="flex-1 inline-flex flex-col justify-start items-start gap-2">
-        <div class="self-stretch inline-flex justify-start items-center gap-1">
-          <div class="flex-1 flex justify-start items-center gap-1">
-            <div data-svg-wrapper class="size-3.5 relative">
-              <svg width="100%" height="100%" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M4.88849 5.16446C5.29449 6.01007 5.84795 6.80261 6.54887 7.50353C7.24979 8.20445 8.04234 8.75791 8.88795 9.16391C8.96068 9.19883 8.99705 9.21629 9.04307 9.22971C9.20661 9.27738 9.40743 9.24314 9.54593 9.14396C9.5849 9.11606 9.61824 9.08271 9.68493 9.01603C9.88886 8.8121 9.99083 8.71013 10.0934 8.64346C10.4801 8.39205 10.9786 8.39205 11.3652 8.64346C11.4678 8.71013 11.5698 8.8121 11.7737 9.01603L11.8874 9.12971C12.1974 9.43971 12.3524 9.59472 12.4366 9.76119C12.604 10.0923 12.604 10.4833 12.4366 10.8143C12.3524 10.9808 12.1974 11.1358 11.8874 11.4458L11.7954 11.5378C11.4865 11.8467 11.332 12.0012 11.122 12.1192C10.8889 12.2501 10.527 12.3442 10.2597 12.3434C10.0188 12.3427 9.85416 12.296 9.5249 12.2025C7.75542 11.7003 6.08571 10.7527 4.69272 9.35968C3.29973 7.9667 2.35212 6.29699 1.84989 4.5275C1.75643 4.19824 1.70971 4.03361 1.70899 3.79273C1.70819 3.52543 1.80232 3.16348 1.93323 2.93043C2.05121 2.72041 2.20568 2.56594 2.51463 2.25699L2.60659 2.16504C2.91659 1.85503 3.0716 1.70003 3.23807 1.61583C3.56915 1.44837 3.96014 1.44837 4.29121 1.61583C4.45768 1.70003 4.61269 1.85503 4.9227 2.16504L5.03637 2.27871C5.24031 2.48265 5.34228 2.58462 5.40894 2.68716C5.66036 3.07384 5.66036 3.57235 5.40894 3.95903C5.34228 4.06157 5.24031 4.16354 5.03637 4.36748C4.96969 4.43416 4.93635 4.4675 4.90844 4.50647C4.80927 4.64497 4.77502 4.84579 4.8227 5.00933C4.83611 5.05535 4.85357 5.09172 4.88849 5.16446Z" stroke="#0E9384" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-            </div>
-            <div data-emphasized="true" data-icon="false" data-size="caption" class="size- flex justify-start items-center gap-2">
-              <div class="justify-start text-[#0E9384] text-sm font-semibold  leading-5">Maid cafe simulator</div>
-            </div>
-            <img :src="GreenCheckIcon" alt="Green Check Icon" class="h-4 w-4"/>
-            <div class="flex items-center justify-center h-3.5 w-3.5 rounded-full bg-[#FF4405]">
-                <img :src="CloseWhiteIcon" alt="Close White Icon" class="h-2 w-2"/>
-            </div>
-          </div>
-        </div>
-        <div class="self-stretch inline-flex justify-end items-end gap-1.5">
-          <div class="flex-1 self-stretch inline-flex flex-col justify-start items-start gap-2">
-            <div class="justify-center text-slate-700 text-xs font-semibold  leading-4">2:15pm - 9:30pm</div>
-          </div>
-        </div>
-        <div class="flex flex-1 justify-between items-center self-stretch">
-            <div data-property-1="single user" class="size- inline-flex justify-start items-center gap-1">
-              <img class="size-5 rounded-full object-cover" src="https://i.ibb.co/jkjtwC9C/svgviewer-png-output-17.webp" alt="Ellipse 284" />
-              <div class="justify-center text-gray-900 text-xs font-normal  leading-4">The grape gatsby</div>
-            </div>
-
-            <!-- Details link -->
-            <a href="#" class="flex items-center gap-1">
-                <span class="text-sm font-medium text-[#B54708]">Details</span>
-                <img :src="ArrowUpRightIcon" alt="Arrow Up Right Icon" />
-            </a>
-        </div>
-      </div>
-    </div>
-    <!-- Review adjustment  -->
-    <div class="self-stretch flex flex-col justify-center items-start gap-2">
-      <div class="self-stretch h-9 px-2 py-1 bg-[#F06] rounded-[0.25rem] inline-flex justify-center items-center gap-1 cursor-pointer">
-        <div data-svg-wrapper class="size-5 relative">
-          <img :src="FileBlackIcon" alt="File Icon" class="h-5 w-5 invert"/>
-          <div class="absolute top-[-2px] right-[0px]">
-          </div>
-        </div>
-        <div class="justify-start text-white text-base font-medium  leading-6">REVIEW ADJUSTMENT</div>
-      </div>
-    </div>
-  </div>
-</div>
-
-
-<!-- Event starts in 5 min -->
-  <div class="relative w-full sm:w-[368px] self-stretch min-h-20 p-3 bg-[#5FE9D0]/5 sm:rounded-[10px] blink-border-effect-pink inline-flex justify-end items-start gap-1.5">
-    <div class="absolute top-2 right-2 sm:top-[-8px] sm:right-[-8px] flex items-center justify-center w-6 h-6 rounded-full sm:bg-[#EAECF0] sm:shadow-[0_0_4px_0_rgba(0,0,0,0.25)] cursor-pointer">
-        <img :src="XCloseIcon" alt="Close Icon" class="h-4 w-4 invert"/>
-    </div>
-  <div class="w-1 self-stretch bg-[#FDB022] rounded-[10px]" />
-  <div class="flex-1 inline-flex flex-col justify-start items-start gap-4">
-    <div class="size- inline-flex justify-center items-start gap-2">
-      <div data-svg-wrapper class="size-5 relative">
-        <img :src="AlarmGreenIcon" :alt="notificationState.text" class="min-h-5 min-w-5"/>
-      </div>
-      <div class="justify-start text-sm text-[#107569] font-semibold leading-5">Event starts in 5 min:</div>
-    </div>
-    <div class="self-stretch inline-flex justify-start items-center gap-1.5">
-      <div data-property-1="DATE" class="w-14 self-stretch min-h-12 py-2 inline-flex flex-col justify-start items-center gap-2">
-        <div class="size- flex flex-col justify-start items-center flex-1">
-           <div class="justify-center text-slate-700 text-xs font-semibold  leading-4">2:15pm - 9:30pm</div>
-        </div>
-      </div>
-      <div class="flex-1 inline-flex flex-col justify-start items-start gap-2">
-        <div class="self-stretch inline-flex justify-between items-center gap-1">
-            <div class="flex-1 flex justify-start items-center gap-1">
-            <div data-svg-wrapper class="size-3.5 relative">
-              <svg width="100%" height="100%" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M4.88849 5.16446C5.29449 6.01007 5.84795 6.80261 6.54887 7.50353C7.24979 8.20445 8.04234 8.75791 8.88795 9.16391C8.96068 9.19883 8.99705 9.21629 9.04307 9.22971C9.20661 9.27738 9.40743 9.24314 9.54593 9.14396C9.5849 9.11606 9.61824 9.08271 9.68493 9.01603C9.88886 8.8121 9.99083 8.71013 10.0934 8.64346C10.4801 8.39205 10.9786 8.39205 11.3652 8.64346C11.4678 8.71013 11.5698 8.8121 11.7737 9.01603L11.8874 9.12971C12.1974 9.43971 12.3524 9.59472 12.4366 9.76119C12.604 10.0923 12.604 10.4833 12.4366 10.8143C12.3524 10.9808 12.1974 11.1358 11.8874 11.4458L11.7954 11.5378C11.4865 11.8467 11.332 12.0012 11.122 12.1192C10.8889 12.2501 10.527 12.3442 10.2597 12.3434C10.0188 12.3427 9.85416 12.296 9.5249 12.2025C7.75542 11.7003 6.08571 10.7527 4.69272 9.35968C3.29973 7.9667 2.35212 6.29699 1.84989 4.5275C1.75643 4.19824 1.70971 4.03361 1.70899 3.79273C1.70819 3.52543 1.80232 3.16348 1.93323 2.93043C2.05121 2.72041 2.20568 2.56594 2.51463 2.25699L2.60659 2.16504C2.91659 1.85503 3.0716 1.70003 3.23807 1.61583C3.56915 1.44837 3.96014 1.44837 4.29121 1.61583C4.45768 1.70003 4.61269 1.85503 4.9227 2.16504L5.03637 2.27871C5.24031 2.48265 5.34228 2.58462 5.40894 2.68716C5.66036 3.07384 5.66036 3.57235 5.40894 3.95903C5.34228 4.06157 5.24031 4.16354 5.03637 4.36748C4.96969 4.43416 4.93635 4.4675 4.90844 4.50647C4.80927 4.64497 4.77502 4.84579 4.8227 5.00933C4.83611 5.05535 4.85357 5.09172 4.88849 5.16446Z" stroke="#0E9384" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-            </div>
-            <div data-emphasized="true" data-icon="false" data-size="caption" class="size- flex justify-start items-center gap-2">
-              <div class="justify-start text-[#0E9384] text-sm font-semibold  leading-5">Maid cafe simulator</div>
-            </div>
-            <div data-svg-wrapper data-property-1="pending" data-size="Default" class="size-4 relative">
-              <svg width="100%" height="100%" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <g clip-path="url(#clip0_3292_19308)">
-              <path d="M6.06004 5.99967C6.21678 5.55412 6.52614 5.17841 6.93334 4.9391C7.34055 4.69978 7.8193 4.6123 8.28482 4.69215C8.75035 4.772 9.17258 5.01402 9.47676 5.37536C9.78093 5.7367 9.94741 6.19402 9.94671 6.66634C9.94671 7.99967 7.94671 8.66634 7.94671 8.66634M8.00004 11.333H8.00671M14.6667 7.99967C14.6667 11.6816 11.6819 14.6663 8.00004 14.6663C4.31814 14.6663 1.33337 11.6816 1.33337 7.99967C1.33337 4.31778 4.31814 1.33301 8.00004 1.33301C11.6819 1.33301 14.6667 4.31778 14.6667 7.99967Z" stroke="#667085" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-              </g>
-              <defs>
-              <clipPath id="clip0_3292_19308">
-              <rect width="16" height="16" fill="white"/>
-              </clipPath>
-              </defs>
-              </svg>
-            </div>
-          </div>
-        <div class="flex items-center gap-1">
-            <IndicatorDot size="7" color="#FF4405" />
-            <span class="text-sm font-medium  leading-5 text-[#FF4405]">in 5 min</span>
-        </div>
-        </div>
-        <div class="flex flex-1 gap-2 self-stretch flex-col justify-between items-center">
-            <div class="flex flex-1 justify-between items-center self-stretch">
-                <div data-property-1="single user" class="size- inline-flex justify-start items-center gap-1">
-                  <img class="size-5 rounded-full object-cover" src="https://i.ibb.co/jkjtwC9C/svgviewer-png-output-17.webp" alt="Ellipse 284" />
-                  <div class="justify-center text-gray-900 text-xs font-normal  leading-4">The grape gatsby</div>
-                </div>
-
-            </div>
-                <!-- Join call button -->
-            <div class="self-stretch flex flex-col justify-center items-start gap-2">
-            <div class="blink-border-effect-green self-stretch h-9 px-2 py-1 bg-[#07F468] rounded-[0.25rem] inline-flex justify-center items-center gap-1 cursor-pointer">
-                <div data-svg-wrapper class="size-5 relative">
-                <img :src="IncomingCallIcon" alt="Incoming Call Icon" class="h-5 w-5 invert"/>
-                <div class="absolute top-[-2px] right-[0px]">
-                </div>
-                </div>
-                <div class="justify-start text-base font-medium  leading-6">JOIN CALL</div>
-            </div>
-            </div>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-</div>
 </template>
 
 <script setup>
-import { computed } from "vue";
-
-import CalendarPinkIcon from "@/assets/images/icons/calendar-icon-pink.svg";
-import CalendarGreenCheckIcon from "@/assets/images/icons/calendar-check-green.svg";
-import CalendarCrossIcon from "@/assets/images/icons/calendar-cross.svg";
-import FilePinkIcon from "@/assets/images/icons/file-search-pink.svg";
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import AlarmGreenIcon from "@/assets/images/icons/alarm-green.svg";
-import FileBlackIcon from "@/assets/images/icons/file-search-02.svg";
-import IndicatorDot from "@/components/icons/IndicatorDot.vue";
-import XCloseIcon from "@/assets/images/icons/x-close-white.svg";
-import ArrowUpRightIcon from "@/assets/images/icons/arrow-up-right-brown.svg";
+import CalendarCrossIcon from "@/assets/images/icons/calendar-cross.svg";
+import CalendarGreenCheckIcon from "@/assets/images/icons/calendar-check-green.svg";
+import CalendarPinkIcon from "@/assets/images/icons/calendar-icon-pink.svg";
+import FilePinkIcon from "@/assets/images/icons/file-search-pink.svg";
+import FileSearchIcon from "@/assets/images/icons/file-search-02.svg";
 import IncomingCallIcon from "@/assets/images/icons/phone-incoming-02.svg";
 import WhiteArrowUpRightIcon from "@/assets/images/icons/arrow-up-right-white.svg";
-import GreenCheckIcon from "@/assets/images/icons/green-check.svg";
-import CloseWhiteIcon from "@/assets/images/icons/x-close-white.svg";
+import XCloseIcon from "@/assets/images/icons/x-close-white.svg";
+import EventNotificationItem from "./EventNotificationItem.vue";
+import { BOOKING_NOTICE_TYPES, formatNoticeTemplate, resolveBookingNoticeConfig } from "./bookingNoticeConfig";
+import { buildBookingNoticeSummary, getSummaryDismissedItemIds } from "./bookingNoticeSummary";
 
 const props = defineProps({
-  state: {
-    type: String,
-    default: "declined",
-  },
+  notice: { type: Object, required: true },
+  config: { type: Object, default: () => ({}) },
+  additionalVisibleItems: { type: Number, default: 0 },
+  viewportMode: { type: String, default: "" },
 });
 
-const notificationStates = {
-  accepted: {
-    icon: CalendarGreenCheckIcon,
-    text: "@grapegatsby has accepted your price adjustment:",
-    textColor: "text-[#107569]",
-  },
-  declined: {
-    icon: CalendarCrossIcon,
-    text: "@grapegatsby has declined your price adjustment:",
-    textColor: "text-[#FF4405]",
-  },
-  requestSent: {
-    icon: CalendarPinkIcon,
-    text: "Your price adjustment request has been sent:",
-    textColor: "text-[#F06]",
-  },
+const emit = defineEmits(["close", "primary-action", "detail", "join", "show-more"]);
+const noticeTypes = BOOKING_NOTICE_TYPES;
+const isVisible = ref(true);
+const isClosing = ref(false);
+const configuredInitialDelay = props.notice.initialDelaySeconds
+  ?? props.config.initialDelaySeconds
+  ?? (props.notice.type === BOOKING_NOTICE_TYPES.SUMMARY ? props.config.summary?.initialDelaySeconds : 0)
+  ?? 0;
+const delayComplete = ref(Number(configuredInitialDelay) <= 0);
+const resolvedConfig = computed(() => resolveBookingNoticeConfig(props.notice.type, props.config));
+const summary = computed(() => buildBookingNoticeSummary(
+  props.notice.sections || [],
+  resolvedConfig.value.summary,
+  { additionalVisibleItems: props.additionalVisibleItems },
+));
+const visibleItems = computed(() => {
+  const initialLimit = Number(props.notice.itemLimit ?? resolvedConfig.value.summary.perSectionLimit) || 0;
+  return (props.notice.items || []).slice(0, Math.max(0, initialLimit + props.additionalVisibleItems));
+});
+const standaloneHiddenCount = computed(() => Math.max(0, (props.notice.totalCount ?? props.notice.items?.length ?? 0) - visibleItems.value.length));
+const viewerRole = computed(() => String(props.notice.audience || props.notice.viewer?.role || "").toLowerCase());
+const isFan = computed(() => viewerRole.value === "fan");
+const completeItemCount = computed(() => {
+  if (props.notice.type === BOOKING_NOTICE_TYPES.SUMMARY) return summary.value.totalCount;
+  return Math.max(0, Number(props.notice.totalCount ?? props.notice.items?.length ?? 0) || 0);
+});
+const hasMultipleItems = computed(() => completeItemCount.value > 1);
+const firstVisibleItem = computed(() => {
+  if (props.notice.type !== BOOKING_NOTICE_TYPES.SUMMARY) return visibleItems.value[0] || null;
+  for (const section of summary.value.sections || []) {
+    if (section.items?.length) return section.items[0];
+  }
+  return null;
+});
+const isSingleBookingRequest = computed(() => props.notice.type === BOOKING_NOTICE_TYPES.BOOKING_REQUEST
+  && (props.notice.items?.length || 0) === 1
+  && (props.notice.totalCount ?? 1) === 1);
+const isGroupedBookingRequest = computed(() => props.notice.type === BOOKING_NOTICE_TYPES.BOOKING_REQUEST
+  && !isSingleBookingRequest.value);
+const isReadyToJoin = computed(() => props.notice.type === BOOKING_NOTICE_TYPES.READY_TO_JOIN);
+const countdownNowMs = ref(Date.now());
+const readyItems = computed(() => {
+  if (isReadyToJoin.value) return visibleItems.value;
+  if (props.notice.type !== BOOKING_NOTICE_TYPES.SUMMARY) return [];
+  return (summary.value.sections || [])
+    .filter((section) => section.type === BOOKING_NOTICE_TYPES.READY_TO_JOIN)
+    .flatMap((section) => section.items || []);
+});
+const hasReadyCountdown = computed(() => readyItems.value.length > 0);
+const readyCountdown = (item) => {
+  const configuredMinutes = Math.max(0, Number(resolvedConfig.value.readyToJoinLeadMinutes) || 0);
+  const startMs = new Date(item?.eventAt || item?.startIso || "").getTime();
+  if (!Number.isFinite(startMs)) return { isLive: false, minutes: configuredMinutes };
+  const remainingMs = startMs - countdownNowMs.value;
+  if (remainingMs < 60_000) return { isLive: true, minutes: 0 };
+  return { isLive: false, minutes: Math.ceil(remainingMs / 60_000) };
+};
+const readyLabelForItem = (item) => {
+  const countdown = readyCountdown(item);
+  return countdown.isLive ? "live now" : `in ${countdown.minutes} min`;
+};
+const standaloneReadyCountdown = computed(() => readyCountdown(visibleItems.value[0]));
+const isStandaloneFanBookingResult = computed(() => isFan.value
+  && completeItemCount.value === 1
+  && [BOOKING_NOTICE_TYPES.BOOKING_CONFIRMED, BOOKING_NOTICE_TYPES.BOOKING_DECLINED].includes(props.notice.type));
+const isReviewAction = (action) => String(action?.id || "").startsWith("review")
+  || String(action?.label || "").toUpperCase().includes("REVIEW");
+const isBookingRequestReviewAction = computed(() => props.notice.type === BOOKING_NOTICE_TYPES.BOOKING_REQUEST
+  && isReviewAction(effectiveAction.value));
+const effectiveAction = computed(() => {
+  if (!isFan.value || isReadyToJoin.value) return props.notice.action || null;
+  if (isStandaloneFanBookingResult.value) return null;
+  if (completeItemCount.value !== 1) return isReviewAction(props.notice.action) ? null : props.notice.action || null;
+
+  const item = firstVisibleItem.value;
+  if (!item) return null;
+  const existing = props.notice.action || {};
+  const isPriceAdjustmentRequest = props.notice.priceAdjustmentState === "request-sent"
+    || item.activityType === "price-adjustment-sent";
+  return {
+    ...existing,
+    id: props.notice.type === BOOKING_NOTICE_TYPES.SUMMARY ? "review-summary" : existing.id || "review-booking-details",
+    label: isPriceAdjustmentRequest ? "REVIEW ADJUSTMENT" : "REVIEW",
+    showArrow: false,
+    bookingId: existing.bookingId || item.bookingId,
+    testMode: existing.testMode ?? props.notice.testMode ?? item.testMode,
+  };
+});
+const showPerItemDetail = computed(() => {
+  if (isReadyToJoin.value) return false;
+  if (isStandaloneFanBookingResult.value) return true;
+  if (hasMultipleItems.value) return true;
+  if (isFan.value) return false;
+  return props.notice.showDetail === true;
+});
+const showAccent = computed(() => props.notice.type !== BOOKING_NOTICE_TYPES.SUMMARY
+  && !(props.notice.type === BOOKING_NOTICE_TYPES.BOOKING_REQUEST && !isSingleBookingRequest.value));
+const variationClass = computed(() => ({
+  "booking-notice-card--single-request": isSingleBookingRequest.value,
+  "booking-notice-card--grouped-request": isGroupedBookingRequest.value,
+  "booking-notice-card--summary": props.notice.type === BOOKING_NOTICE_TYPES.SUMMARY,
+  "booking-notice-card--ready": isReadyToJoin.value,
+}));
+const actionClass = computed(() => ({
+  "booking-notice-action--outline": isBookingRequestReviewAction.value,
+  "booking-notice-action--ready": isReadyToJoin.value,
+  "booking-notice-action--pink": !isBookingRequestReviewAction.value && !isReadyToJoin.value,
+  "booking-notice-action--pulse": isReadyToJoin.value && resolvedConfig.value.attentionAnimation === "pulse",
+  "booking-notice-action--blink": isReadyToJoin.value && resolvedConfig.value.attentionAnimation === "blink",
+}));
+const actionIcon = computed(() => isReadyToJoin.value ? IncomingCallIcon : FileSearchIcon);
+const showActionIcon = computed(() => isReadyToJoin.value
+  || isBookingRequestReviewAction.value
+  || props.notice.type === BOOKING_NOTICE_TYPES.PRICE_ADJUSTMENT);
+
+const heading = computed(() => {
+  if (props.notice.type === noticeTypes.READY_TO_JOIN) {
+    if (standaloneReadyCountdown.value.isLive) return "Event is live now:";
+    const minutes = standaloneReadyCountdown.value.minutes;
+    return `Event starts in ${minutes} ${minutes === 1 ? "minute" : "minutes"}:`;
+  }
+  if (props.notice.heading) return props.notice.heading;
+  const name = props.notice.actor?.displayName || "Someone";
+  if (props.notice.type === noticeTypes.BOOKING_REQUEST) return "New event booking received:";
+  if (props.notice.type === noticeTypes.BOOKING_CONFIRMED) return `${name} has confirmed your booking:`;
+  if (props.notice.type === noticeTypes.BOOKING_DECLINED) return `${name} has declined your booking request:`;
+  if (props.notice.priceAdjustmentState === "accepted") return `${name} has accepted your price adjustment:`;
+  if (props.notice.priceAdjustmentState === "declined") return `${name} has declined your price adjustment:`;
+  return `${name} sent you a price adjustment request:`;
+});
+
+const appearance = computed(() => {
+  if (props.notice.type === noticeTypes.READY_TO_JOIN) return { icon: AlarmGreenIcon, accent: "#FDB022", headingColor: "#107569" };
+  if (props.notice.type === noticeTypes.BOOKING_DECLINED || props.notice.priceAdjustmentState === "declined") {
+    return { icon: CalendarCrossIcon, accent: "#FDB022", headingColor: "#FF4405" };
+  }
+  if (props.notice.type === noticeTypes.BOOKING_CONFIRMED || props.notice.priceAdjustmentState === "accepted") {
+    return { icon: CalendarGreenCheckIcon, accent: "#FDB022", headingColor: "#107569" };
+  }
+  return { icon: CalendarPinkIcon, accent: "#F06", headingColor: "#F06" };
+});
+
+const greeting = computed(() => formatNoticeTemplate(resolvedConfig.value.summary.greetingTemplate, {
+  displayName: props.notice.viewer?.displayName || "there",
+}));
+
+const attentionClass = computed(() => `booking-notice-attention-${resolvedConfig.value.attentionAnimation}`);
+const entranceClass = computed(() => `booking-notice-enter-${resolvedConfig.value.entranceEffect}`);
+const exitClass = computed(() => isClosing.value ? `booking-notice-exit-${resolvedConfig.value.exitEffect}` : "");
+const countedNoun = (count, singular, plural = `${singular}s`) => Number(count) === 1 ? singular : plural;
+const priceAdjustmentVariant = (section) => {
+  const raw = section.variant || section.items?.[0]?.activityType || "";
+  if (raw === "sent" || raw === "request-sent" || raw === "price-adjustment-sent") return "request-sent";
+  if (raw === "accepted" || raw === "price-adjustment-accepted") return "accepted";
+  if (raw === "declined" || raw === "price-adjustment-declined") return "declined";
+  return "request-sent";
+};
+const summarySectionPresentation = (section) => {
+  const count = Number(section.totalCount) || 0;
+  if (section.type === noticeTypes.READY_TO_JOIN) {
+    const minutes = Number(resolvedConfig.value.readyToJoinLeadMinutes) || 0;
+    return {
+      icon: AlarmGreenIcon,
+      color: "#107569",
+      heading: `You have ${count} ${countedNoun(count, "event")} starting in ${minutes} ${countedNoun(minutes, "minute")}:`,
+    };
+  }
+  if (section.type === noticeTypes.EVENTS_TODAY) {
+    return {
+      icon: CalendarGreenCheckIcon,
+      color: "#107569",
+      heading: `You have ${count} ${countedNoun(count, "event")} today:`,
+    };
+  }
+  if (section.type === noticeTypes.BOOKING_REQUEST) {
+    return { icon: CalendarPinkIcon, color: "#F06", heading: `You have ${count} new pending ${countedNoun(count, "booking")}:` };
+  }
+  if (section.type === noticeTypes.BOOKING_CONFIRMED) {
+    return { icon: CalendarGreenCheckIcon, color: "#107569", heading: `You have ${count} confirmed ${countedNoun(count, "booking")}:` };
+  }
+  if (section.type === noticeTypes.BOOKING_DECLINED) {
+    return { icon: CalendarCrossIcon, color: "#FF4405", heading: `You have ${count} declined ${countedNoun(count, "booking request")}:` };
+  }
+  if (section.type === noticeTypes.PRICE_ADJUSTMENT) {
+    const variant = priceAdjustmentVariant(section);
+    if (variant === "accepted") {
+      return { icon: CalendarGreenCheckIcon, color: "#107569", heading: `You have ${count} accepted ${countedNoun(count, "price adjustment")}:` };
+    }
+    if (variant === "declined") {
+      return { icon: CalendarCrossIcon, color: "#FF4405", heading: `You have ${count} declined ${countedNoun(count, "price adjustment")}:` };
+    }
+    return { icon: FilePinkIcon, color: "#F06", heading: `You have ${count} new ${countedNoun(count, "price adjustment request")}:` };
+  }
+  return { icon: CalendarPinkIcon, color: "#F06", heading: `You have ${count} booking ${countedNoun(count, "update")}:` };
+};
+const formatOverflow = (count) => formatNoticeTemplate(resolvedConfig.value.summary.overflowTemplate, { count });
+const overflowAriaLabel = (count) => `Show up to 10 more booking items. ${count} remaining.`;
+const dismissedItemIds = () => {
+  if (props.notice.type === noticeTypes.SUMMARY) return getSummaryDismissedItemIds(summary.value);
+  return Array.isArray(props.notice.dismissItemIds) ? props.notice.dismissItemIds.slice() : [];
 };
 
-const notificationState = computed(() => {
-  return notificationStates[props.state] || notificationStates.accepted;
-});
+let timerId;
+let exitTimerId;
+let delayTimerId;
+let countdownTimerId;
+let componentMounted = false;
+let startedAt = 0;
+let remainingMs = 0;
 
-</script>
-<style scoped>
-@keyframes blink-border-pink {
-  0%, 100% {
-    box-shadow: 0 0 12px 0 rgba(255, 0, 102, 0.25);
-  }
-
-  50% {
-    box-shadow: 0 0 18px 0 rgba(255, 0, 102, 0.4);
-  }
+function stopCountdownClock() {
+  if (countdownTimerId) window.clearInterval(countdownTimerId);
+  countdownTimerId = undefined;
 }
 
-.blink-border-effect-pink {
-  animation: blink-border-pink 1.5s ease-in-out infinite;
+function syncCountdownClock() {
+  stopCountdownClock();
+  countdownNowMs.value = Date.now();
+  if (!componentMounted || !hasReadyCountdown.value || document.visibilityState === "hidden") return;
+  countdownTimerId = window.setInterval(() => {
+    countdownNowMs.value = Date.now();
+  }, 1_000);
+}
+
+function handleCountdownVisibilityChange() {
+  syncCountdownClock();
+}
+
+watch(hasReadyCountdown, () => syncCountdownClock());
+
+function clearTimer() {
+  if (timerId) window.clearTimeout(timerId);
+  timerId = undefined;
+}
+
+function finishClosing() {
+  isVisible.value = false;
+  isClosing.value = false;
+}
+
+function runExitEffect() {
+  if (resolvedConfig.value.exitEffect === "none") {
+    finishClosing();
+    return;
+  }
+  isClosing.value = true;
+  exitTimerId = window.setTimeout(finishClosing, 180);
+}
+
+function startTimer() {
+  clearTimer();
+  if (remainingMs <= 0) return;
+  startedAt = Date.now();
+  timerId = window.setTimeout(() => dismiss("automatic"), remainingMs);
+}
+
+function pauseTimer() {
+  if (!timerId) return;
+  remainingMs = Math.max(0, remainingMs - (Date.now() - startedAt));
+  clearTimer();
+}
+
+function resumeTimer() {
+  if (!timerId && remainingMs > 0) startTimer();
+}
+
+function dismiss(reason) {
+  if (isClosing.value || !isVisible.value) return;
+  clearTimer();
+  emit("close", { noticeId: props.notice.id, reason, dismissedItemIds: dismissedItemIds() });
+  runExitEffect();
+}
+
+function performPrimaryAction() {
+  if (isClosing.value || !isVisible.value) return;
+  const payload = { noticeId: props.notice.id, action: effectiveAction.value, dismissedItemIds: dismissedItemIds() };
+  emit("primary-action", payload);
+  if (props.notice.type === noticeTypes.READY_TO_JOIN) emit("join", payload);
+  clearTimer();
+  runExitEffect();
+}
+
+function emitDetail(item) {
+  emit("detail", { noticeId: props.notice.id, item });
+}
+
+function showMore() {
+  emit("show-more", { noticeId: props.notice.id, increment: 10 });
+}
+
+function performItemJoin(item) {
+  if (isClosing.value || !isVisible.value || !item) return;
+  const payload = {
+    noticeId: item.id || props.notice.id,
+    parentNoticeId: props.notice.id,
+    item,
+    action: {
+      id: "join-call",
+      label: "JOIN CALL",
+      bookingId: item.bookingId,
+      url: item.joinUrl,
+      testMode: item.testMode ?? props.notice.testMode,
+    },
+    dismissedItemIds: [],
+  };
+  emit("primary-action", payload);
+  emit("join", payload);
+}
+
+onMounted(() => {
+  componentMounted = true;
+  document.addEventListener("visibilitychange", handleCountdownVisibilityChange);
+  syncCountdownClock();
+  const delaySeconds = props.notice.initialDelaySeconds
+    ?? resolvedConfig.value.initialDelaySeconds
+    ?? (props.notice.type === noticeTypes.SUMMARY ? resolvedConfig.value.summary.initialDelaySeconds : 0);
+  const reveal = () => {
+    delayComplete.value = true;
+    remainingMs = Math.max(0, Number(resolvedConfig.value.durationSeconds) || 0) * 1000;
+    startTimer();
+  };
+  if (Number(delaySeconds) > 0) delayTimerId = window.setTimeout(reveal, Number(delaySeconds) * 1000);
+  else reveal();
+});
+
+onBeforeUnmount(() => {
+  componentMounted = false;
+  document.removeEventListener("visibilitychange", handleCountdownVisibilityChange);
+  stopCountdownClock();
+  clearTimer();
+  if (delayTimerId) window.clearTimeout(delayTimerId);
+  if (exitTimerId) window.clearTimeout(exitTimerId);
+});
+</script>
+
+<style scoped>
+.booking-notice-motion-shell { width: 100%; max-width: 23rem; }
+.booking-notice-card { position: relative; display: flex; width: 100%; max-width: 23rem; min-height: 5rem; gap: .375rem; overflow: visible; border-radius: .625rem; background: rgba(255, 252, 248, .98); padding: .75rem; box-shadow: 0 0 12px rgba(255, 0, 102, .25); }
+.booking-notice-close { position: absolute; right: -.5rem; top: -.5rem; z-index: 2; display: flex; height: 1.5rem; width: 1.5rem; align-items: center; justify-content: center; border-radius: 999px; background: #eaecf0; box-shadow: 0 0 4px rgba(0, 0, 0, .25); }
+.booking-notice-accent { width: .25rem; flex-shrink: 0; align-self: stretch; border-radius: .625rem; }
+.booking-notice-card--single-request .booking-notice-accent { background: white !important; }
+.booking-notice-content { display: flex; flex-direction: column; gap: 0; }
+.booking-notice-content--summary { max-height: calc(var(--fs-booking-notices-max-height, 640px) - 4rem); overflow-y: auto; overscroll-behavior: contain; }
+.booking-notice-items-region { max-height: calc(var(--fs-booking-notices-max-height, 640px) - 8rem); overflow-y: auto; overscroll-behavior: contain; }
+.booking-notice-overflow { margin-top: .5rem; width: fit-content; border-radius: .25rem; color: #667085; font-size: .875rem; font-weight: 500; line-height: 1.25rem; text-align: left; text-decoration: underline; text-underline-offset: .15rem; cursor: pointer; }
+.booking-notice-overflow:hover { color: #344054; }
+.booking-notice-overflow:focus-visible { outline: 2px solid #f06; outline-offset: 2px; }
+.booking-notice-action { margin-top: .75rem; display: flex; min-height: 2.25rem; width: 100%; align-items: center; justify-content: center; gap: .5rem; border-radius: .25rem; padding: .25rem .5rem; font-size: 1rem; font-weight: 500; line-height: 1.5rem; }
+.booking-notice-action--pink { background: #f06; color: white; }
+.booking-notice-action--outline { border: 1px solid #ff4405; background: white; color: #ff4405; }
+.booking-notice-action--ready { background: #07f468; color: #0c111d; }
+.booking-notice-action-icon { position: relative; display: inline-flex; height: 1.25rem; width: 1.25rem; flex: 0 0 1.25rem; align-items: center; justify-content: center; }
+.booking-notice-action-icon img, .booking-notice-action-arrow { height: 1.25rem; width: 1.25rem; }
+.booking-notice-action--pink .booking-notice-action-icon img { filter: brightness(0) invert(1); }
+.booking-notice-action--outline .booking-notice-action-icon img { filter: brightness(0) saturate(100%) invert(33%) sepia(99%) saturate(3380%) hue-rotate(1deg) brightness(102%) contrast(105%); }
+.booking-notice-action--ready .booking-notice-action-icon img { filter: brightness(0); }
+.booking-notice-action-dot { position: absolute; right: -.0625rem; top: -.125rem; height: .4375rem; width: .4375rem; border-radius: 999px; background: #ff4405; }
+.booking-notice-attention-none { animation: none; box-shadow: 0 0 12px rgba(255, 0, 102, .25); }
+.booking-notice-attention-pulse { animation: booking-notice-pulse 1.5s ease-in-out infinite; }
+.booking-notice-attention-blink { animation: booking-notice-blink 1.1s step-end infinite; }
+.booking-notice-action--pulse { animation: booking-notice-green-pulse 1.5s ease-in-out infinite; }
+.booking-notice-action--blink { animation: booking-notice-green-blink 1.1s step-end infinite; }
+.booking-notice-enter-none, .booking-notice-exit-none { animation: none; }
+.booking-notice-enter-fade { animation: booking-notice-fade .2s ease-out; }
+.booking-notice-enter-slide { animation: booking-notice-slide .2s ease-out; }
+.booking-notice-exit-fade { animation: booking-notice-fade-out .18s ease-in forwards; }
+.booking-notice-exit-slide { animation: booking-notice-slide-out .18s ease-in forwards; }
+@keyframes booking-notice-pulse { 0%, 100% { box-shadow: 0 0 12px rgba(255, 0, 102, .25); } 50% { box-shadow: 0 0 18px rgba(255, 0, 102, .4); } }
+@keyframes booking-notice-blink { 0%, 100% { box-shadow: 0 0 12px rgba(255, 0, 102, .25); } 50% { box-shadow: 0 0 20px rgba(255, 0, 102, .55); } }
+@keyframes booking-notice-green-pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(7, 244, 104, 0); } 50% { box-shadow: 0 0 0 5px rgba(7, 244, 104, .25); } }
+@keyframes booking-notice-green-blink { 0%, 100% { box-shadow: 0 0 0 0 rgba(7, 244, 104, 0); } 50% { box-shadow: 0 0 0 5px rgba(7, 244, 104, .35); } }
+@keyframes booking-notice-fade { from { opacity: 0; } }
+@keyframes booking-notice-slide { from { opacity: 0; transform: translateY(-.75rem); } }
+@keyframes booking-notice-fade-out { to { opacity: 0; } }
+@keyframes booking-notice-slide-out { to { opacity: 0; transform: translateY(-.75rem); } }
+@media (max-width: 639px) {
+  .booking-notice-motion-shell, .booking-notice-card { max-width: none; }
+  .booking-notice-card { border-radius: 0; }
+  .booking-notice-card--summary { border-radius: .625rem; }
+  .booking-notice-close { right: .5rem; top: .5rem; background: transparent; box-shadow: none; }
+  .booking-notice-content--summary { max-height: calc(var(--fs-booking-notices-max-height, 640px) - 3rem); }
+  .booking-notice-items-region { max-height: calc(var(--fs-booking-notices-max-height, 640px) - 7rem); }
+}
+.booking-notice-card.booking-notice-card--embedded-desktop { max-width: 23rem; border-radius: .625rem; }
+.booking-notice-card--embedded-desktop .booking-notice-close { right: -.5rem; top: -.5rem; background: #eaecf0; box-shadow: 0 0 4px rgba(0, 0, 0, .25); }
+.booking-notice-card.booking-notice-card--embedded-mobile { max-width: none; border-radius: 0; }
+.booking-notice-card.booking-notice-card--embedded-mobile.booking-notice-card--summary { border-radius: .625rem; }
+.booking-notice-card--embedded-mobile .booking-notice-close { right: .5rem; top: .5rem; background: transparent; box-shadow: none; }
+@media (prefers-reduced-motion: reduce) {
+  .booking-notice-card, .booking-notice-motion-shell, .booking-notice-action { animation: none !important; }
+  .booking-notice-card { box-shadow: 0 0 12px rgba(255, 0, 102, .25); }
 }
 </style>

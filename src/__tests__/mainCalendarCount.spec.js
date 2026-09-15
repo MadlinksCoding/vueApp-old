@@ -4082,6 +4082,44 @@ describe("MainCalendar all events count", () => {
     }));
   });
 
+  it("opens the Pending requests popup from a notice in tablet portrait", async () => {
+    setWindowWidth(768);
+    setWindowHeight(1024);
+    const wrapper = await mountCalendar([]);
+
+    expect(wrapper.vm.openPendingRequestsReview()).toBe(true);
+    await nextTick();
+
+    const eventsRequestsHandler = wrapper.findAllComponents({ name: "PopupHandler" })[1];
+    expect(eventsRequestsHandler.props("modelValue")).toBe(true);
+    expect(eventsRequestsHandler.props("config")).toEqual(expect.objectContaining({
+      from: "bottom",
+      width: { default: "100%" },
+    }));
+    expect(wrapper.getComponent({ name: "EventsRequestsPopup" }).props("initialTab")).toBe("pending");
+  });
+
+  it("opens the Pending requests side panel from a notice in tablet landscape only", async () => {
+    setWindowWidth(1024);
+    setWindowHeight(768);
+    const wrapper = await mountCalendar([]);
+
+    expect(wrapper.vm.openPendingRequestsReview()).toBe(true);
+    await nextTick();
+
+    const eventsRequestsHandler = wrapper.findAllComponents({ name: "PopupHandler" })[1];
+    expect(eventsRequestsHandler.props("modelValue")).toBe(true);
+    expect(eventsRequestsHandler.props("config")).toEqual(expect.objectContaining({
+      from: "right",
+      width: { default: "480px" },
+    }));
+    expect(wrapper.getComponent({ name: "EventsRequestsPopup" }).props("initialTab")).toBe("pending");
+
+    setWindowWidth(1440);
+    await nextTick();
+    expect(wrapper.vm.openPendingRequestsReview()).toBe(false);
+  });
+
   it("uses a sixty-percent bottom sheet for events requests on mobile", async () => {
     setWindowWidth(393);
     setWindowHeight(852);

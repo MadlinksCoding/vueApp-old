@@ -25,10 +25,20 @@
   var FS_FAN_BOOKING_DEBUG = "FS_FAN_BOOKING_DEBUG";
   var FS_FAN_BOOKING_AUTH_UPDATE = "FS_FAN_BOOKING_AUTH_UPDATE";
   var FS_FAN_BOOKING_OPEN_DETAILS = "FS_FAN_BOOKING_OPEN_DETAILS";
+  var FS_BOOKING_NOTICES_BOOTSTRAP = "FS_BOOKING_NOTICES_BOOTSTRAP";
+  var FS_BOOKING_NOTICES_UPDATE = "FS_BOOKING_NOTICES_UPDATE";
+  var FS_BOOKING_NOTICES_CHILD_READY = "FS_BOOKING_NOTICES_CHILD_READY";
+  var FS_BOOKING_NOTICES_RESIZE = "FS_BOOKING_NOTICES_RESIZE";
+  var FS_BOOKING_NOTICES_SUMMARY_VISIBILITY = "FS_BOOKING_NOTICES_SUMMARY_VISIBILITY";
+  var FS_BOOKING_NOTICE_CLOSE = "FS_BOOKING_NOTICE_CLOSE";
+  var FS_BOOKING_NOTICE_PRIMARY_ACTION = "FS_BOOKING_NOTICE_PRIMARY_ACTION";
+  var FS_BOOKING_NOTICE_DETAIL = "FS_BOOKING_NOTICE_DETAIL";
+  var FS_BOOKING_NOTICE_JOIN = "FS_BOOKING_NOTICE_JOIN";
 
   var activeOneOnOnePopup = null;
   var activeBookingDetailsPopup = null;
   var activeEventsEmbeds = [];
+  var activeBookingNoticesController = null;
   var EVENTS_EMBED_ROOT_CLASS = "fs-events-embed";
   var EVENTS_EMBED_IFRAME_CLASS = "fs-events-embed__iframe";
   var EVENTS_EMBED_IFRAME_CONTENT_CLASS = "fs-events-embed__iframe--content";
@@ -50,6 +60,7 @@
   var BOOKING_DETAILS_POPUP_IFRAME_CLASS = "fs-booking-details-popup__iframe";
   var BOOKING_DETAILS_POPUP_LOADING_CLASS = "fs-booking-details-popup__loading";
   var BOOKING_DETAILS_POPUP_LOADING_HIDDEN_CLASS = "fs-booking-details-popup__loading--hidden";
+  var BOOKING_NOTICES_HOST_BELOW_DETAILS_CLASS = "fs-booking-notices-host--below-booking-details";
   var FAN_BOOKING_SKELETON_TEMPLATE_PATH = "fan-booking-loading-skeleton.html";
   var FAN_BOOKING_LOADING_FALLBACK_DELAY_MS = 180;
   var EVENTS_FORM_UNSAVED_CHANGES_MESSAGE = "You will lose all your changes if you leave.";
@@ -570,6 +581,7 @@
       eventId: settings.eventId == null || settings.eventId === "" ? null : String(settings.eventId),
       userRole: settings.userRole || "creator",
       initialRoute: settings.initialRoute || "events",
+      initialAction: settings.initialAction || "",
       apiBaseUrl: settings.apiBaseUrl || "",
       tokenHandlerApiUrl: settings.tokenHandlerApiUrl || "",
       jwtToken: settings.jwtToken || "",
@@ -642,6 +654,7 @@
           tokenHandlerApiUrl: settings.tokenHandlerApiUrl || "",
           jwtToken: settings.jwtToken || "",
           initialRoute: settings.initialRoute || "events",
+          initialAction: settings.initialAction || "",
           creatorData: creatorData,
           translations: translations,
           locale: locale,
@@ -1281,6 +1294,9 @@
       }
       unlockBodyScroll();
       if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+      if (activeBookingNoticesController && typeof activeBookingNoticesController.setBookingDetailsActive === "function") {
+        activeBookingNoticesController.setBookingDetailsActive(false);
+      }
       if (activeBookingDetailsPopup && activeBookingDetailsPopup.iframe === iframe) {
         activeBookingDetailsPopup = null;
       }
@@ -1438,6 +1454,9 @@
     window.addEventListener("keydown", onKeyDown);
     iframe.addEventListener("load", sendBootstrap);
     document.body.appendChild(overlay);
+    if (activeBookingNoticesController && typeof activeBookingNoticesController.setBookingDetailsActive === "function") {
+      activeBookingNoticesController.setBookingDetailsActive(true);
+    }
 
     // Force the lightweight HTML shell to be revalidated so a deployment cannot
     // strand an already-open dashboard on stale hashed bundles. Booking IDs and
@@ -1462,6 +1481,377 @@
     return true;
   }
 
+  function mountBookingNotices(options) {
+    var settings = Object.assign({
+      src: "/wp-content/plugins/fansocial/bookings-embed/notices.html",
+      targetOrigin: global.location.origin,
+      fallbackZIndex: 2147483647,
+      maxVisibleNotices: 3,
+      config: {},
+      notices: [],
+    }, options || {});
+    var targetOrigin = normalizeTargetOrigin(settings.targetOrigin);
+    var groups = new Map();
+    var notices = Array.isArray(settings.notices) ? settings.notices.slice() : [];
+    var config = settings.config && typeof settings.config === "object" ? settings.config : {};
+    var destroyed = false;
+    var media = global.matchMedia ? global.matchMedia("(max-width: 639px)") : null;
+    var popupObserver = null;
+    var bookingDetailsActive = !!document.querySelector("[data-fs-booking-details-popup]");
+    var scheduledCallActive = global.__FSScheduledCallOverlayActive === true;
+    var summaryVisibility = { noticeId: "", isOpen: false, known: false, allItemIds: new Set(), visibleItemIds: new Set() };
+    var desktopPositions = ["top-left", "top-center", "top-right", "center-left", "center-center", "center-right", "bottom-left", "bottom-center", "bottom-right"];
+    var mobilePositions = ["top", "center", "bottom"];
+
+    if (activeBookingNoticesController && typeof activeBookingNoticesController.destroy === "function") {
+      activeBookingNoticesController.destroy();
+    }
+
+    function firstSupportedPosition(values, supported, fallback) {
+      for (var index = 0; index < values.length; index += 1) {
+        var value = typeof values[index] === "string" ? values[index].trim() : "";
+        if (supported.indexOf(value) >= 0) return value;
+      }
+      return fallback;
+    }
+
+    function globalPosition(isMobile) {
+      return firstSupportedPosition(
+        [config[isMobile ? "mobilePosition" : "desktopPosition"]],
+        isMobile ? mobilePositions : desktopPositions,
+        isMobile ? "top" : "top-right"
+      );
+    }
+
+    function positionFor(notice) {
+      var isMobile = !!(media && media.matches);
+      var positionKey = isMobile ? "mobilePosition" : "desktopPosition";
+      var supported = isMobile ? mobilePositions : desktopPositions;
+      var fallback = isMobile ? "top" : "top-right";
+      var typeConfig = config.noticeTypes && notice && notice.type ? config.noticeTypes[notice.type] || {} : {};
+      var noticeOverride = notice && notice.config && typeof notice.config === "object" ? notice.config : {};
+
+      if (notice && notice.type === "summary") {
+        return firstSupportedPosition([
+          noticeOverride[positionKey],
+          typeConfig[positionKey],
+          config.summary && config.summary[positionKey],
+          config[positionKey],
+        ], supported, fallback);
+      }
+
+      return firstSupportedPosition([
+        noticeOverride[positionKey],
+        typeConfig[positionKey],
+        config[positionKey],
+      ], supported, fallback);
+    }
+
+    function keepBelowBookingDetails(host) {
+      if (!host || !host.isConnected) return;
+      try {
+        if (typeof host.hidePopover === "function" && host.matches(":popover-open")) host.hidePopover();
+      } catch (_error) {}
+      host.removeAttribute("popover");
+      host.classList.add(BOOKING_NOTICES_HOST_BELOW_DETAILS_CLASS);
+      host.setAttribute("inert", "");
+      host.setAttribute("aria-hidden", "true");
+    }
+
+    function promote(host) {
+      if (!host || !host.isConnected) return;
+      if (bookingDetailsActive || scheduledCallActive || document.querySelector("[data-fs-booking-details-popup]")) {
+        keepBelowBookingDetails(host);
+        return;
+      }
+      host.classList.remove(BOOKING_NOTICES_HOST_BELOW_DETAILS_CLASS);
+      host.removeAttribute("inert");
+      host.removeAttribute("aria-hidden");
+      host.setAttribute("popover", "manual");
+      if (typeof host.showPopover !== "function") return;
+      try {
+        if (host.matches(":popover-open")) host.hidePopover();
+        host.showPopover();
+      } catch (_error) {
+        host.classList.add("fs-booking-notices-host--z-fallback");
+      }
+    }
+
+    function post(group, type) {
+      if (!group.ready || !group.iframe.contentWindow) return;
+      group.iframe.contentWindow.postMessage({
+        type: type,
+        payload: {
+          notices: group.notices,
+          config: config,
+          position: group.position,
+          isMobile: !!(media && media.matches),
+          viewportHeight: Math.max(0, (global.innerHeight || 0) - 16),
+        },
+      }, targetOrigin);
+    }
+
+    function activeSummaryNotice() {
+      var summaryTypeConfig = config.noticeTypes && config.noticeTypes.summary || {};
+      if (config.enabled === false || summaryTypeConfig.enabled === false) return null;
+      return notices.find(function (notice) { return notice && notice.type === "summary" && notice.enabled !== false; }) || null;
+    }
+
+    function seedSummaryVisibility() {
+      var summary = activeSummaryNotice();
+      if (!summary) {
+        summaryVisibility = { noticeId: "", isOpen: false, known: false, allItemIds: new Set(), visibleItemIds: new Set() };
+        return null;
+      }
+      var sectionIds = [];
+      (Array.isArray(summary.sections) ? summary.sections : []).forEach(function (section) {
+        (section && Array.isArray(section.items) ? section.items : []).forEach(function (item) {
+          if (item && item.id && sectionIds.indexOf(item.id) < 0) sectionIds.push(item.id);
+        });
+      });
+      var completeIds = Array.isArray(summary.allItemIds)
+        ? summary.allItemIds.filter(Boolean)
+        : (Array.isArray(summary.sections) ? sectionIds : (Array.isArray(summary.visibleItemIds) ? summary.visibleItemIds.filter(Boolean) : []));
+      var completeIdsKnown = Array.isArray(summary.allItemIds) || Array.isArray(summary.sections) || Array.isArray(summary.visibleItemIds);
+      if (summaryVisibility.noticeId !== summary.id) {
+        var seededIds = Array.isArray(summary.visibleItemIds) ? summary.visibleItemIds.filter(Boolean) : [];
+        summaryVisibility = {
+          noticeId: summary.id,
+          isOpen: true,
+          known: completeIdsKnown,
+          allItemIds: new Set(completeIds),
+          visibleItemIds: new Set(seededIds),
+        };
+      } else {
+        summaryVisibility.known = completeIdsKnown;
+        summaryVisibility.allItemIds = new Set(completeIds);
+      }
+      return summary;
+    }
+
+    function noticeItemIds(notice) {
+      var ids = [];
+      if (notice && notice.id) ids.push(notice.id);
+      (notice && Array.isArray(notice.items) ? notice.items : []).forEach(function (item) {
+        if (item && item.id && ids.indexOf(item.id) < 0) ids.push(item.id);
+      });
+      return ids;
+    }
+
+    function noticeAfterSummarySuppression(notice, summary) {
+      if (!summary || !notice || notice.type === "summary") return notice;
+      // Wait until the host knows the complete summary contents. Suppression
+      // includes items hidden behind the summary's current display limits.
+      if (!summaryVisibility.known) return null;
+      var sourceItems = Array.isArray(notice.items) ? notice.items : [];
+      var remainingItems = sourceItems.filter(function (item) {
+        return !item || !item.id || !summaryVisibility.allItemIds.has(item.id);
+      });
+      var noticeIdIncluded = notice.id && summaryVisibility.allItemIds.has(notice.id);
+      if (noticeIdIncluded || (sourceItems.length && remainingItems.length === 0)) return null;
+      if (remainingItems.length === sourceItems.length) return notice;
+      var removedCount = sourceItems.length - remainingItems.length;
+      var remainingItemIds = new Set(remainingItems.map(function (item) { return item && item.id; }).filter(Boolean));
+      return Object.assign({}, notice, {
+        items: remainingItems,
+        totalCount: Math.max(remainingItems.length, safeNumber(notice.totalCount, sourceItems.length) - removedCount),
+        dismissItemIds: Array.isArray(notice.dismissItemIds)
+          ? notice.dismissItemIds.filter(function (id) { return remainingItemIds.has(id); })
+          : notice.dismissItemIds,
+      });
+    }
+
+    function removeGroup(position) {
+      var group = groups.get(position);
+      if (!group) return;
+      global.removeEventListener("message", group.onMessage);
+      group.host.remove();
+      groups.delete(position);
+    }
+
+    function dismissLocally(payload) {
+      var noticeId = payload && payload.noticeId;
+      if (!noticeId) return;
+      notices = notices.filter(function (notice) { return notice.id !== noticeId; });
+      render();
+    }
+
+    function isDismissingNoticeMessage(type) {
+      return type === FS_BOOKING_NOTICE_CLOSE
+        || type === FS_BOOKING_NOTICE_PRIMARY_ACTION
+        || type === FS_BOOKING_NOTICE_JOIN;
+    }
+
+    function createGroup(position) {
+      var host = document.createElement("div");
+      host.className = "fs-booking-notices-host fs-booking-notices-host--z-fallback";
+      host.dataset.position = position;
+      host.style.setProperty("--fs-booking-notices-z", String(settings.fallbackZIndex));
+      host.setAttribute("popover", "manual");
+      var iframe = document.createElement("iframe");
+      iframe.className = "fs-booking-notices-host__iframe";
+      iframe.title = "Booking notices";
+      iframe.setAttribute("aria-live", "polite");
+      iframe.setAttribute("scrolling", "no");
+      // Desktop cards are 368px wide. Keep 20px of transparent space on each
+      // side so the raised close button and the largest glow are not clipped.
+      var provisionalWidth = media && media.matches ? global.innerWidth : Math.min(408, global.innerWidth || 408);
+      iframe.style.width = provisionalWidth + "px";
+      iframe.style.height = "1px";
+      host.style.width = provisionalWidth + "px";
+      host.style.height = "1px";
+      var group = { host: host, iframe: iframe, position: position, notices: [], ready: false };
+
+      group.onMessage = function (event) {
+        if (destroyed || event.origin !== targetOrigin || event.source !== iframe.contentWindow || !event.data) return;
+        var payload = event.data.payload || {};
+        if (event.data.type === FS_BOOKING_NOTICES_CHILD_READY) {
+          group.ready = true;
+          post(group, FS_BOOKING_NOTICES_BOOTSTRAP);
+          promote(host);
+          if (typeof settings.onReady === "function") settings.onReady({ position: position });
+          return;
+        }
+        if (event.data.type === FS_BOOKING_NOTICES_RESIZE) {
+          var width = Math.max(0, Math.ceil(safeNumber(payload.width, 0)));
+          var height = Math.min(Math.max(0, (global.innerHeight || 0) - 16), Math.max(0, Math.ceil(safeNumber(payload.height, 0))));
+          iframe.style.width = width + "px";
+          iframe.style.height = height + "px";
+          host.style.width = width + "px";
+          host.style.height = height + "px";
+          host.dataset.empty = height === 0 ? "true" : "false";
+          return;
+        }
+        if (event.data.type === FS_BOOKING_NOTICES_SUMMARY_VISIBILITY) {
+          var ownsSummary = group.notices.some(function (notice) {
+            return notice && notice.type === "summary" && notice.id === payload.noticeId;
+          });
+          if (!ownsSummary) return;
+          var nextAllIds = Array.isArray(payload.allItemIds) ? payload.allItemIds.filter(Boolean) : Array.from(summaryVisibility.allItemIds);
+          var nextIds = Array.isArray(payload.visibleItemIds) ? payload.visibleItemIds.filter(Boolean) : [];
+          var nextAllKey = nextAllIds.slice().sort().join("|");
+          var currentAllKey = Array.from(summaryVisibility.allItemIds).sort().join("|");
+          var nextKey = nextIds.slice().sort().join("|");
+          var currentKey = Array.from(summaryVisibility.visibleItemIds).sort().join("|");
+          var changed = !summaryVisibility.known || summaryVisibility.noticeId !== payload.noticeId || currentAllKey !== nextAllKey || currentKey !== nextKey;
+          summaryVisibility = {
+            noticeId: payload.noticeId,
+            isOpen: payload.isOpen !== false,
+            known: true,
+            allItemIds: new Set(nextAllIds),
+            visibleItemIds: new Set(nextIds),
+          };
+          if (changed) render();
+          return;
+        }
+        var callback = null;
+        if (event.data.type === FS_BOOKING_NOTICE_CLOSE) callback = settings.onClose;
+        if (event.data.type === FS_BOOKING_NOTICE_PRIMARY_ACTION) callback = settings.onPrimaryAction;
+        if (event.data.type === FS_BOOKING_NOTICE_DETAIL) callback = settings.onDetail;
+        if (event.data.type === FS_BOOKING_NOTICE_JOIN) callback = settings.onJoin;
+        if (typeof callback === "function") callback(payload);
+        global.dispatchEvent(new CustomEvent(event.data.type, { detail: payload }));
+        if (isDismissingNoticeMessage(event.data.type)) {
+          dismissLocally(payload);
+        }
+      };
+
+      global.addEventListener("message", group.onMessage);
+      host.appendChild(iframe);
+      document.body.appendChild(host);
+      iframe.src = buildIframeSrcWithQuery(settings.src, { fsNoticesVersion: Date.now() });
+      groups.set(position, group);
+      promote(host);
+      return group;
+    }
+
+    function render() {
+      if (destroyed) return;
+      var summary = seedSummaryVisibility();
+      var maxVisible = Math.max(1, Math.floor(safeNumber(config.maxVisibleNotices, settings.maxVisibleNotices)));
+      var selected = notices.filter(function (notice) { return notice && notice.enabled !== false; }).map(function (notice) {
+        return noticeAfterSummarySuppression(notice, summary);
+      }).filter(Boolean).slice(0, maxVisible);
+      var next = new Map();
+      selected.forEach(function (notice) {
+        var position = positionFor(notice);
+        if (!next.has(position)) next.set(position, []);
+        next.get(position).push(notice);
+      });
+      if (next.size === 0) {
+        next.set(globalPosition(!!(media && media.matches)), []);
+      }
+      Array.from(groups.keys()).forEach(function (position) {
+        if (!next.has(position)) removeGroup(position);
+      });
+      next.forEach(function (groupNotices, position) {
+        var group = groups.get(position) || createGroup(position);
+        group.notices = groupNotices;
+        group.host.dataset.position = position;
+        group.host.dataset.noticeCount = String(groupNotices.length);
+        post(group, FS_BOOKING_NOTICES_UPDATE);
+      });
+    }
+
+    function onMediaChange() { render(); }
+    if (media) {
+      if (typeof media.addEventListener === "function") media.addEventListener("change", onMediaChange);
+      else if (typeof media.addListener === "function") media.addListener(onMediaChange);
+    }
+
+    function onScheduledCallState(event) {
+      scheduledCallActive = Boolean(event && event.detail && event.detail.active === true);
+      groups.forEach(function (group) { promote(group.host); });
+    }
+    global.addEventListener("fs:scheduled-call-overlay:state", onScheduledCallState);
+
+    if (global.MutationObserver && document.body) {
+      popupObserver = new MutationObserver(function (mutations) {
+        var popupChanged = mutations.some(function (mutation) {
+          return Array.from(mutation.addedNodes || []).concat(Array.from(mutation.removedNodes || [])).some(function (node) {
+            return node.nodeType === 1 && (node.matches("dialog,[role='dialog'],[class*='popup'],[class*='modal']") || node.querySelector("dialog,[role='dialog'],[class*='popup'],[class*='modal']"));
+          });
+        });
+        if (popupChanged) groups.forEach(function (group) { promote(group.host); });
+      });
+      popupObserver.observe(document.body, { childList: true, subtree: true });
+    }
+
+    var controller = {
+      update: function (data) {
+        if (data && Array.isArray(data.notices)) notices = data.notices.slice();
+        else if (Array.isArray(data)) notices = data.slice();
+        render();
+      },
+      setConfig: function (nextConfig) {
+        config = nextConfig && typeof nextConfig === "object" ? nextConfig : {};
+        render();
+      },
+      isReady: function () {
+        return groups.size > 0 && Array.from(groups.values()).every(function (group) { return group.ready; });
+      },
+      setBookingDetailsActive: function (active) {
+        bookingDetailsActive = active === true;
+        groups.forEach(function (group) { promote(group.host); });
+      },
+      destroy: function () {
+        if (destroyed) return;
+        destroyed = true;
+        popupObserver && popupObserver.disconnect();
+        global.removeEventListener("fs:scheduled-call-overlay:state", onScheduledCallState);
+        if (media) {
+          if (typeof media.removeEventListener === "function") media.removeEventListener("change", onMediaChange);
+          else if (typeof media.removeListener === "function") media.removeListener(onMediaChange);
+        }
+        Array.from(groups.keys()).forEach(removeGroup);
+        if (activeBookingNoticesController === controller) activeBookingNoticesController = null;
+      },
+    };
+    activeBookingNoticesController = controller;
+    render();
+    return controller;
+  }
+
   function updateAuth(options) {
     activeEventsEmbeds.slice().forEach(function (embed) {
       embed.updateAuth(options || {});
@@ -1478,6 +1868,7 @@
     openFanBookingPopup: openFanBookingPopup,
     openBookingDetailsPopup: openBookingDetailsPopup,
     updateFanBookingAuth: updateFanBookingAuth,
+    mountBookingNotices: mountBookingNotices,
   };
 
   preloadFanBookingSkeletonTemplate();

@@ -175,19 +175,39 @@ describe("MainCalendar adjust request", () => {
     wrapper.unmount();
   });
 
-  it.each([
-    ["no chat id", { bookingMessageId: "message_1" }],
-    ["no booking message id", { chatId: "chat_1" }],
-    ["no meta at all", {}],
-  ])("refuses to open the adjust popup when the booking has %s", async (_label, meta) => {
+  it("loads the canonical booking when a calendar projection omits its chat link", async () => {
     const wrapper = await mountCalendar();
-    await requestAdjust(wrapper, booking(meta));
+    const projection = booking({});
+    const canonical = booking({ chatId: "chat_1", bookingMessageId: "message_1" });
+    mocks.flowRun.mockResolvedValueOnce({ ok: true, data: { item: canonical } });
 
-    expect(wrapper.findComponent(AdjustStub).exists()).toBe(false);
-    expect(mocks.showToast).toHaveBeenCalledWith(expect.objectContaining({
+    await requestAdjust(wrapper, projection);
+
+    await vi.waitFor(() => expect(wrapper.findComponent(AdjustStub).exists()).toBe(true));
+    expect(mocks.flowRun).toHaveBeenCalledWith("bookings.fetchBooking", { bookingId: "booking_1" });
+    expect(wrapper.getComponent(AdjustStub).props("message")).toEqual(expect.objectContaining({
+      message_id: "message_1",
+      chat_id: "chat_1",
+      content: expect.objectContaining({ booking_id: "booking_1" }),
+    }));
+    expect(wrapper.getComponent(DetailsStub).props("booking")).toEqual(expect.objectContaining({
+      meta: expect.objectContaining({ chatId: "chat_1", bookingMessageId: "message_1" }),
+    }));
+
+    wrapper.unmount();
+  });
+
+  it("shows the existing unavailable error when the canonical booking has no chat link", async () => {
+    const wrapper = await mountCalendar();
+    mocks.flowRun.mockResolvedValueOnce({ ok: true, data: { item: booking({}) } });
+
+    await requestAdjust(wrapper, booking({}));
+
+    await vi.waitFor(() => expect(mocks.showToast).toHaveBeenCalledWith(expect.objectContaining({
       type: "error",
       message: "dashboard_booking_adjust_unavailable",
-    }));
+    })));
+    expect(wrapper.findComponent(AdjustStub).exists()).toBe(false);
 
     wrapper.unmount();
   });

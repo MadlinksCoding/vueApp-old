@@ -67,6 +67,8 @@ export default defineConfig(({ command, mode }) => {
     eventsEmbed: join(__dirname, "bookings-embed/dashboard.html"),
     bookingsEmbed: join(__dirname, "bookings-embed/fan-booking.html"),
     chatEmbed: join(__dirname, "bookings-embed/chat.html"),
+    noticesEmbed: join(__dirname, "bookings-embed/notices.html"),
+    noticesLab: join(__dirname, "bookings-embed/notices-lab.html"),
   };
   const buildInputs = isWordPressBuild
     ? bookingBuildInputs

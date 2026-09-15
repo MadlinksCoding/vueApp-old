@@ -902,6 +902,10 @@ const props = defineProps({
     type: Number,
     default: null,
   },
+  initialAction: {
+    type: String,
+    default: "",
+  },
   refreshSignal: {
     type: [String, Number, Boolean],
     default: "",
@@ -927,6 +931,7 @@ const widgetCompactEvent = ref(null);
 const pendingWidgetHeroEvent = ref(null);
 const dashboardRootRef = ref(null);
 const mainCalendarRef = ref(null);
+const initialBookingNoticeActionHandled = ref(false);
 const initialWeekDateRevealed = ref(false);
 const cancelBookingPopupOpen = ref(false);
 const cancelBookingLoading = ref(false);
@@ -1077,6 +1082,22 @@ const hasDashboardContext = computed(() => (
     ? normalizedFanId.value != null
     : normalizedCreatorId.value != null
 ));
+
+watch(
+  [() => props.initialAction, hasDashboardContext, mainCalendarRef],
+  async ([initialAction, hasContext, calendar]) => {
+    if (
+      initialBookingNoticeActionHandled.value
+      || initialAction !== "review-pending"
+      || !hasContext
+      || !calendar
+    ) return;
+
+    await nextTick();
+    initialBookingNoticeActionHandled.value = calendar.openPendingRequestsReview?.() === true;
+  },
+  { immediate: true, flush: "post" },
+);
 
 const dashboardEventsEngine = createFlowStateEngine({
   flowId: "dashboard-events-flow",

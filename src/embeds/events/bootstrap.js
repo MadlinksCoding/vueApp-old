@@ -47,7 +47,8 @@ function normalizeInitialRoute(value) {
 }
 
 function normalizeInitialAction(value) {
-  return String(value || "").trim().toLowerCase() === "cancel" ? "cancel" : "";
+  const normalized = String(value || "").trim().toLowerCase();
+  return ["cancel", "review-pending"].includes(normalized) ? normalized : "";
 }
 
 function normalizeRuntimeUrl(value) {
@@ -159,7 +160,7 @@ export function readEventsEmbedBootstrapFromUrl() {
     tokenHandlerApiUrl: params.get("tokenHandlerApiUrl") || "",
     jwtToken: params.get("jwtToken") || "",
     initialRoute: params.get("initialRoute") || "events",
-    initialAction: "",
+    initialAction: params.get("initialAction") || "",
     bookingId: params.get("bookingId") || "",
     hostViewportWidth: window.innerWidth,
     creatorAvatar: params.get("creatorAvatar"),
