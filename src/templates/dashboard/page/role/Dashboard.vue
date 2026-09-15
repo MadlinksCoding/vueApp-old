@@ -1,7 +1,6 @@
 <template>
   <DashboardWrapperTwoColContainer>
 
-    
     <ButtonComponent text="Event Details Fan Popup" variant="mediaBtn" @click="eventDetailsFanOpen = true" />
 
     <br />

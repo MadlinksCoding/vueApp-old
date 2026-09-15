@@ -33,6 +33,30 @@ const findButton = (wrapper, label) => wrapper
   .find((button) => button.text().includes(label));
 
 describe("EventsRequestsPopup", () => {
+  it("opens directly on Pending when requested by a booking notice", async () => {
+    const { default: EventsRequestsPopup } = await import("@/components/calendar/EventsRequestsPopup.vue");
+    const pendingSection = {
+      title: "SOLICITUDES",
+      items: [{ title: "Pending notice booking", status: "pending" }],
+      isPending: true,
+    };
+    const wrapper = mount(EventsRequestsPopup, {
+      props: {
+        initialTab: "pending",
+        eventsData: [pendingSection],
+      },
+      global: {
+        provide: {
+          [bookingTranslationSymbol]: createBookingTranslator({ translations: translatedMessages }),
+        },
+      },
+    });
+
+    expect(findButton(wrapper, "Pendientes").find("span.absolute.bottom-0").exists()).toBe(true);
+    expect(wrapper.findComponent({ name: "BookingScheduleList" }).exists()).toBe(false);
+    expect(wrapper.getComponent({ name: "EventsWidget" }).props("sections")).toEqual([pendingSection]);
+  });
+
   it("translates its title, tabs, and close label while filtering sections by metadata", async () => {
     const { default: EventsRequestsPopup } = await import("@/components/calendar/EventsRequestsPopup.vue");
     const confirmedItem = { title: "Confirmed item" };

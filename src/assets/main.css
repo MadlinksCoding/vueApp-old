@@ -29,6 +29,17 @@ html {
 .bg--gd--blue-51-251 {
     background: linear-gradient(0deg, rgba(1, 51, 251, 0.50) 0%, rgba(1, 51, 251, 0.50) 100%), rgba(12, 17, 29, 0.50);
 }
+@keyframes blink-border-green {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(7, 244, 104, 0);
+  }
+  50% {
+    box-shadow: 0 0 0 5px rgba(7, 244, 104, 0.25);
+  }
+}
+.blink-border-effect-green {
+  animation: blink-border-green 1.5s ease-in-out infinite;
+}
 
 /* md breakpoint = min-width: 768px */
 @media (min-width: 768px) {

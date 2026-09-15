@@ -72,7 +72,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { useBookingTranslations } from '@/i18n/bookingTranslations.js';
 import EventsWidget from './EventsWidget.vue';
 import BookingScheduleList from './BookingScheduleList.vue';
@@ -96,11 +96,22 @@ const props = defineProps({
     type: Object,
     default: () => ({}),
   },
+  initialTab: {
+    type: String,
+    default: 'schedule',
+  },
 });
 
 defineEmits(['close', 'join-click', 'reply-click', 'event-click', 'menu-action', 'approve-booking', 'accept-details', 'edit-schedule-event', 'delete-schedule-event', 'view-schedule-card']);
 
-const activeTab = ref('schedule');
+const normalizeTab = (value) => ['schedule', 'confirmed', 'pending'].includes(value)
+  ? value
+  : 'schedule';
+const activeTab = ref(normalizeTab(props.initialTab));
+
+watch(() => props.initialTab, (value) => {
+  activeTab.value = normalizeTab(value);
+});
 
 const isPendingSection = (section = {}) => {
   if (typeof section.isPending === 'boolean') return section.isPending;

@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const hostCss = readFileSync(resolve(process.cwd(), "public/bookings-embed/fs-events-host.css"), "utf8");
+const hostSource = readFileSync(resolve(process.cwd(), "public/bookings-embed/fs-events-host.js"), "utf8");
 
 describe("fs-events-host openFanBookingPopup", () => {
   beforeEach(async () => {
@@ -27,6 +28,396 @@ describe("fs-events-host openFanBookingPopup", () => {
         fanId: 25,
       });
     }).toThrow("positive creatorId");
+  });
+
+  it("mounts content-sized notice iframes by position and applies the global queue limit first", () => {
+    const controller = window.FSEventsEmbed.mountBookingNotices({
+      src: "/bookings-embed/notices.html",
+      maxVisibleNotices: 3,
+      notices: [
+        { id: "one", type: "booking-request", config: { desktopPosition: "top-left" } },
+        { id: "two", type: "booking-confirmed", config: { desktopPosition: "top-right" } },
+        { id: "three", type: "booking-declined", config: { desktopPosition: "bottom-right" } },
+        { id: "queued", type: "ready-to-join", config: { desktopPosition: "center-center" } },
+      ],
+    });
+
+    const hosts = Array.from(document.querySelectorAll(".fs-booking-notices-host"));
+    expect(hosts.map((host) => host.dataset.position).sort()).toEqual(["bottom-right", "top-left", "top-right"]);
+    expect(document.querySelector('[data-position="center-center"]')).toBeNull();
+    expect(hosts.every((host) => host.parentElement === document.body)).toBe(true);
+    expect(hosts.every((host) => host.querySelector("iframe").style.width === "408px")).toBe(true);
+    expect(controller.isReady()).toBe(false);
+    controller.destroy();
+    expect(document.querySelector(".fs-booking-notices-host")).toBeNull();
+  });
+
+  it("uses the summary position between its individual override and the global fallback", () => {
+    const mountAt = (summaryPosition, noticePosition) => {
+      const controller = window.FSEventsEmbed.mountBookingNotices({
+        src: "/bookings-embed/notices.html",
+        config: {
+          desktopPosition: "center-right",
+          summary: summaryPosition === undefined ? {} : { desktopPosition: summaryPosition },
+        },
+        notices: [{
+          id: "summary",
+          type: "summary",
+          ...(noticePosition === undefined ? {} : { config: { desktopPosition: noticePosition } }),
+        }],
+      });
+      return controller;
+    };
+
+    let controller = mountAt("bottom-right");
+    expect(document.querySelector('[data-position="bottom-right"]')).not.toBeNull();
+    controller.destroy();
+
+    controller = mountAt("bottom-right", "top-left");
+    expect(document.querySelector('[data-position="top-left"]')).not.toBeNull();
+    controller.destroy();
+
+    [undefined, "", null, "not-a-position"].forEach((value) => {
+      controller = mountAt(value);
+      expect(document.querySelector('[data-position="center-right"]')).not.toBeNull();
+      controller.destroy();
+    });
+
+    controller = window.FSEventsEmbed.mountBookingNotices({
+      src: "/bookings-embed/notices.html",
+      config: { desktopPosition: "invalid-global", summary: { desktopPosition: "invalid-summary" } },
+      notices: [{ id: "summary", type: "summary" }],
+    });
+    expect(document.querySelector('[data-position="top-right"]')).not.toBeNull();
+    controller.destroy();
+  });
+
+  it("places a mobile summary at the bottom while an urgent notice remains at the top", () => {
+    const originalMatchMedia = window.matchMedia;
+    window.matchMedia = vi.fn(() => ({
+      matches: true,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    }));
+
+    const controller = window.FSEventsEmbed.mountBookingNotices({
+      src: "/bookings-embed/notices.html",
+      config: {
+        mobilePosition: "top",
+        summary: { mobilePosition: "bottom" },
+      },
+      notices: [
+        { id: "summary", type: "summary", visibleItemIds: [] },
+        { id: "urgent", type: "ready-to-join" },
+      ],
+    });
+
+    expect(document.querySelector('[data-position="bottom"]')?.dataset.noticeCount).toBe("1");
+    expect(document.querySelector('[data-position="top"]')?.dataset.noticeCount).toBe("1");
+    controller.destroy();
+    if (originalMatchMedia) window.matchMedia = originalMatchMedia;
+    else delete window.matchMedia;
+  });
+
+  it("keeps the summary and regular defaults at every required responsive width", () => {
+    const originalMatchMedia = window.matchMedia;
+    const originalWidth = window.innerWidth;
+    [1440, 1280, 1024, 768, 390, 360].forEach((width) => {
+      Object.defineProperty(window, "innerWidth", { configurable: true, value: width });
+      window.matchMedia = vi.fn(() => ({
+        matches: width <= 639,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      }));
+      const controller = window.FSEventsEmbed.mountBookingNotices({
+        src: "/bookings-embed/notices.html",
+        config: {
+          desktopPosition: "top-right",
+          mobilePosition: "top",
+          summary: { desktopPosition: "top-right", mobilePosition: "bottom" },
+        },
+        notices: [
+          { id: `summary-${width}`, type: "summary", visibleItemIds: [] },
+          { id: `regular-${width}`, type: "ready-to-join" },
+        ],
+      });
+
+      if (width <= 639) {
+        expect(document.querySelector('[data-position="bottom"]')?.dataset.noticeCount).toBe("1");
+        expect(document.querySelector('[data-position="top"]')?.dataset.noticeCount).toBe("1");
+      } else {
+        expect(document.querySelector('[data-position="top-right"]')?.dataset.noticeCount).toBe("2");
+      }
+      controller.destroy();
+    });
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: originalWidth });
+    if (originalMatchMedia) window.matchMedia = originalMatchMedia;
+    else delete window.matchMedia;
+  });
+
+  it("suppresses every summary item across positions, including hidden urgent overflow, and frees queue slots", () => {
+    const originalMatchMedia = window.matchMedia;
+    window.matchMedia = vi.fn(() => ({
+      matches: true,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    }));
+
+    const controller = window.FSEventsEmbed.mountBookingNotices({
+      src: "/bookings-embed/notices.html",
+      maxVisibleNotices: 3,
+      config: { mobilePosition: "top", summary: { mobilePosition: "bottom" } },
+      notices: [
+        {
+          id: "summary",
+          type: "summary",
+          allItemIds: ["visible-ready", "visible-request", "hidden-ready", "hidden-info"],
+          visibleItemIds: ["visible-ready", "visible-request"],
+        },
+        { id: "visible-ready", type: "ready-to-join", items: [{ id: "visible-ready" }] },
+        { id: "visible-request", type: "booking-request", items: [{ id: "visible-request" }] },
+        { id: "hidden-ready", type: "ready-to-join", items: [{ id: "hidden-ready" }] },
+        { id: "hidden-info", type: "booking-confirmed", items: [{ id: "hidden-info" }] },
+        { id: "outside-summary", type: "booking-confirmed", items: [{ id: "outside-summary" }] },
+      ],
+    });
+
+    expect(document.querySelector('[data-position="bottom"]')?.dataset.noticeCount).toBe("1");
+    expect(document.querySelector('[data-position="top"]')?.dataset.noticeCount).toBe("1");
+    controller.destroy();
+    if (originalMatchMedia) window.matchMedia = originalMatchMedia;
+    else delete window.matchMedia;
+  });
+
+  it("keeps complete-content suppression stable while summary overflow expands", () => {
+    const originalMatchMedia = window.matchMedia;
+    window.matchMedia = vi.fn(() => ({
+      matches: true,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    }));
+
+    const controller = window.FSEventsEmbed.mountBookingNotices({
+      src: "/bookings-embed/notices.html",
+      config: { mobilePosition: "top", summary: { mobilePosition: "bottom" } },
+      notices: [
+        { id: "summary", type: "summary", allItemIds: ["urgent"], visibleItemIds: [] },
+        { id: "urgent", type: "ready-to-join", items: [{ id: "urgent" }] },
+      ],
+    });
+    const summaryIframe = document.querySelector('[data-position="bottom"] iframe');
+    expect(document.querySelector('[data-position="top"]')).toBeNull();
+
+    window.dispatchEvent(new MessageEvent("message", {
+      origin: window.location.origin,
+      source: summaryIframe.contentWindow,
+      data: {
+        type: "FS_BOOKING_NOTICES_SUMMARY_VISIBILITY",
+        payload: { noticeId: "summary", isOpen: true, allItemIds: ["urgent"], visibleItemIds: ["urgent"] },
+      },
+    }));
+    expect(document.querySelector('[data-position="top"]')).toBeNull();
+
+    window.dispatchEvent(new MessageEvent("message", {
+      origin: window.location.origin,
+      source: summaryIframe.contentWindow,
+      data: {
+        type: "FS_BOOKING_NOTICES_SUMMARY_VISIBILITY",
+        payload: { noticeId: "summary", isOpen: true, allItemIds: ["urgent"], visibleItemIds: [] },
+      },
+    }));
+    expect(document.querySelector('[data-position="top"]')).toBeNull();
+
+    controller.update({
+      notices: [
+        { id: "summary", type: "summary", allItemIds: [], visibleItemIds: [] },
+        { id: "urgent", type: "ready-to-join", items: [{ id: "urgent" }] },
+      ],
+    });
+    expect(document.querySelector('[data-position="top"]')?.dataset.noticeCount).toBe("1");
+
+    controller.destroy();
+    if (originalMatchMedia) window.matchMedia = originalMatchMedia;
+    else delete window.matchMedia;
+  });
+
+  it("keeps grouped dismissal IDs aligned with items left after summary suppression", () => {
+    const originalMatchMedia = window.matchMedia;
+    window.matchMedia = vi.fn(() => ({
+      matches: true,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    }));
+    const notices = [
+      { id: "summary", type: "summary", allItemIds: ["request-one"], visibleItemIds: ["request-one"] },
+      {
+        id: "booking-request-group|1407",
+        type: "booking-request",
+        priority: "action-required",
+        items: [{ id: "request-one" }, { id: "request-two" }],
+        totalCount: 2,
+        dismissItemIds: ["request-one", "request-two"],
+      },
+    ];
+    const controller = window.FSEventsEmbed.mountBookingNotices({
+      src: "/bookings-embed/notices.html",
+      config: { mobilePosition: "top", summary: { mobilePosition: "bottom" } },
+      notices,
+    });
+    const groupedIframe = document.querySelector('[data-position="top"] iframe');
+    const postMessage = vi.spyOn(groupedIframe.contentWindow, "postMessage");
+
+    window.dispatchEvent(new MessageEvent("message", {
+      origin: window.location.origin,
+      source: groupedIframe.contentWindow,
+      data: { type: "FS_BOOKING_NOTICES_CHILD_READY", payload: {} },
+    }));
+
+    const update = postMessage.mock.calls.findLast(([message]) => message.type === "FS_BOOKING_NOTICES_BOOTSTRAP")[0];
+    expect(update.payload.notices[0]).toMatchObject({
+      items: [{ id: "request-two" }],
+      totalCount: 1,
+      dismissItemIds: ["request-two"],
+    });
+    controller.destroy();
+    if (originalMatchMedia) window.matchMedia = originalMatchMedia;
+    else delete window.matchMedia;
+  });
+
+  it("keeps the notice host click-through while its exact iframe remains interactive", () => {
+    expect(hostCss.match(/\.fs-booking-notices-host\s*\{([^}]*)\}/)?.[1]).toContain("pointer-events: none");
+    expect(hostCss.match(/\.fs-booking-notices-host__iframe\s*\{([^}]*)\}/)?.[1]).toContain("pointer-events: auto");
+    expect(hostCss).toContain("2147483647");
+    expect(hostSource).toContain("viewportHeight: Math.max(0, (global.innerHeight || 0) - 16)");
+  });
+
+  it("places booking details above notices and restores the notice top layer after close", () => {
+    const controller = window.FSEventsEmbed.mountBookingNotices({
+      src: "/bookings-embed/notices.html",
+      notices: [{ id: "request", type: "booking-request" }],
+    });
+    const host = document.querySelector(".fs-booking-notices-host");
+    expect(host.getAttribute("popover")).toBe("manual");
+    expect(host.hasAttribute("inert")).toBe(false);
+
+    const popup = window.FSEventsEmbed.openBookingDetailsPopup({
+      bookingId: "booking-from-notice",
+      creatorId: 1407,
+      userRole: "creator",
+    });
+
+    expect(document.querySelector("[data-fs-booking-details-popup]")).not.toBeNull();
+    expect(host.classList.contains("fs-booking-notices-host--below-booking-details")).toBe(true);
+    expect(host.hasAttribute("popover")).toBe(false);
+    expect(host.hasAttribute("inert")).toBe(true);
+    expect(host.getAttribute("aria-hidden")).toBe("true");
+
+    const noticeLayerRule = hostCss.match(/\.fs-booking-notices-host--below-booking-details\s*\{([^}]*)\}/)?.[1] || "";
+    const detailsLayerRule = hostCss.match(/\.fs-booking-details-popup__overlay\s*\{([^}]*)\}/)?.[1] || "";
+    expect(noticeLayerRule).toContain("z-index: 100100");
+    expect(detailsLayerRule).toContain("z-index: 100200");
+
+    popup.close();
+    expect(document.querySelector("[data-fs-booking-details-popup]")).toBeNull();
+    expect(host.classList.contains("fs-booking-notices-host--below-booking-details")).toBe(false);
+    expect(host.getAttribute("popover")).toBe("manual");
+    expect(host.hasAttribute("inert")).toBe(false);
+    expect(host.hasAttribute("aria-hidden")).toBe(false);
+    expect(host.dataset.noticeCount).toBe("1");
+    controller.destroy();
+  });
+
+  it("places the scheduled-call iframe above notices and restores notices after the call closes", () => {
+    const controller = window.FSEventsEmbed.mountBookingNotices({
+      src: "/bookings-embed/notices.html",
+      notices: [{ id: "ready", type: "ready-to-join" }],
+    });
+    const host = document.querySelector(".fs-booking-notices-host");
+
+    window.dispatchEvent(new CustomEvent("fs:scheduled-call-overlay:state", {
+      detail: { active: true, state: "loading", source: "booking_notice" },
+    }));
+
+    expect(host.classList.contains("fs-booking-notices-host--below-booking-details")).toBe(true);
+    expect(host.hasAttribute("popover")).toBe(false);
+    expect(host.hasAttribute("inert")).toBe(true);
+    expect(host.getAttribute("aria-hidden")).toBe("true");
+
+    window.dispatchEvent(new CustomEvent("fs:scheduled-call-overlay:state", {
+      detail: { active: false, state: "closed", source: "booking_notice" },
+    }));
+
+    expect(host.classList.contains("fs-booking-notices-host--below-booking-details")).toBe(false);
+    expect(host.getAttribute("popover")).toBe("manual");
+    expect(host.hasAttribute("inert")).toBe(false);
+    expect(host.hasAttribute("aria-hidden")).toBe(false);
+    controller.destroy();
+  });
+
+  it("forwards Detail without locally removing the notice or its iframe", () => {
+    const onDetail = vi.fn();
+    const controller = window.FSEventsEmbed.mountBookingNotices({
+      src: "/bookings-embed/notices.html",
+      notices: [{ id: "detail-stays-open", type: "booking-confirmed" }],
+      onDetail,
+    });
+    const host = document.querySelector(".fs-booking-notices-host");
+    const iframe = host.querySelector("iframe");
+    const payload = { noticeId: "detail-stays-open", item: { bookingId: "booking-detail" } };
+
+    window.dispatchEvent(new MessageEvent("message", {
+      origin: window.location.origin,
+      source: iframe.contentWindow,
+      data: { type: "FS_BOOKING_NOTICE_DETAIL", payload },
+    }));
+
+    expect(onDetail).toHaveBeenCalledWith(payload);
+    expect(document.querySelector(".fs-booking-notices-host")).toBe(host);
+    expect(host.querySelector("iframe")).toBe(iframe);
+    expect(host.dataset.noticeCount).toBe("1");
+    controller.destroy();
+  });
+
+  it("uses the child visual bounds so the glow and raised close button are not clipped", () => {
+    const controller = window.FSEventsEmbed.mountBookingNotices({
+      src: "/bookings-embed/notices.html",
+      notices: [{ id: "visual", type: "booking-request" }],
+    });
+    const host = document.querySelector(".fs-booking-notices-host");
+    const iframe = host.querySelector("iframe");
+
+    window.dispatchEvent(new MessageEvent("message", {
+      origin: window.location.origin,
+      source: iframe.contentWindow,
+      data: { type: "FS_BOOKING_NOTICES_RESIZE", payload: { width: 408, height: 220 } },
+    }));
+
+    expect(iframe.style.width).toBe("408px");
+    expect(iframe.style.height).toBe("220px");
+    expect(host.style.width).toBe("408px");
+    expect(host.style.height).toBe("220px");
+    controller.destroy();
+  });
+
+  it("tells the narrow notice iframe whether the parent page is desktop", () => {
+    const controller = window.FSEventsEmbed.mountBookingNotices({
+      src: "/bookings-embed/notices.html",
+      notices: [{ id: "visual", type: "booking-request" }],
+    });
+    const iframe = document.querySelector(".fs-booking-notices-host iframe");
+    const postMessage = vi.spyOn(iframe.contentWindow, "postMessage");
+
+    window.dispatchEvent(new MessageEvent("message", {
+      origin: window.location.origin,
+      source: iframe.contentWindow,
+      data: { type: "FS_BOOKING_NOTICES_CHILD_READY", payload: {} },
+    }));
+
+    expect(postMessage).toHaveBeenCalledWith(expect.objectContaining({
+      type: "FS_BOOKING_NOTICES_BOOTSTRAP",
+      payload: expect.objectContaining({ isMobile: false }),
+    }), window.location.origin);
+    controller.destroy();
   });
 
   it("accepts fanId 0 for guest booking popups", () => {
@@ -466,6 +857,7 @@ describe("fs-events-host openFanBookingPopup", () => {
       creatorId: 1407,
       userRole: "agent",
       initialRoute: "create-group",
+      initialAction: "review-pending",
       translations: {
         dashboard_new_events: "Nuevos eventos",
         ignored: {},
@@ -482,6 +874,7 @@ describe("fs-events-host openFanBookingPopup", () => {
         payload: expect.objectContaining({
           userRole: "agent",
           initialRoute: "create-group",
+          initialAction: "review-pending",
           translations: { dashboard_new_events: "Nuevos eventos" },
           locale: "fr-CA",
           hostViewportWidth: window.innerWidth,
@@ -494,6 +887,7 @@ describe("fs-events-host openFanBookingPopup", () => {
     expect(embed.iframe.src).not.toContain("locale=fr-CA");
     expect(embed.iframe.src).toContain("userRole=agent");
     expect(embed.iframe.src).toContain("initialRoute=create-group");
+    expect(embed.iframe.src).toContain("initialAction=review-pending");
   });
 
   it("passes tokenHandlerApiUrl through events mount URL and bootstrap payload", () => {

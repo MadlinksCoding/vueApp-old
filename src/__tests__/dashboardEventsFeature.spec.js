@@ -13,6 +13,7 @@ const mainCalendarScrollToCurrentTime = vi.fn();
 const mainCalendarRevealSelectedWeekDay = vi.fn();
 const mainCalendarOpenEventDetails = vi.fn();
 const mainCalendarApplyBookingReviewResult = vi.fn();
+const mainCalendarOpenPendingRequestsReview = vi.fn(() => true);
 const requestFanTokenBalanceRefresh = vi.fn();
 
 function setByPath(target, path, value) {
@@ -191,6 +192,7 @@ vi.mock("@/components/calendar/MainCalendar.vue", () => ({
       revealSelectedWeekDay: mainCalendarRevealSelectedWeekDay,
       openEventDetails: mainCalendarOpenEventDetails,
       applyBookingReviewResult: mainCalendarApplyBookingReviewResult,
+      openPendingRequestsReview: mainCalendarOpenPendingRequestsReview,
     },
     computed: {
       dynamicBookedEvents() {
@@ -609,6 +611,8 @@ describe("DashboardEventsFeature", () => {
     mainCalendarRevealSelectedWeekDay.mockReset();
     mainCalendarOpenEventDetails.mockReset();
     mainCalendarApplyBookingReviewResult.mockReset();
+    mainCalendarOpenPendingRequestsReview.mockReset();
+    mainCalendarOpenPendingRequestsReview.mockReturnValue(true);
     requestFanTokenBalanceRefresh.mockReset();
 
     callFlow.mockResolvedValue({
@@ -690,6 +694,16 @@ describe("DashboardEventsFeature", () => {
     expect(miniCalendar.props("allowPastDates")).toBe(true);
     expect(miniCalendar.props("eventDotMode")).toBe("booking-status");
     wrapper.unmount();
+  });
+
+  it("opens the tablet Pending requests surface for a booking-notice review intent", async () => {
+    await mountDashboardEventsFeature({
+      creatorId: 99,
+      userRole: "creator",
+      initialAction: "review-pending",
+    });
+
+    expect(mainCalendarOpenPendingRequestsReview).toHaveBeenCalledTimes(1);
   });
 
   it("limits dashboard mini-calendar dots to pending and confirmed bookings", async () => {

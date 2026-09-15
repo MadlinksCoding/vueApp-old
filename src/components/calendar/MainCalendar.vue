@@ -1080,6 +1080,7 @@
     <PopupHandler v-model="eventsRequestsPopupOpen" :config="eventsRequestsPopupConfig">
       <EventsRequestsPopup
         v-if="eventsRequestsPopupOpen"
+        :initial-tab="eventsRequestsInitialTab"
         :events-data="props.eventsData"
         :user-role="props.userRole"
         :booking-schedule-events="props.bookingScheduleEvents"
@@ -1351,6 +1352,7 @@ const dropdownFilters = ref({
 const calendarPopupOpen = ref(false);
 const newEventsPopupOpen = ref(false);
 const eventsRequestsPopupOpen = ref(false);
+const eventsRequestsInitialTab = ref('schedule');
 const eventDetailsPopupOpen = ref(false);
 const eventDetailsCompactSession = ref(false);
 const selectedBookingSnapshot = ref(null);
@@ -1618,6 +1620,18 @@ const isEventsRequestsTabletLandscape = computed(() => (
   && canonicalViewportWidth.value > height.value
 ));
 
+const isEventsRequestsTablet = computed(() => (
+  canonicalViewportWidth.value >= 678
+  && canonicalViewportWidth.value < 1366
+));
+
+const openPendingRequestsReview = () => {
+  if (!isEventsRequestsTablet.value) return false;
+  eventsRequestsInitialTab.value = 'pending';
+  eventsRequestsPopupOpen.value = true;
+  return true;
+};
+
 const eventsRequestsPopupConfig = computed(() => {
   const tabletLandscape = isEventsRequestsTabletLandscape.value;
   const mobile = canonicalViewportWidth.value < 678;
@@ -1633,7 +1647,7 @@ const eventsRequestsPopupConfig = computed(() => {
     lockScroll: true,
     escToClose: true,
     width: { default: tabletLandscape ? "480px" : "100%" },
-    height: "60%",
+    height: { default: mobile ? "60%" : "100%" },
     forceHeight: true,
     scrollable: false,
     closeSpeed: "250ms",
@@ -2831,13 +2845,46 @@ const handleDetailsApproveBooking = (payload) => {
 // AdjustBookingPopup is message-driven: it reads the booking id from
 // `message.content.booking_id` and posts back to `chatId`. The detail popup only
 // hands us the booking, so rebuild the linked chat message from its meta.
-const handleAdjustBooking = (payload) => {
-  const booking = payload?.booking
+const handleAdjustBooking = async (payload) => {
+  let booking = payload?.booking
     || selectedBookingSnapshot.value
     || payload?.event?.raw
     || selectedEvent.value?.raw
     || null;
-  const message = buildBookingChatMessage(booking);
+  let message = buildBookingChatMessage(booking);
+
+  // Calendar and pending-request cards intentionally use lightweight booking
+  // projections. Fetch the canonical booking when that projection does not carry
+  // the linked chat message needed by AdjustBookingPopup.
+  if (!message) {
+    const bookingId = String(
+      payload?.bookingId
+        || booking?.bookingId
+        || booking?.booking_id
+        || selectedEvent.value?.bookingId
+        || '',
+    );
+
+    if (bookingId) {
+      eventDetailsRefreshing.value = true;
+      try {
+        const response = await FlowHandler.run('bookings.fetchBooking', { bookingId });
+        const fetched = response?.ok ? response.data?.item : null;
+        if (fetched && typeof fetched === 'object') {
+          booking = {
+            ...(booking && typeof booking === 'object' ? booking : {}),
+            ...fetched,
+          };
+          selectedBookingSnapshot.value = booking;
+          message = buildBookingChatMessage(booking);
+        }
+      } catch {
+        // The existing unavailable message below is the user-facing fallback.
+      } finally {
+        eventDetailsRefreshing.value = false;
+      }
+    }
+  }
 
   if (!message) {
     showToast({
@@ -3905,6 +3952,7 @@ const scrollToTime = async (time, { behavior = 'smooth', viewportOffset = 0.4 } 
 };
 
 defineExpose({
+  openPendingRequestsReview,
   openEventDetails,
   applyBookingReviewResult,
   applyBookingCancellationResult,

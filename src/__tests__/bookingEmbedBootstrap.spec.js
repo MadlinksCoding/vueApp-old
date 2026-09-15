@@ -37,6 +37,7 @@ describe("booking embed bootstrap translations", () => {
 
   it("accepts only the internal direct-cancellation initial action", () => {
     expect(normalizeEventsEmbedBootstrap({ initialAction: " CANCEL " }).initialAction).toBe("cancel");
+    expect(normalizeEventsEmbedBootstrap({ initialAction: " REVIEW-PENDING " }).initialAction).toBe("review-pending");
     expect(normalizeEventsEmbedBootstrap({ initialAction: "approve" }).initialAction).toBe("");
   });
 });
