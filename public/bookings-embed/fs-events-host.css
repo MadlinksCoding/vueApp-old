@@ -42,6 +42,10 @@
   border: 0;
   overflow: hidden;
   background: transparent;
+  pointer-events: none;
+}
+
+.fs-booking-notices-host__iframe[data-interactive="true"] {
   pointer-events: auto;
 }
 

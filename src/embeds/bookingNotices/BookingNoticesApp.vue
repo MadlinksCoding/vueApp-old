@@ -44,10 +44,13 @@ function post(type, payload = {}) {
 function reportSize() {
   nextTick(() => {
     const rect = root.value?.getBoundingClientRect();
+    const visibleNoticeCount = root.value?.querySelectorAll(".booking-notice-card").length || 0;
     post("FS_BOOKING_NOTICES_RESIZE", {
       position: position.value,
-      width: Math.ceil(rect?.width || 0),
-      height: Math.ceil(rect?.height || 0),
+      width: visibleNoticeCount > 0 ? Math.ceil(rect?.width || 0) : 0,
+      height: visibleNoticeCount > 0 ? Math.ceil(rect?.height || 0) : 0,
+      hasVisibleNotices: visibleNoticeCount > 0,
+      visibleNoticeCount,
     });
   });
 }

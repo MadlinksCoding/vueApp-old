@@ -89,6 +89,43 @@ describe("FSBookingNoticeCoordinator", () => {
     expect(shared.slots[0].html).toContain("Sidebar");
   });
 
+  it("treats an empty notice controller as ready and resynchronizes when notices appear", async () => {
+    let hostReady = true;
+    let mountOptions;
+    const hostController = {
+      update: vi.fn(({ notices }) => { hostReady = notices.length === 0; }),
+      setConfig: vi.fn(),
+      setBookingDetailsActive: vi.fn(),
+      destroy: vi.fn(),
+      isReady: vi.fn(() => hostReady),
+    };
+    window.FSEventsEmbed.mountBookingNotices = vi.fn((options) => {
+      mountOptions = options;
+      return hostController;
+    });
+    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, json: async () => ({ ...feed, bookings: [] }) })));
+
+    window.eval(coordinatorSource);
+    await vi.advanceTimersByTimeAsync(50);
+    await vi.runAllTicks();
+
+    expect(window.FSBookingNoticeCoordinator.isReady()).toBe(true);
+
+    window.FSBookingNoticeCoordinator.showTestNotices([{ id: "test-visible", type: "booking-confirmed" }]);
+    expect(hostController.update).toHaveBeenLastCalledWith({
+      notices: [expect.objectContaining({ id: "test-visible" })],
+    });
+    expect(window.FSBookingNoticeCoordinator.isReady()).toBe(false);
+
+    hostReady = true;
+    mountOptions.onReady({ position: "top-right" });
+    expect(window.FSBookingNoticeCoordinator.isReady()).toBe(true);
+
+    window.FSBookingNoticeCoordinator.clearTestNotices();
+    expect(hostController.update).toHaveBeenLastCalledWith({ notices: [] });
+    expect(window.FSBookingNoticeCoordinator.isReady()).toBe(true);
+  });
+
   it("recovers when a restored database has a lower activity cursor", async () => {
     localStorage.setItem("fsBookingNoticeState:v1:10", JSON.stringify({
       activityCursor: 91,
