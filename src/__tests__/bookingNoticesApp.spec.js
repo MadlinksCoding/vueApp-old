@@ -8,6 +8,58 @@ afterEach(() => {
 });
 
 describe("BookingNoticesApp iframe messaging", () => {
+  it("reports zero bounds until a real notice card is visible", async () => {
+    const postMessage = vi.spyOn(window, "postMessage").mockImplementation(() => {});
+    const wrapper = mount(BookingNoticesApp);
+    await nextTick();
+
+    const initialResize = postMessage.mock.calls
+      .map(([message]) => message)
+      .filter((message) => message?.type === "FS_BOOKING_NOTICES_RESIZE")
+      .at(-1);
+    expect(initialResize?.payload).toMatchObject({
+      width: 0,
+      height: 0,
+      hasVisibleNotices: false,
+      visibleNoticeCount: 0,
+    });
+
+    window.dispatchEvent(new MessageEvent("message", {
+      source: window,
+      origin: window.location.origin,
+      data: {
+        type: "FS_BOOKING_NOTICES_BOOTSTRAP",
+        payload: {
+          position: "top-right",
+          notices: [{
+            id: "visible-notice",
+            type: "booking-confirmed",
+            items: [{
+              id: "visible-item",
+              title: "Visible booking",
+              month: "SEP",
+              day: "17",
+              time: "9:00am – 10:00am",
+              person: { name: "Creator" },
+            }],
+          }],
+        },
+      },
+    }));
+    await nextTick();
+    await nextTick();
+
+    const visibleResize = postMessage.mock.calls
+      .map(([message]) => message)
+      .filter((message) => message?.type === "FS_BOOKING_NOTICES_RESIZE")
+      .at(-1);
+    expect(visibleResize?.payload).toMatchObject({
+      hasVisibleNotices: true,
+      visibleNoticeCount: 1,
+    });
+    wrapper.unmount();
+  });
+
   it("reports the summary's visible item IDs to the host", async () => {
     const postMessage = vi.spyOn(window, "postMessage").mockImplementation(() => {});
     const wrapper = mount(BookingNoticesApp);

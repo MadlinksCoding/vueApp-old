@@ -1514,6 +1514,12 @@
     var config = settings.config && typeof settings.config === "object" ? settings.config : {};
     var destroyed = false;
     var media = global.matchMedia ? global.matchMedia("(max-width: 639px)") : null;
+
+    function provisionalGroupWidth() {
+      var viewportWidth = Math.max(0, Math.ceil(safeNumber(global.innerWidth, 0)));
+      if (media && media.matches) return viewportWidth;
+      return Math.min(408, viewportWidth || 408);
+    }
     var popupObserver = null;
     var bookingDetailsActive = hasActiveBookingDetailsSurface();
     var scheduledCallActive = global.__FSScheduledCallOverlayActive === true;
@@ -1683,6 +1689,11 @@
       var group = groups.get(position);
       if (!group) return;
       global.removeEventListener("message", group.onMessage);
+      try {
+        if (typeof group.host.hidePopover === "function" && group.host.matches(":popover-open")) {
+          group.host.hidePopover();
+        }
+      } catch (_error) {}
       group.host.remove();
       groups.delete(position);
     }
@@ -1711,13 +1722,11 @@
       iframe.title = "Booking notices";
       iframe.setAttribute("aria-live", "polite");
       iframe.setAttribute("scrolling", "no");
-      // Desktop cards are 368px wide. Keep 20px of transparent space on each
-      // side so the raised close button and the largest glow are not clipped.
-      var provisionalWidth = media && media.matches ? global.innerWidth : Math.min(408, global.innerWidth || 408);
-      iframe.style.width = provisionalWidth + "px";
-      iframe.style.height = "1px";
-      host.style.width = provisionalWidth + "px";
-      host.style.height = "1px";
+      iframe.dataset.interactive = "false";
+      iframe.style.width = provisionalGroupWidth() + "px";
+      iframe.style.height = "0px";
+      host.style.width = "0px";
+      host.style.height = "0px";
       var group = { host: host, iframe: iframe, position: position, notices: [], ready: false };
 
       group.onMessage = function (event) {
@@ -1733,11 +1742,21 @@
         if (event.data.type === FS_BOOKING_NOTICES_RESIZE) {
           var width = Math.max(0, Math.ceil(safeNumber(payload.width, 0)));
           var height = Math.min(Math.max(0, (global.innerHeight || 0) - 16), Math.max(0, Math.ceil(safeNumber(payload.height, 0))));
-          iframe.style.width = width + "px";
-          iframe.style.height = height + "px";
-          host.style.width = width + "px";
-          host.style.height = height + "px";
-          host.dataset.empty = height === 0 ? "true" : "false";
+          var hasVisibilitySignal = typeof payload.hasVisibleNotices === "boolean"
+            || Number.isFinite(Number(payload.visibleNoticeCount));
+          var hasVisibleNotices = typeof payload.hasVisibleNotices === "boolean"
+            ? payload.hasVisibleNotices
+            : Number(payload.visibleNoticeCount) > 0;
+          var interactive = group.notices.length > 0
+            && width > 0
+            && height > 0
+            && (!hasVisibilitySignal || hasVisibleNotices);
+          iframe.style.width = (interactive ? width : (group.notices.length > 0 ? provisionalGroupWidth() : 0)) + "px";
+          iframe.style.height = (interactive ? height : 0) + "px";
+          host.style.width = (interactive ? width : 0) + "px";
+          host.style.height = (interactive ? height : 0) + "px";
+          iframe.dataset.interactive = interactive ? "true" : "false";
+          host.dataset.empty = interactive ? "false" : "true";
           return;
         }
         if (event.data.type === FS_BOOKING_NOTICES_SUMMARY_VISIBILITY) {
@@ -1796,9 +1815,6 @@
         if (!next.has(position)) next.set(position, []);
         next.get(position).push(notice);
       });
-      if (next.size === 0) {
-        next.set(globalPosition(!!(media && media.matches)), []);
-      }
       Array.from(groups.keys()).forEach(function (position) {
         if (!next.has(position)) removeGroup(position);
       });
@@ -1807,6 +1823,12 @@
         group.notices = groupNotices;
         group.host.dataset.position = position;
         group.host.dataset.noticeCount = String(groupNotices.length);
+        if (group.iframe.dataset.interactive !== "true") {
+          group.iframe.style.width = provisionalGroupWidth() + "px";
+          group.iframe.style.height = "0px";
+          group.host.style.width = "0px";
+          group.host.style.height = "0px";
+        }
         post(group, FS_BOOKING_NOTICES_UPDATE);
       });
     }
@@ -1846,7 +1868,7 @@
         render();
       },
       isReady: function () {
-        return groups.size > 0 && Array.from(groups.values()).every(function (group) { return group.ready; });
+        return groups.size === 0 || Array.from(groups.values()).every(function (group) { return group.ready; });
       },
       setBookingDetailsActive: function (active) {
         bookingDetailsActive = active === true;

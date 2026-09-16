@@ -47,9 +47,59 @@ describe("fs-events-host openFanBookingPopup", () => {
     expect(document.querySelector('[data-position="center-center"]')).toBeNull();
     expect(hosts.every((host) => host.parentElement === document.body)).toBe(true);
     expect(hosts.every((host) => host.querySelector("iframe").style.width === "408px")).toBe(true);
+    expect(hosts.every((host) => host.style.width === "0px" && host.style.height === "0px")).toBe(true);
+    expect(hosts.every((host) => host.querySelector("iframe").dataset.interactive === "false")).toBe(true);
     expect(controller.isReady()).toBe(false);
     controller.destroy();
     expect(document.querySelector(".fs-booking-notices-host")).toBeNull();
+  });
+
+  it("does not create a notice host while there is nothing to display and can mount one later", () => {
+    const controller = window.FSEventsEmbed.mountBookingNotices({
+      src: "/bookings-embed/notices.html",
+      notices: [],
+    });
+
+    expect(document.querySelector(".fs-booking-notices-host")).toBeNull();
+    expect(controller.isReady()).toBe(true);
+
+    controller.update({ notices: [{ id: "later", type: "booking-confirmed" }] });
+    expect(document.querySelector('[data-position="top-right"]')?.dataset.noticeCount).toBe("1");
+    expect(controller.isReady()).toBe(false);
+    controller.destroy();
+  });
+
+  it("removes empty position groups without disturbing positions that still contain notices", () => {
+    const controller = window.FSEventsEmbed.mountBookingNotices({
+      src: "/bookings-embed/notices.html",
+      notices: [
+        { id: "left", type: "booking-request", config: { desktopPosition: "top-left" } },
+        { id: "right", type: "booking-confirmed", config: { desktopPosition: "top-right" } },
+      ],
+    });
+    const removedIframe = document.querySelector('[data-position="top-left"] iframe');
+
+    controller.update({
+      notices: [{ id: "right", type: "booking-confirmed", config: { desktopPosition: "top-right" } }],
+    });
+
+    expect(document.querySelector('[data-position="top-left"]')).toBeNull();
+    expect(document.querySelector('[data-position="top-right"]')?.dataset.noticeCount).toBe("1");
+
+    window.dispatchEvent(new MessageEvent("message", {
+      origin: window.location.origin,
+      source: removedIframe.contentWindow,
+      data: {
+        type: "FS_BOOKING_NOTICES_RESIZE",
+        payload: { width: 408, height: 220, hasVisibleNotices: true, visibleNoticeCount: 1 },
+      },
+    }));
+    expect(document.querySelector('[data-position="top-left"]')).toBeNull();
+
+    controller.update({ notices: [] });
+    expect(document.querySelector(".fs-booking-notices-host")).toBeNull();
+    expect(controller.isReady()).toBe(true);
+    controller.destroy();
   });
 
   it("uses the summary position between its individual override and the global fallback", () => {
@@ -286,7 +336,9 @@ describe("fs-events-host openFanBookingPopup", () => {
 
   it("keeps the notice host click-through while its exact iframe remains interactive", () => {
     expect(hostCss.match(/\.fs-booking-notices-host\s*\{([^}]*)\}/)?.[1]).toContain("pointer-events: none");
-    expect(hostCss.match(/\.fs-booking-notices-host__iframe\s*\{([^}]*)\}/)?.[1]).toContain("pointer-events: auto");
+    expect(hostCss.match(/\.fs-booking-notices-host__iframe\s*\{([^}]*)\}/)?.[1]).toContain("pointer-events: none");
+    expect(hostCss.match(/\.fs-booking-notices-host__iframe\[data-interactive="true"\]\s*\{([^}]*)\}/)?.[1])
+      .toContain("pointer-events: auto");
     expect(hostCss).toContain("2147483647");
     expect(hostSource).toContain("viewportHeight: Math.max(0, (global.innerHeight || 0) - 16)");
   });
@@ -517,14 +569,62 @@ describe("fs-events-host openFanBookingPopup", () => {
     window.dispatchEvent(new MessageEvent("message", {
       origin: window.location.origin,
       source: iframe.contentWindow,
-      data: { type: "FS_BOOKING_NOTICES_RESIZE", payload: { width: 408, height: 220 } },
+      data: {
+        type: "FS_BOOKING_NOTICES_RESIZE",
+        payload: { width: 408, height: 220, hasVisibleNotices: true, visibleNoticeCount: 1 },
+      },
     }));
 
     expect(iframe.style.width).toBe("408px");
     expect(iframe.style.height).toBe("220px");
     expect(host.style.width).toBe("408px");
     expect(host.style.height).toBe("220px");
+    expect(iframe.dataset.interactive).toBe("true");
+
+    window.dispatchEvent(new MessageEvent("message", {
+      origin: window.location.origin,
+      source: iframe.contentWindow,
+      data: {
+        type: "FS_BOOKING_NOTICES_RESIZE",
+        payload: { width: 408, height: 40, hasVisibleNotices: false, visibleNoticeCount: 0 },
+      },
+    }));
+
+    expect(iframe.style.width).toBe("408px");
+    expect(iframe.style.height).toBe("0px");
+    expect(host.style.width).toBe("0px");
+    expect(host.style.height).toBe("0px");
+    expect(iframe.dataset.interactive).toBe("false");
     controller.destroy();
+  });
+
+  it("gives a loading mobile iframe viewport width without covering WordPress", () => {
+    const originalMatchMedia = window.matchMedia;
+    const originalWidth = window.innerWidth;
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 390 });
+    window.matchMedia = vi.fn(() => ({
+      matches: true,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    }));
+
+    const controller = window.FSEventsEmbed.mountBookingNotices({
+      src: "/bookings-embed/notices.html",
+      notices: [{ id: "mobile-loading", type: "booking-request" }],
+    });
+    const host = document.querySelector(".fs-booking-notices-host");
+    const iframe = host.querySelector("iframe");
+
+    expect(iframe.style.width).toBe("390px");
+    expect(iframe.style.height).toBe("0px");
+    expect(iframe.dataset.interactive).toBe("false");
+    expect(host.style.width).toBe("0px");
+    expect(host.style.height).toBe("0px");
+
+    controller.destroy();
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: originalWidth });
+    if (originalMatchMedia) window.matchMedia = originalMatchMedia;
+    else delete window.matchMedia;
   });
 
   it("tells the narrow notice iframe whether the parent page is desktop", () => {
