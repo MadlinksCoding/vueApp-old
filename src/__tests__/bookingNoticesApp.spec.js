@@ -75,9 +75,12 @@ describe("BookingNoticesApp iframe messaging", () => {
             id: "summary",
             type: "summary",
             sections: [{
-              type: "ready-to-join",
-              items: [{ id: "ready-visible", title: "Ready" }],
-              totalCount: 1,
+              type: "booking-confirmed",
+              items: [
+                { id: "confirmed-visible", title: "Confirmed one" },
+                { id: "confirmed-visible-2", title: "Confirmed two" },
+              ],
+              totalCount: 2,
             }],
           }],
         },
@@ -90,8 +93,8 @@ describe("BookingNoticesApp iframe messaging", () => {
       payload: expect.objectContaining({
         noticeId: "summary",
         isOpen: true,
-        allItemIds: ["ready-visible"],
-        visibleItemIds: ["ready-visible"],
+        allItemIds: ["confirmed-visible", "confirmed-visible-2"],
+        visibleItemIds: ["confirmed-visible", "confirmed-visible-2"],
       }),
     }));
     wrapper.unmount();

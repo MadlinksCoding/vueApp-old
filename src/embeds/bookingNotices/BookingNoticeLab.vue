@@ -142,14 +142,14 @@ import {
   BOOKING_NOTICE_PREVIEW_STORAGE_KEY,
   LAB_NOTICE_VARIANTS,
   createAllBookingNoticeLabNotices,
-  createBookingNoticeLabNotice,
+  createBookingNoticeLabNotices,
   createBookingNoticePreviewPayload,
 } from "./noticeLabData";
 
 const variants = LAB_NOTICE_VARIANTS;
 const desktopPositions = ["top-left", "top-center", "top-right", "center-left", "center-center", "center-right", "bottom-left", "bottom-center", "bottom-right"];
 const selectedVariant = ref("booking-request");
-const viewerRole = ref("fan");
+const viewerRole = ref("creator");
 const desktopPosition = ref("top-right");
 const mobilePosition = ref("top");
 const summaryDesktopPosition = ref("top-right");
@@ -249,9 +249,9 @@ function fixtureOptions() {
 }
 
 function showSelected() {
-  notices.value = [createBookingNoticeLabNotice(selectedVariant.value, fixtureOptions())];
+  notices.value = createBookingNoticeLabNotices(selectedVariant.value, fixtureOptions());
   controller?.update({ notices: plain(notices.value) });
-  record("show", { noticeId: notices.value[0].id });
+  record(notices.value.length ? "show" : "role-filtered", { noticeId: notices.value[0]?.id || selectedVariant.value });
 }
 
 function showAll() {
@@ -279,7 +279,7 @@ function clearNotices() {
 
 function prepareWordPressPreview() {
   if (notices.value.length === 0) {
-    notices.value = [createBookingNoticeLabNotice(selectedVariant.value, fixtureOptions())];
+    notices.value = createBookingNoticeLabNotices(selectedVariant.value, fixtureOptions());
   }
   const payload = createBookingNoticePreviewPayload(plain(notices.value), plain(config.value), viewerRole.value);
   localStorage.setItem(BOOKING_NOTICE_PREVIEW_STORAGE_KEY, JSON.stringify(payload));

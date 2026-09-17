@@ -45,7 +45,6 @@ export const DEFAULT_BOOKING_NOTICE_CONFIG = Object.freeze({
     sectionLimits: Object.freeze({}),
     sectionSort: Object.freeze({}),
     sectionOrder: Object.freeze([
-      BOOKING_NOTICE_TYPES.READY_TO_JOIN,
       BOOKING_NOTICE_TYPES.EVENTS_TODAY,
       BOOKING_NOTICE_TYPES.BOOKING_REQUEST,
       BOOKING_NOTICE_TYPES.PRICE_ADJUSTMENT,
