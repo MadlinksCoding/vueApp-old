@@ -4,6 +4,7 @@ export const LAB_NOTICE_VARIANTS = Object.freeze([
   { value: "booking-request", label: "New booking request" },
   { value: "booking-confirmed", label: "Booking confirmed" },
   { value: "booking-declined", label: "Booking declined" },
+  { value: "booking-cancelled", label: "Booking cancelled" },
   { value: "price-adjustment-sent", label: "Price adjustment sent" },
   { value: "price-adjustment-accepted", label: "Price adjustment accepted" },
   { value: "price-adjustment-declined", label: "Price adjustment declined" },
@@ -132,6 +133,21 @@ export function createBookingNoticeLabNotice(variant, options = {}) {
       action: { id: "join-call", label: "JOIN CALL", bookingId: items[0].bookingId, url: items[0].joinUrl },
     };
   }
+  if (variant === BOOKING_NOTICE_TYPES.BOOKING_CANCELLED) {
+    return {
+      ...base,
+      items: items.map((item) => ({
+        ...item,
+        status: "cancelled_system",
+        activityType: BOOKING_NOTICE_TYPES.BOOKING_CANCELLED,
+        cancellationStatus: "cancelled_system",
+        cancellationReason: "both_no_show_auto_cancel",
+      })),
+      cancellationStatus: "cancelled_system",
+      cancellationReason: "both_no_show_auto_cancel",
+      showDetail: true,
+    };
+  }
   if (variant === BOOKING_NOTICE_TYPES.SUMMARY || variant === "summary-single") {
     const ready = readyLabItem(
       labItem(1, viewerRole, "confirmed", options.longContent, `${prefix}-ready`),
@@ -168,6 +184,7 @@ export function createBookingNoticeLabNotice(variant, options = {}) {
         { id: "price-adjustment:accepted", type: BOOKING_NOTICE_TYPES.PRICE_ADJUSTMENT, variant: "accepted", priority: "status-change", label: "Accepted price adjustments", totalCount: count, items: summaryItems("price-accepted", "confirmed", "price-adjustment-accepted") },
         { id: "price-adjustment:declined", type: BOOKING_NOTICE_TYPES.PRICE_ADJUSTMENT, variant: "declined", priority: "status-change", label: "Declined price adjustments", totalCount: count, items: summaryItems("price-declined", "declined", "price-adjustment-declined") },
         { type: BOOKING_NOTICE_TYPES.BOOKING_DECLINED, label: "Declined booking requests", totalCount: count, items: summaryItems("declined", "declined", "booking-declined") },
+        { type: BOOKING_NOTICE_TYPES.BOOKING_CANCELLED, priority: "status-change", label: "Cancelled bookings", totalCount: count, items: summaryItems("cancelled", "cancelled_system", "booking-cancelled").map((item) => ({ ...item, cancellationReason: "both_no_show_auto_cancel" })) },
       ],
       action: { id: "review-summary", label: "REVIEW IN EVENT PAGE", showArrow: true },
     };

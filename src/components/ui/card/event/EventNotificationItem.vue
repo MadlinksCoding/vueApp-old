@@ -32,19 +32,19 @@
           class="booking-notice-avatar-skeleton"
           data-test="notice-avatar-skeleton"
           role="status"
-          :aria-label="`Loading ${item.person?.name || 'user'} avatar`"
+          :aria-label="`Loading ${resolvedName || 'user'} avatar`"
         />
         <img
-          v-else-if="resolvedAvatar && !avatarLoadFailed"
+          v-else-if="resolvedAvatar"
           :key="resolvedAvatar"
           :src="resolvedAvatar"
-          :alt="item.person?.name || ''"
+          :alt="resolvedName"
           class="booking-notice-avatar"
           data-test="notice-avatar"
-          @error="avatarLoadFailed = true"
+          @error="handleAvatarError"
         />
         <span v-else class="booking-notice-avatar-fallback" aria-hidden="true" />
-        <span class="truncate text-xs text-gray-900">{{ item.person?.name }}</span>
+        <span class="truncate text-xs text-gray-900" data-test="notice-person-name">{{ resolvedName }}</span>
         <button
           v-if="showDetail"
           type="button"
@@ -92,7 +92,7 @@ defineEmits(["detail", "join"]);
 
 const profile = ref(null);
 const profileLoading = ref(false);
-const avatarLoadFailed = ref(false);
+const failedAvatarUrls = ref([]);
 let profileRequestVersion = 0;
 
 const personUserId = computed(() => {
@@ -102,15 +102,29 @@ const personUserId = computed(() => {
 });
 
 const avatarLoading = computed(() => Boolean(personUserId.value) && profileLoading.value && !profile.value);
+const storedAvatar = computed(() => String(props.item.person?.avatar || "").trim());
 const resolvedAvatar = computed(() => {
-  if (personUserId.value) return profile.value?.avatar || "";
-  return props.item.person?.avatar || "";
+  const candidates = [profile.value?.avatar, storedAvatar.value]
+    .map((value) => String(value || "").trim())
+    .filter((value, index, values) => value && values.indexOf(value) === index);
+  return candidates.find((value) => !failedAvatarUrls.value.includes(value)) || "";
 });
+const resolvedName = computed(() => (
+  profile.value?.displayName
+  || profile.value?.username
+  || props.item.person?.name
+  || "Someone"
+));
+
+function handleAvatarError() {
+  if (!resolvedAvatar.value || failedAvatarUrls.value.includes(resolvedAvatar.value)) return;
+  failedAvatarUrls.value = [...failedAvatarUrls.value, resolvedAvatar.value];
+}
 
 watch(personUserId, async (userId) => {
   const requestVersion = ++profileRequestVersion;
   profile.value = null;
-  avatarLoadFailed.value = false;
+  failedAvatarUrls.value = [];
   if (!userId) {
     profileLoading.value = false;
     return;

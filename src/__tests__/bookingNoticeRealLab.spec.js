@@ -45,9 +45,11 @@ describe("WordPress real-data booking notice lab", () => {
       json: async () => ({ success: true, preflight: { ok: true }, runs: [] }),
     })));
     window.eval(source);
-    await vi.waitFor(() => expect(document.querySelectorAll("[data-scenario]")).toHaveLength(8));
+    await vi.waitFor(() => expect(document.querySelectorAll("[data-scenario]")).toHaveLength(10));
 
     expect(document.body.textContent).toContain("New booking request");
+    expect(document.body.textContent).toContain("Creator cancellation");
+    expect(document.body.textContent).toContain("Direct fan cancellation");
     expect(document.body.textContent).toContain("Build creator and fan summaries");
     document.querySelector("[data-prepare-standalone]").click();
     document.querySelector("[data-prepare-summary]").click();

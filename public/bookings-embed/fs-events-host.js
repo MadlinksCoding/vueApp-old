@@ -1715,6 +1715,37 @@
       var host = document.createElement("div");
       host.className = "fs-booking-notices-host fs-booking-notices-host--z-fallback";
       host.dataset.position = position;
+      // Keep the host safe even while WordPress is navigating with apiLoader
+      // or the external host stylesheet is still loading. Without these
+      // critical inline styles, an iframe defaults to a white, in-flow box in
+      // the top-left corner and can cover dashboard controls.
+      Object.assign(host.style, {
+        position: "fixed",
+        inset: "auto",
+        boxSizing: "border-box",
+        width: "0px",
+        height: "0px",
+        maxWidth: "100vw",
+        maxHeight: "100vh",
+        margin: "0px",
+        padding: "0px",
+        border: "0px",
+        overflow: "visible",
+        background: "transparent",
+        pointerEvents: "none",
+      });
+      if (position === "top-left") Object.assign(host.style, { top: "8px", left: "8px" });
+      else if (position === "top-center") Object.assign(host.style, { top: "8px", left: "50%", transform: "translateX(-50%)" });
+      else if (position === "top-right") Object.assign(host.style, { top: "8px", right: "8px" });
+      else if (position === "center-left") Object.assign(host.style, { top: "50%", left: "8px", transform: "translateY(-50%)" });
+      else if (position === "center-center") Object.assign(host.style, { top: "50%", left: "50%", transform: "translate(-50%, -50%)" });
+      else if (position === "center-right") Object.assign(host.style, { top: "50%", right: "8px", transform: "translateY(-50%)" });
+      else if (position === "bottom-left") Object.assign(host.style, { bottom: "8px", left: "8px" });
+      else if (position === "bottom-center") Object.assign(host.style, { bottom: "8px", left: "50%", transform: "translateX(-50%)" });
+      else if (position === "bottom-right") Object.assign(host.style, { right: "8px", bottom: "8px" });
+      else if (position === "top") Object.assign(host.style, { top: "0px", left: "0px" });
+      else if (position === "center") Object.assign(host.style, { top: "50%", left: "0px", transform: "translateY(-50%)" });
+      else if (position === "bottom") Object.assign(host.style, { bottom: "0px", left: "0px" });
       host.style.setProperty("--fs-booking-notices-z", String(settings.fallbackZIndex));
       host.setAttribute("popover", "manual");
       var iframe = document.createElement("iframe");
@@ -1722,11 +1753,20 @@
       iframe.title = "Booking notices";
       iframe.setAttribute("aria-live", "polite");
       iframe.setAttribute("scrolling", "no");
+      iframe.setAttribute("allowtransparency", "true");
       iframe.dataset.interactive = "false";
-      iframe.style.width = provisionalGroupWidth() + "px";
-      iframe.style.height = "0px";
-      host.style.width = "0px";
-      host.style.height = "0px";
+      Object.assign(iframe.style, {
+        display: "block",
+        width: provisionalGroupWidth() + "px",
+        height: "0px",
+        maxWidth: "100vw",
+        maxHeight: "100vh",
+        border: "0px",
+        overflow: "hidden",
+        background: "transparent",
+        colorScheme: "normal",
+        pointerEvents: "none",
+      });
       var group = { host: host, iframe: iframe, position: position, notices: [], ready: false };
 
       group.onMessage = function (event) {
@@ -1755,6 +1795,7 @@
           iframe.style.height = (interactive ? height : 0) + "px";
           host.style.width = (interactive ? width : 0) + "px";
           host.style.height = (interactive ? height : 0) + "px";
+          iframe.style.pointerEvents = interactive ? "auto" : "none";
           iframe.dataset.interactive = interactive ? "true" : "false";
           host.dataset.empty = interactive ? "false" : "true";
           return;

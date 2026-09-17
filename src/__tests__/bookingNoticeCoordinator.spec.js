@@ -162,6 +162,203 @@ describe("FSBookingNoticeCoordinator", () => {
     expect(notices.some((notice) => notice.allItemIds?.includes("restored-activity") || notice.id === "restored-activity")).toBe(true);
   });
 
+  it("purges superseded confirmation state and shows only the cancellation", async () => {
+    const confirmationId = "confirmation-to-remove";
+    const localDate = new Date();
+    const day = [localDate.getFullYear(), String(localDate.getMonth() + 1).padStart(2, "0"), String(localDate.getDate()).padStart(2, "0")].join("-");
+    localStorage.setItem("fsBookingNoticeState:v1:10", JSON.stringify({
+      activityCursor: 1,
+      openActivityIds: [confirmationId],
+      openActivityTimestamps: { [confirmationId]: Date.now() },
+      dismissedActivityIds: {},
+      visibleSummaryItemIds: [confirmationId],
+      summarySnapshotItemIds: [confirmationId],
+      summaryOpen: true,
+      dailyDismissalDate: day,
+    }));
+    const cancellation = {
+      id: "cancellation-activity",
+      type: "booking-cancelled",
+      priority: "status-change",
+      recipientRole: "fan",
+      bookingId: "cancelled-booking",
+      occurredAt: "2026-09-14T10:05:00.000Z",
+      display: {
+        title: "Cancelled booking",
+        startIso: "2026-09-14T10:00:00.000Z",
+        cancellationStatus: "cancelled_system",
+        cancellationReason: "both_no_show_auto_cancel",
+      },
+    };
+    const staleConfirmedStart = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
+    vi.stubGlobal("fetch", vi.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        ...feed,
+        activities: [cancellation],
+        supersessions: [{
+          id: "silent-cancellation-supersession",
+          bookingId: "cancelled-booking",
+          terminalState: "cancelled_system",
+          supersedesActivityIds: [confirmationId],
+        }],
+        bookings: [{ bookingId: "cancelled-booking", status: "confirmed", startIso: staleConfirmedStart }],
+        nextCursor: 2,
+      }),
+    })));
+
+    window.eval(coordinatorSource);
+    await vi.advanceTimersByTimeAsync(50);
+    await vi.runAllTicks();
+
+    const saved = JSON.parse(localStorage.getItem("fsBookingNoticeState:v1:10"));
+    expect(saved.openActivityIds).not.toContain(confirmationId);
+    expect(saved.visibleSummaryItemIds).not.toContain(confirmationId);
+    expect(saved.summarySnapshotItemIds).not.toContain(confirmationId);
+    expect(saved.supersededActivityIds[confirmationId]).toBeTypeOf("number");
+    expect(saved.openActivityIds).toContain("cancellation-activity");
+    const notices = window.FSEventsEmbed.mountBookingNotices.mock.calls[0][0].notices;
+    const summary = notices.find((notice) => notice.id === "booking-activity-summary");
+    expect(summary.allItemIds).toContain("cancellation-activity");
+    expect(summary.allItemIds).not.toContain(confirmationId);
+    expect(summary.sections.some((section) => section.type === "booking-cancelled")).toBe(true);
+    expect(summary.sections.some((section) => section.type === "events-today" || section.type === "ready-to-join")).toBe(false);
+  });
+
+  it("fully purges a requested open activity that is no longer on the server", async () => {
+    const missingId = "deleted-on-server";
+    localStorage.setItem("fsBookingNoticeState:v1:10", JSON.stringify({
+      activityCursor: 4,
+      openActivityIds: [missingId],
+      openActivityTimestamps: { [missingId]: Date.now() },
+      dismissedActivityIds: {},
+      visibleSummaryItemIds: [missingId],
+      summarySnapshotItemIds: [missingId],
+      summaryOpen: true,
+    }));
+    vi.stubGlobal("fetch", vi.fn(async () => ({
+      ok: true,
+      json: async () => ({ ...feed, activities: [], supersessions: [], bookings: [] }),
+    })));
+
+    window.eval(coordinatorSource);
+    await vi.advanceTimersByTimeAsync(50);
+    await vi.runAllTicks();
+
+    const saved = JSON.parse(localStorage.getItem("fsBookingNoticeState:v1:10"));
+    expect(saved.openActivityIds).not.toContain(missingId);
+    expect(saved.visibleSummaryItemIds).not.toContain(missingId);
+    expect(saved.summarySnapshotItemIds).not.toContain(missingId);
+    expect(saved.supersededActivityIds[missingId]).toBeTypeOf("number");
+  });
+
+  it("uses the fan identity for a creator-facing cancellation", async () => {
+    const localDate = new Date();
+    const day = [localDate.getFullYear(), String(localDate.getMonth() + 1).padStart(2, "0"), String(localDate.getDate()).padStart(2, "0")].join("-");
+    localStorage.setItem("fsBookingNoticeState:v1:10", JSON.stringify({
+      openActivityIds: [], openActivityTimestamps: {}, dismissedActivityIds: {}, dailyDismissalDate: day,
+    }));
+    const creatorCancellationFeed = {
+      ...feed,
+      viewer: { id: 1407, role: "creator", displayName: "Creator" },
+      bookings: [],
+      activities: [{
+        id: "fan-cancelled-activity",
+        type: "booking-cancelled",
+        priority: "status-change",
+        recipientRole: "creator",
+        bookingId: "fan-cancelled-booking",
+        occurredAt: new Date().toISOString(),
+        display: {
+          title: "Fan cancellation",
+          status: "cancelled_user",
+          cancellationStatus: "cancelled_user",
+          cancellationReason: "fan_cancelled",
+          fanId: 2615,
+          fanName: "Cosmania Fan",
+          fanAvatar: "https://example.test/fan.jpg",
+          creatorName: "Cosmania Creator",
+        },
+      }],
+    };
+    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, json: async () => creatorCancellationFeed })));
+
+    window.eval(coordinatorSource);
+    await vi.advanceTimersByTimeAsync(50);
+    await vi.runAllTicks();
+
+    const notices = window.FSEventsEmbed.mountBookingNotices.mock.calls[0][0].notices;
+    const cancellation = notices.find((notice) => notice.id === "fan-cancelled-activity");
+    expect(cancellation).toMatchObject({
+      audience: "creator",
+      actor: { displayName: "Cosmania Fan" },
+      cancellationStatus: "cancelled_user",
+      action: null,
+    });
+    expect(cancellation.items[0].person).toMatchObject({ userId: 2615, name: "Cosmania Fan" });
+  });
+
+  it.each([
+    ["cancelled_system", "both_no_show_auto_cancel", "system", "booking-cancelled"],
+    ["no_show_creator", "creator_no_show_auto_cancel", "system", "booking-cancelled"],
+    ["completed", "", "", null],
+    ["no_show_fan", "fan_no_show", "system", null],
+    ["cancelled", "fan_cancelled", "user", null],
+  ])("reconciles a historical confirmation against current %s state", async (status, cancelReason, cancellationActor, expectedType) => {
+    const localDate = new Date();
+    const day = [localDate.getFullYear(), String(localDate.getMonth() + 1).padStart(2, "0"), String(localDate.getDate()).padStart(2, "0")].join("-");
+    const historicalConfirmation = {
+      id: `historical-${status}`,
+      type: "booking-confirmed",
+      priority: "general-information",
+      recipientRole: "fan",
+      bookingId: `booking-${status}`,
+      occurredAt: "2026-09-14T10:00:00.000Z",
+      display: { title: "Historical confirmation", startIso: "2026-09-14T10:00:00.000Z" },
+    };
+    localStorage.setItem("fsBookingNoticeState:v1:10", JSON.stringify({
+      activityCursor: 0,
+      openActivityIds: [],
+      openActivityTimestamps: {},
+      dismissedActivityIds: {},
+      dailyDismissalDate: day,
+    }));
+    vi.stubGlobal("fetch", vi.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        ...feed,
+        activities: [historicalConfirmation],
+        bookings: [{
+          bookingId: `booking-${status}`,
+          status,
+          cancelReason,
+          cancellationActor,
+          userDisplayName: "Creator",
+          booking_user_id: 1407,
+          startIso: "2026-09-14T10:00:00.000Z",
+        }],
+        nextCursor: 1,
+      }),
+    })));
+
+    window.eval(coordinatorSource);
+    await vi.advanceTimersByTimeAsync(50);
+    await vi.runAllTicks();
+
+    const notices = window.FSEventsEmbed.mountBookingNotices.mock.calls[0][0].notices;
+    if (expectedType) {
+      expect(notices).toHaveLength(1);
+      expect(notices[0]).toMatchObject({
+        id: historicalConfirmation.id,
+        type: expectedType,
+        activityType: expectedType,
+        cancellationStatus: status,
+      });
+    } else {
+      expect(notices).toEqual([]);
+    }
+  });
+
   it("keeps a newly fetched notice open when stale browser IDs exceed the feed restore limit", async () => {
     const staleIds = Array.from({ length: 56 }, (_, index) => `stale-activity-${index + 1}`);
     localStorage.setItem("fsBookingNoticeState:v1:10", JSON.stringify({
@@ -403,6 +600,96 @@ describe("FSBookingNoticeCoordinator", () => {
     expect(coordinatorSource).toMatch(/catch \(_error\) \{\}[\s\S]*global\.location\.assign\(url\);/);
   });
 
+  it("keeps individually closed standalone notices dismissed after a coordinator reload", async () => {
+    vi.setSystemTime(new Date(2026, 8, 16, 12, 0, 0));
+    localStorage.setItem("fsBookingNoticeState:v1:10", JSON.stringify({
+      openActivityIds: [],
+      openActivityTimestamps: {},
+      dismissedActivityIds: {},
+      dailyDismissalDate: "2026-09-16",
+    }));
+    const activities = ["one", "two", "three"].map((suffix, index) => ({
+      id: `standalone-${suffix}`,
+      type: "booking-declined",
+      priority: "status-change",
+      recipientRole: "fan",
+      bookingId: `booking-${suffix}`,
+      occurredAt: new Date(2026, 8, 16, 10, index, 0).toISOString(),
+      display: {
+        title: `Declined ${suffix}`,
+        startIso: new Date(2026, 8, 20 + index, 10, 0, 0).toISOString(),
+      },
+    }));
+    const activityFeed = { ...feed, bookings: [], activities, nextCursor: 3 };
+    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, json: async () => activityFeed })));
+
+    window.eval(coordinatorSource);
+    await vi.advanceTimersByTimeAsync(50);
+    await vi.runAllTicks();
+
+    const firstMountOptions = window.FSEventsEmbed.mountBookingNotices.mock.calls[0][0];
+    expect(firstMountOptions.notices.map((notice) => notice.id)).toEqual(activities.map((activity) => activity.id));
+    const stateVersions = [];
+    activities.forEach((activity) => {
+      firstMountOptions.onClose({ noticeId: activity.id, dismissedItemIds: [] });
+      stateVersions.push(JSON.parse(localStorage.getItem("fsBookingNoticeState:v1:10")).updatedAt);
+    });
+    expect(stateVersions[1]).toBeGreaterThan(stateVersions[0]);
+    expect(stateVersions[2]).toBeGreaterThan(stateVersions[1]);
+    const savedBeforeReload = JSON.parse(localStorage.getItem("fsBookingNoticeState:v1:10"));
+    expect(Object.keys(savedBeforeReload.dismissedActivityIds)).toEqual(expect.arrayContaining(activities.map((activity) => activity.id)));
+
+    window.FSBookingNoticeCoordinator.destroy();
+    delete window.FSBookingNoticeCoordinator;
+    window.FSEventsEmbed.mountBookingNotices.mockClear();
+    window.eval(coordinatorSource);
+    await vi.advanceTimersByTimeAsync(50);
+    await vi.runAllTicks();
+
+    expect(window.FSEventsEmbed.mountBookingNotices.mock.calls[0][0].notices).toEqual([]);
+    const savedAfterReload = JSON.parse(localStorage.getItem("fsBookingNoticeState:v1:10"));
+    expect(Object.keys(savedAfterReload.dismissedActivityIds)).toEqual(expect.arrayContaining(activities.map((activity) => activity.id)));
+  });
+
+  it("preserves a dismissal written by another tab while a stale refresh is in flight", async () => {
+    vi.setSystemTime(new Date(2026, 8, 16, 12, 0, 0));
+    const activity = {
+      id: "closed-in-another-tab",
+      type: "booking-declined",
+      priority: "status-change",
+      recipientRole: "fan",
+      bookingId: "booking-cross-tab",
+      occurredAt: new Date(2026, 8, 16, 10, 0, 0).toISOString(),
+      display: { title: "Cross-tab booking", startIso: new Date(2026, 8, 20, 10, 0, 0).toISOString() },
+    };
+    localStorage.setItem("fsBookingNoticeState:v1:10", JSON.stringify({
+      openActivityIds: [],
+      openActivityTimestamps: {},
+      dismissedActivityIds: {},
+      dailyDismissalDate: "2026-09-16",
+      updatedAt: 1,
+    }));
+    let resolveFeed;
+    vi.stubGlobal("fetch", vi.fn(() => new Promise((resolve) => { resolveFeed = resolve; })));
+
+    window.eval(coordinatorSource);
+    await vi.advanceTimersByTimeAsync(50);
+    localStorage.setItem("fsBookingNoticeState:v1:10", JSON.stringify({
+      openActivityIds: [],
+      openActivityTimestamps: {},
+      dismissedActivityIds: { [activity.id]: Date.now() },
+      dailyDismissalDate: "2026-09-16",
+      updatedAt: Date.now() + 1,
+    }));
+    resolveFeed({ ok: true, json: async () => ({ ...feed, bookings: [], activities: [activity], nextCursor: 1 }) });
+    await vi.runAllTicks();
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(window.FSEventsEmbed.mountBookingNotices.mock.calls[0][0].notices).toEqual([]);
+    const saved = JSON.parse(localStorage.getItem("fsBookingNoticeState:v1:10"));
+    expect(saved.dismissedActivityIds[activity.id]).toBeDefined();
+  });
+
   it("opens Join Call in the shared scheduled-call iframe and dismisses once", async () => {
     const overlayHandle = { close: vi.fn() };
     window.FSScheduledCallOverlay = { open: vi.fn(() => overlayHandle) };
@@ -493,6 +780,7 @@ describe("FSBookingNoticeCoordinator", () => {
   });
 
   it("formats notice times like the designs and opens real fan Detail with the required account context", async () => {
+    window.FSBookingNoticeSettings.dismissEndpoint = "https://example.test/wp-json/api/bookings/notices-dismiss";
     const activityFeed = {
       ...feed,
       activities: [{
@@ -513,7 +801,8 @@ describe("FSBookingNoticeCoordinator", () => {
     };
     window.siteData = { bookingsBackendLambdaEndpoint: "https://bookings.test", tokensLambdaEndpoint: "https://tokens.test" };
     window.userData = { jwtToken: "jwt" };
-    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, json: async () => activityFeed })));
+    const fetchMock = vi.fn(async () => ({ ok: true, json: async () => activityFeed }));
+    vi.stubGlobal("fetch", fetchMock);
     window.eval(coordinatorSource);
     await vi.advanceTimersByTimeAsync(50);
     await vi.runAllTicks();
@@ -541,6 +830,7 @@ describe("FSBookingNoticeCoordinator", () => {
     expect(localStorage.getItem("fsBookingNoticeState:v1:10")).toBe(stateBeforeDetail);
     expect(controller.update.mock.calls).toHaveLength(updatesBeforeDetail);
     expect(mountOptions.notices.some((item) => item.id === notice.id)).toBe(true);
+    expect(fetchMock.mock.calls.some(([, options]) => options?.method === "POST")).toBe(false);
     delete window.siteData;
     delete window.userData;
   });
@@ -627,6 +917,11 @@ describe("FSBookingNoticeCoordinator", () => {
 
   it("builds Events today from future local-day bookings, promotes Ready items, and represents matching confirmations", async () => {
     vi.setSystemTime(new Date(2026, 8, 14, 10, 0, 0));
+    const postMessage = vi.fn();
+    vi.stubGlobal("BroadcastChannel", class {
+      postMessage(payload) { postMessage(payload); }
+      close() {}
+    });
     window.FSBookingNoticeSettings.config = {
       refreshIntervalSeconds: 10,
       summary: { totalLimit: 2, perSectionLimit: 3 },
@@ -654,7 +949,7 @@ describe("FSBookingNoticeCoordinator", () => {
     const firstTodayStart = at(0, 10, 30);
     const secondTodayStart = at(0, 11, 0);
     const tomorrowStart = at(1, 10, 30);
-    const responseData = {
+    let responseData = {
       ...feed,
       bookings: [
         booking("ready-booking", "confirmed", readyStart),
@@ -705,13 +1000,40 @@ describe("FSBookingNoticeCoordinator", () => {
     expect(savedBeforeClose.visibleSummaryItemIds).not.toContain(todaySection.items[1].id);
     mountOptions.onClose({
       noticeId: "booking-activity-summary",
-      dismissedItemIds: savedBeforeClose.visibleSummaryItemIds,
+      dismissedItemIds: summary.allItemIds,
     });
     const savedAfterClose = JSON.parse(localStorage.getItem("fsBookingNoticeState:v1:10"));
     expect(savedAfterClose.dismissedActivityIds["confirm-ready"]).toBeDefined();
     expect(savedAfterClose.dismissedActivityIds["confirm-today"]).toBeDefined();
-    expect(savedAfterClose.dismissedActivityIds["confirm-today-hidden"]).toBeUndefined();
-    expect(savedAfterClose.dismissedActivityIds["confirm-tomorrow"]).toBeUndefined();
+    expect(savedAfterClose.dismissedActivityIds["confirm-today-hidden"]).toBeDefined();
+    expect(savedAfterClose.dismissedActivityIds["confirm-tomorrow"]).toBeDefined();
+    expect(window.FSEventsEmbed.mountBookingNotices.mock.results[0].value.update.mock.calls.at(-1)[0].notices).toEqual([]);
+
+    const dismissedBroadcast = postMessage.mock.calls
+      .map(([message]) => message)
+      .find((message) => message.type === "state"
+        && summary.allItemIds.every((id) => message.state.dismissedActivityIds[id]));
+    expect(dismissedBroadcast).toBeDefined();
+
+    const newActivity = {
+      id: "new-after-summary-close",
+      type: "booking-declined",
+      priority: "status-change",
+      recipientRole: "fan",
+      bookingId: "new-booking",
+      occurredAt: at(0, 10, 10),
+      display: { title: "New after close", startIso: at(2, 10, 30) },
+    };
+    responseData = {
+      ...responseData,
+      activities: [...responseData.activities, newActivity],
+      nextCursor: 5,
+    };
+    window.FSBookingNoticeCoordinator.refresh("new-after-summary-close");
+    await vi.advanceTimersByTimeAsync(50);
+    await vi.runAllTicks();
+    const latestNotices = window.FSEventsEmbed.mountBookingNotices.mock.results[0].value.update.mock.calls.at(-1)[0].notices;
+    expect(latestNotices.some((notice) => notice.id === newActivity.id)).toBe(true);
   });
 
   it("uses the matching booked-slot user when an automatic activity has no actor", async () => {
@@ -753,6 +1075,102 @@ describe("FSBookingNoticeCoordinator", () => {
       userId: 1407,
       name: "Automatic booking creator",
       avatar: "stale-booking-avatar.png",
+    });
+  });
+
+  it("uses the creator identity for fan notices instead of the action actor", async () => {
+    const identityFeed = {
+      ...feed,
+      bookings: [{
+        bookingId: "booking-role-correct-fan",
+        status: "confirmed",
+        startIso: "2026-09-21T10:00:00.000Z",
+        endIso: "2026-09-21T10:30:00.000Z",
+        booking_user_id: 1407,
+        userDisplayName: "Booked-slot creator",
+        userHeadshot: "booked-slot-creator.png",
+      }],
+      activities: [{
+        id: "activity-role-correct-fan",
+        type: "booking-confirmed",
+        priority: "general-information",
+        recipientRole: "fan",
+        actorId: 2615,
+        bookingId: "booking-role-correct-fan",
+        occurredAt: "2026-09-13T10:00:00.000Z",
+        display: {
+          title: "Confirmed booking",
+          startIso: "2026-09-21T10:00:00.000Z",
+          endIso: "2026-09-21T10:30:00.000Z",
+          actorName: "The fan who booked",
+          actorAvatar: "fan-actor.png",
+          creatorId: 1407,
+          creatorName: "Stored creator",
+          creatorAvatar: "stored-creator.png",
+        },
+      }],
+      nextCursor: 1,
+    };
+    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, json: async () => identityFeed })));
+    window.eval(coordinatorSource);
+    await vi.advanceTimersByTimeAsync(50);
+    await vi.runAllTicks();
+
+    const notices = window.FSEventsEmbed.mountBookingNotices.mock.calls[0][0].notices;
+    const notice = notices.find((candidate) => candidate.id === "activity-role-correct-fan");
+    expect(notice.items[0].person).toEqual({
+      userId: 1407,
+      name: "Stored creator",
+      avatar: "stored-creator.png",
+    });
+  });
+
+  it("uses the fan identity for creator notices instead of the action actor", async () => {
+    window.FSBookingNoticeSettings.userId = 1407;
+    const identityFeed = {
+      ...feed,
+      viewer: { id: 1407, role: "creator", displayName: "Creator" },
+      bookings: [{
+        bookingId: "booking-role-correct-creator",
+        status: "confirmed",
+        startIso: "2026-09-21T10:00:00.000Z",
+        endIso: "2026-09-21T10:30:00.000Z",
+        booking_user_id: 2615,
+        userDisplayName: "Booked-slot fan",
+        userHeadshot: "booked-slot-fan.png",
+      }],
+      activities: [{
+        id: "activity-role-correct-creator",
+        type: "price-adjustment-accepted",
+        priority: "status-change",
+        recipientRole: "creator",
+        actorId: 1407,
+        bookingId: "booking-role-correct-creator",
+        occurredAt: "2026-09-13T10:00:00.000Z",
+        display: {
+          title: "Accepted adjustment",
+          startIso: "2026-09-21T10:00:00.000Z",
+          endIso: "2026-09-21T10:30:00.000Z",
+          actorName: "The creator actor",
+          actorAvatar: "creator-actor.png",
+          fanId: 2615,
+          fanName: "Stored fan",
+          fanAvatar: "stored-fan.png",
+        },
+      }],
+      nextCursor: 1,
+    };
+    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, json: async () => identityFeed })));
+    window.eval(coordinatorSource);
+    await vi.advanceTimersByTimeAsync(50);
+    await vi.runAllTicks();
+
+    const notices = window.FSEventsEmbed.mountBookingNotices.mock.calls[0][0].notices;
+    const notice = notices.find((candidate) => candidate.id === "activity-role-correct-creator");
+    expect(notice.items[0].person).toEqual({
+      userId: 2615,
+      name: "Stored fan",
+      avatar: "stored-fan.png",
     });
   });
 
@@ -830,6 +1248,132 @@ describe("FSBookingNoticeCoordinator", () => {
     expect(notices.some((notice) => String(notice.id).startsWith("booking-request-group|"))).toBe(false);
   });
 
+  it("persists only server-backed activity IDs when a notice closes", async () => {
+    vi.setSystemTime(new Date(2026, 8, 16, 12, 0, 0));
+    window.FSBookingNoticeSettings.dismissEndpoint = "https://example.test/wp-json/api/bookings/notices-dismiss";
+    localStorage.setItem("fsBookingNoticeState:v1:10", JSON.stringify({
+      openActivityIds: [],
+      openActivityTimestamps: {},
+      dismissedActivityIds: {},
+      dailyDismissalDate: "2026-09-16",
+    }));
+    const activity = {
+      id: "server-activity-close",
+      type: "booking-declined",
+      priority: "status-change",
+      recipientRole: "fan",
+      bookingId: "booking-close",
+      occurredAt: new Date().toISOString(),
+      display: { title: "Declined", startIso: new Date(2026, 8, 20, 10, 0, 0).toISOString() },
+    };
+    const fetchMock = vi.fn(async (url, options = {}) => {
+      if (options.method === "POST") {
+        return { ok: true, json: async () => ({ success: true, dismissedActivityIds: [activity.id] }) };
+      }
+      return { ok: true, json: async () => ({ ...feed, bookings: [], activities: [activity], nextCursor: 1 }) };
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    window.eval(coordinatorSource);
+    await vi.advanceTimersByTimeAsync(50);
+    await vi.runAllTicks();
+
+    const mountOptions = window.FSEventsEmbed.mountBookingNotices.mock.calls[0][0];
+    mountOptions.onClose({ noticeId: activity.id, dismissedItemIds: [activity.id] });
+    await vi.advanceTimersByTimeAsync(0);
+    await vi.runAllTicks();
+
+    const dismissalCall = fetchMock.mock.calls.find(([, options]) => options?.method === "POST");
+    expect(dismissalCall?.[0]).toBe(window.FSBookingNoticeSettings.dismissEndpoint);
+    expect(JSON.parse(dismissalCall?.[1]?.body)).toEqual({ activityIds: [activity.id] });
+    const saved = JSON.parse(localStorage.getItem("fsBookingNoticeState:v1:10"));
+    expect(saved.dismissedActivityIds[activity.id]).toBeTypeOf("number");
+    expect(saved.pendingActivityDismissalIds[activity.id]).toBeUndefined();
+  });
+
+  it("syncs represented confirmation IDs but not calculated Ready IDs when a summary closes", async () => {
+    vi.setSystemTime(new Date(2026, 8, 16, 12, 0, 0));
+    window.FSBookingNoticeSettings.dismissEndpoint = "https://example.test/wp-json/api/bookings/notices-dismiss";
+    const startIso = new Date(2026, 8, 16, 12, 4, 0).toISOString();
+    const activity = {
+      id: "confirmation-in-ready-summary",
+      type: "booking-confirmed",
+      priority: "general-information",
+      recipientRole: "fan",
+      bookingId: "ready-summary-booking",
+      occurredAt: new Date().toISOString(),
+      display: { title: "Ready booking", startIso },
+    };
+    const fetchMock = vi.fn(async (_url, options = {}) => {
+      if (options.method === "POST") {
+        const ids = JSON.parse(options.body).activityIds;
+        return { ok: true, json: async () => ({ success: true, dismissedActivityIds: ids }) };
+      }
+      return { ok: true, json: async () => ({
+        ...feed,
+        activities: [activity],
+        bookings: [{ bookingId: activity.bookingId, status: "confirmed", startIso }],
+        nextCursor: 1,
+      }) };
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    window.eval(coordinatorSource);
+    await vi.advanceTimersByTimeAsync(50);
+    await vi.runAllTicks();
+
+    const mountOptions = window.FSEventsEmbed.mountBookingNotices.mock.calls[0][0];
+    const summary = mountOptions.notices.find((notice) => notice.id === "booking-activity-summary");
+    const calculatedReadyId = summary.sections[0].items[0].id;
+    expect(summary.serverActivityIds).toEqual([activity.id]);
+    expect(summary.allItemIds).toEqual(expect.arrayContaining([activity.id, calculatedReadyId]));
+
+    mountOptions.onClose({ noticeId: summary.id, dismissedItemIds: summary.allItemIds });
+    await vi.runAllTicks();
+    const dismissalCall = fetchMock.mock.calls.find(([, options]) => options?.method === "POST");
+    expect(JSON.parse(dismissalCall?.[1]?.body)).toEqual({ activityIds: [activity.id] });
+  });
+
+  it("keeps failed activity dismissals queued and retries them on focus", async () => {
+    vi.setSystemTime(new Date(2026, 8, 16, 12, 0, 0));
+    window.FSBookingNoticeSettings.dismissEndpoint = "https://example.test/wp-json/api/bookings/notices-dismiss";
+    localStorage.setItem("fsBookingNoticeState:v1:10", JSON.stringify({
+      openActivityIds: [], openActivityTimestamps: {}, dismissedActivityIds: {}, dailyDismissalDate: "2026-09-16",
+    }));
+    const activity = {
+      id: "retry-dismissal",
+      type: "booking-declined",
+      priority: "status-change",
+      recipientRole: "fan",
+      bookingId: "retry-booking",
+      occurredAt: new Date().toISOString(),
+      display: { title: "Retry dismissal", startIso: new Date(2026, 8, 20, 10, 0, 0).toISOString() },
+    };
+    let dismissalShouldFail = true;
+    const fetchMock = vi.fn(async (_url, options = {}) => {
+      if (options.method === "POST") {
+        if (dismissalShouldFail) throw new Error("offline");
+        return { ok: true, json: async () => ({ success: true, dismissedActivityIds: [activity.id] }) };
+      }
+      return { ok: true, json: async () => ({ ...feed, bookings: [], activities: [activity], nextCursor: 1 }) };
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    window.eval(coordinatorSource);
+    await vi.advanceTimersByTimeAsync(50);
+    await vi.runAllTicks();
+    const mountOptions = window.FSEventsEmbed.mountBookingNotices.mock.calls[0][0];
+    mountOptions.onClose({ noticeId: activity.id, dismissedItemIds: [activity.id] });
+    await vi.runAllTicks();
+    expect(JSON.parse(localStorage.getItem("fsBookingNoticeState:v1:10")).pendingActivityDismissalIds[activity.id]).toBeTypeOf("number");
+
+    dismissalShouldFail = false;
+    window.dispatchEvent(new Event("focus"));
+    await vi.advanceTimersByTimeAsync(50);
+    await vi.runAllTicks();
+    expect(JSON.parse(localStorage.getItem("fsBookingNoticeState:v1:10")).pendingActivityDismissalIds[activity.id]).toBeUndefined();
+  });
+
   it("rebuilds a cross-tab snapshot through the receiving tab's dismissal state", async () => {
     let channel;
     vi.stubGlobal("BroadcastChannel", class {
@@ -860,8 +1404,78 @@ describe("FSBookingNoticeCoordinator", () => {
     expect(controller.update.mock.calls.at(-1)[0].notices).toEqual([]);
   });
 
-	it("injects browser-only Lab notices without running real WordPress actions", async () => {
-	  vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, json: async () => feed })));
+  it("does not let a newer stale tab state erase a dismissal", async () => {
+    vi.setSystemTime(new Date(2026, 8, 16, 12, 0, 0));
+    let channel;
+    vi.stubGlobal("BroadcastChannel", class {
+      constructor() { channel = this; }
+      postMessage() {}
+      close() {}
+    });
+    localStorage.setItem("fsBookingNoticeState:v1:10", JSON.stringify({
+      openActivityIds: [],
+      openActivityTimestamps: {},
+      dismissedActivityIds: {},
+      dailyDismissalDate: "2026-09-16",
+      updatedAt: 1,
+    }));
+    const activity = {
+      id: "cross-tab-dismissed",
+      type: "booking-declined",
+      priority: "status-change",
+      recipientRole: "fan",
+      bookingId: "booking-cross-tab-dismissed",
+      occurredAt: new Date(2026, 8, 16, 10, 0, 0).toISOString(),
+      display: { title: "Declined", startIso: new Date(2026, 8, 20, 10, 0, 0).toISOString() },
+    };
+    const activityFeed = { ...feed, bookings: [], activities: [activity], nextCursor: 1 };
+    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, json: async () => activityFeed })));
+    window.eval(coordinatorSource);
+    await vi.advanceTimersByTimeAsync(50);
+    await vi.runAllTicks();
+
+    const mountOptions = window.FSEventsEmbed.mountBookingNotices.mock.calls[0][0];
+    const controller = window.FSEventsEmbed.mountBookingNotices.mock.results[0].value;
+    mountOptions.onClose({ noticeId: activity.id, dismissedItemIds: [] });
+    const dismissedState = JSON.parse(localStorage.getItem("fsBookingNoticeState:v1:10"));
+    channel.onmessage({ data: { type: "state", state: {
+      openActivityIds: [activity.id],
+      openActivityTimestamps: { [activity.id]: Date.now() },
+      dismissedActivityIds: {},
+      dailyDismissalDate: "2026-09-16",
+      updatedAt: dismissedState.updatedAt + 10,
+    } } });
+
+    const repairedState = JSON.parse(localStorage.getItem("fsBookingNoticeState:v1:10"));
+    expect(repairedState.dismissedActivityIds[activity.id]).toBeDefined();
+    expect(controller.update.mock.calls.at(-1)[0].notices).toEqual([]);
+  });
+
+	it("scopes browser-only Lab configuration to Lab notices without changing real notices", async () => {
+	  const now = new Date();
+	  const today = [now.getFullYear(), String(now.getMonth() + 1).padStart(2, "0"), String(now.getDate()).padStart(2, "0")].join("-");
+	  localStorage.setItem("fsBookingNoticeState:v1:10", JSON.stringify({
+		openActivityIds: [],
+		openActivityTimestamps: {},
+		dismissedActivityIds: {},
+		dailyDismissalDate: today,
+	  }));
+	  const realActivity = {
+		id: "real-booking-confirmed-1",
+		type: "booking-declined",
+		priority: "status-change",
+		recipientRole: "fan",
+		bookingId: "real-booking-1",
+		occurredAt: now.toISOString(),
+		display: {
+		  title: "Real declined booking",
+		  startIso: new Date(now.getTime() + 86_400_000).toISOString(),
+		},
+	  };
+	  vi.stubGlobal("fetch", vi.fn(async () => ({
+		ok: true,
+		json: async () => ({ ...feed, bookings: [], activities: [realActivity], nextCursor: 1 }),
+	  })));
 	  window.eval(coordinatorSource);
 	  await vi.advanceTimersByTimeAsync(50);
 	  await vi.runAllTicks();
@@ -872,18 +1486,33 @@ describe("FSBookingNoticeCoordinator", () => {
 		id: "lab-booking-confirmed-1",
 		type: "booking-confirmed",
 		items: [{ id: "lab-item-1", bookingId: "lab-booking-1" }],
-	  }], { attentionAnimation: "blink" });
+	  }], { desktopPosition: "top-left", attentionAnimation: "blink", summary: { totalLimit: 1 } });
 	  expect(shown).toBe(true);
 
 	  const mountOptions = window.FSEventsEmbed.mountBookingNotices.mock.calls[0][0];
 	  const controller = window.FSEventsEmbed.mountBookingNotices.mock.results[0].value;
-	  expect(controller.setConfig).toHaveBeenLastCalledWith(expect.objectContaining({ attentionAnimation: "blink" }));
-	  expect(controller.update.mock.calls.at(-1)[0].notices[0].id).toBe("lab-booking-confirmed-1");
+	  expect(controller.setConfig).toHaveBeenLastCalledWith(expect.objectContaining({
+		desktopPosition: "top-right",
+		attentionAnimation: "pulse",
+	  }));
+	  const displayed = controller.update.mock.calls.at(-1)[0].notices;
+	  expect(displayed.map((notice) => notice.id)).toEqual([
+		"lab-booking-confirmed-1",
+		"real-booking-confirmed-1",
+	  ]);
+	  expect(displayed[0].config).toMatchObject({
+		desktopPosition: "top-left",
+		attentionAnimation: "blink",
+		summary: { totalLimit: 1 },
+	  });
+	  expect(displayed[1].config).toBeUndefined();
 
 	  mountOptions.onDetail({ noticeId: "lab-booking-confirmed-1", item: { id: "lab-item-1" } });
 	  mountOptions.onPrimaryAction({ noticeId: "lab-booking-confirmed-1", action: { bookingId: "lab-booking-1" } });
 	  expect(testAction).toHaveBeenCalled();
-	  expect(controller.update.mock.calls.at(-1)[0].notices).toEqual([]);
+	  const noticesAfterLabDismissal = controller.update.mock.calls.at(-1)[0].notices;
+	  expect(noticesAfterLabDismissal.map((notice) => notice.id)).toEqual([realActivity.id]);
+	  expect(noticesAfterLabDismissal[0].config).toBeUndefined();
 	  window.removeEventListener("FS_BOOKING_NOTICE_TEST_ACTION", testAction);
 	});
 });

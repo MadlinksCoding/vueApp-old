@@ -136,7 +136,7 @@ describe("buildBookingNoticeSummary", () => {
     expect(refreshed.hiddenItemIds).toContain("info-1");
   });
 
-  it("suppresses every contained item, including urgent overflow, and dismisses only shown items", () => {
+  it("suppresses and dismisses every contained item, including hidden overflow and represented activities", () => {
     const summary = buildBookingNoticeSummary([
       {
         type: BOOKING_NOTICE_TYPES.READY_TO_JOIN,
@@ -159,7 +159,19 @@ describe("buildBookingNoticeSummary", () => {
       type: BOOKING_NOTICE_TYPES.BOOKING_REQUEST,
       items: [{ id: "ready-visible" }, { id: "ready-hidden" }],
     }, summary)).toBe(false);
-    expect(getSummaryDismissedItemIds(summary)).toEqual(["ready-visible"]);
+    expect(getSummaryDismissedItemIds(summary)).toEqual([
+      "ready-visible",
+      "ready-hidden",
+      "today-hidden",
+      "info-hidden",
+    ]);
+  });
+
+  it("falls back to the complete visible and hidden set for older summary data", () => {
+    expect(getSummaryDismissedItemIds({
+      visibleItemIds: ["visible", "represented"],
+      hiddenItemIds: ["hidden", "represented"],
+    })).toEqual(["visible", "represented", "hidden"]);
   });
 });
 
