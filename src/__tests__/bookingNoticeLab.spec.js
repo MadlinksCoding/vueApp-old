@@ -5,6 +5,7 @@ import {
   BOOKING_NOTICE_PREVIEW_STORAGE_KEY,
   createAllBookingNoticeLabNotices,
   createBookingNoticeLabNotice,
+  createBookingNoticeLabNotices,
   createBookingNoticePreviewPayload,
   isBookingNoticeLabHost,
 } from "@/embeds/bookingNotices/noticeLabData";
@@ -39,18 +40,18 @@ describe("Booking Notice Test Lab", () => {
 
   it("creates every fake notice variation without using a backend", () => {
     const all = createAllBookingNoticeLabNotices({ sequence: 10, viewerRole: "fan", itemCount: 2 });
-    expect(all).toHaveLength(10);
+    expect(all).toHaveLength(11);
     expect(new Set(all.map((notice) => notice.type))).toEqual(new Set([
-      "booking-request",
       "booking-confirmed",
       "booking-declined",
       "booking-cancelled",
       "price-adjustment",
       "ready-to-join",
+      "events-today",
       "summary",
     ]));
     const expandableSummary = createBookingNoticeLabNotice("summary", { itemCount: 3 });
-    expect(expandableSummary.sections).toHaveLength(9);
+    expect(expandableSummary.sections).toHaveLength(7);
 
     expect(expandableSummary.sections.find((section) => section.type === "booking-cancelled")).toMatchObject({
       label: "Cancelled bookings",
@@ -62,7 +63,7 @@ describe("Booking Notice Test Lab", () => {
       totalCount: 3,
       priority: "events-today",
     });
-    expect(expandableSummary.sections.find((section) => section.type === "booking-request").items.length).toBe(23);
+    expect(expandableSummary.sections.find((section) => section.type === "booking-request")).toBeUndefined();
     expect(expandableSummary.sections.find((section) => section.type === "booking-confirmed")).toMatchObject({
       label: "Confirmed bookings",
       totalCount: 3,
@@ -74,17 +75,23 @@ describe("Booking Notice Test Lab", () => {
       "declined",
     ]);
     const singleSummary = createBookingNoticeLabNotice("summary-single", { viewerRole: "fan" });
-    expect(singleSummary).toMatchObject({ type: "summary", audience: "fan", viewer: { role: "fan" } });
-    expect(singleSummary.sections[0]).toMatchObject({ totalCount: 1 });
+    expect(singleSummary).toMatchObject({
+      type: "price-adjustment",
+      audience: "fan",
+      priceAdjustmentState: "request-sent",
+      totalCount: 1,
+      action: { id: "review-adjustment", label: "REVIEW ADJUSTMENT" },
+    });
 	const labNow = Date.parse("2026-09-14T10:00:00.000Z");
-	const readyNotice = createBookingNoticeLabNotice("ready-to-join", { nowMs: labNow, itemCount: 2 });
-	expect(readyNotice.items.map((item) => item.eventAt)).toEqual([
+	const readyNotices = createBookingNoticeLabNotices("ready-to-join", { nowMs: labNow, itemCount: 2 });
+	expect(readyNotices).toHaveLength(2);
+	expect(readyNotices.map((notice) => notice.items[0].eventAt)).toEqual([
 	  "2026-09-14T10:05:00.000Z",
 	  "2026-09-14T10:06:00.000Z",
 	]);
+	expect(readyNotices.every((notice) => notice.items.length === 1 && notice.action.label === "JOIN CALL")).toBe(true);
 	const summaryWithReady = createBookingNoticeLabNotice("summary", { nowMs: labNow });
-	expect(summaryWithReady.sections.find((section) => section.type === "ready-to-join").items[0].eventAt)
-	  .toBe("2026-09-14T10:05:00.000Z");
+	expect(summaryWithReady.sections.find((section) => section.type === "ready-to-join")).toBeUndefined();
 	expect(summaryWithReady.sections.find((section) => section.type === "events-today").items[0]).toMatchObject({
 	  eventAt: "2026-09-14T10:30:00.000Z",
 	  activityType: "events-today",
@@ -94,7 +101,8 @@ describe("Booking Notice Test Lab", () => {
 	  expect(fanResult).toMatchObject({ type: variant, audience: "fan", totalCount: 1, showDetail: true });
 	  expect(fanResult.action).toBeUndefined();
 	}
-	expect(all.flatMap((notice) => notice.items || []).every((item) => item.month === "APR")).toBe(true);
+	expect(all.filter((notice) => !["ready-to-join", "events-today"].includes(notice.type))
+	  .flatMap((notice) => notice.items || []).every((item) => item.month === "APR")).toBe(true);
 	const preview = createBookingNoticePreviewPayload(all.slice(0, 2), { attentionAnimation: "blink" }, "creator", 1000);
 	expect(preview).toMatchObject({ schemaVersion: 1, createdAt: 1000, expiresAt: 3601000, viewerRole: "creator" });
 	expect(preview.notices).toHaveLength(2);

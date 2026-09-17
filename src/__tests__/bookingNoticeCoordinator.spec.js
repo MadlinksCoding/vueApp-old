@@ -218,11 +218,12 @@ describe("FSBookingNoticeCoordinator", () => {
     expect(saved.supersededActivityIds[confirmationId]).toBeTypeOf("number");
     expect(saved.openActivityIds).toContain("cancellation-activity");
     const notices = window.FSEventsEmbed.mountBookingNotices.mock.calls[0][0].notices;
-    const summary = notices.find((notice) => notice.id === "booking-activity-summary");
-    expect(summary.allItemIds).toContain("cancellation-activity");
-    expect(summary.allItemIds).not.toContain(confirmationId);
-    expect(summary.sections.some((section) => section.type === "booking-cancelled")).toBe(true);
-    expect(summary.sections.some((section) => section.type === "events-today" || section.type === "ready-to-join")).toBe(false);
+    expect(notices).toEqual([expect.objectContaining({
+      id: "cancellation-activity",
+      type: "booking-cancelled",
+      serverActivityIds: ["cancellation-activity"],
+    })]);
+    expect(notices.some((notice) => notice.id === "booking-activity-summary")).toBe(false);
   });
 
   it("fully purges a requested open activity that is no longer on the server", async () => {
@@ -545,14 +546,14 @@ describe("FSBookingNoticeCoordinator", () => {
     ]);
   });
 
-  it("supports the configured empty summary and keeps the creator review route", async () => {
+  it("never renders an empty summary and keeps the creator review route", async () => {
     window.FSBookingNoticeSettings.config.summary = { emptyBehavior: "show" };
     vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, json: async () => feed })));
     window.eval(coordinatorSource);
     await vi.advanceTimersByTimeAsync(50);
     await vi.runAllTicks();
     const mountOptions = window.FSEventsEmbed.mountBookingNotices.mock.calls[0][0];
-    expect(mountOptions.notices[0]).toMatchObject({ id: "booking-activity-summary", sections: [] });
+    expect(mountOptions.notices).toEqual([]);
     expect(coordinatorSource).toContain('global.sessionStorage.setItem("fsBookingNoticeReviewIntent"');
     expect(coordinatorSource).toContain('payload.action.id === "review-booking"');
     expect(coordinatorSource).toContain('payload.action.id === "review-bookings"');
@@ -608,6 +609,7 @@ describe("FSBookingNoticeCoordinator", () => {
       dismissedActivityIds: {},
       dailyDismissalDate: "2026-09-16",
     }));
+    window.FSBookingNoticeSettings.config = { refreshIntervalSeconds: 10, groupRelatedChanges: false };
     const activities = ["one", "two", "three"].map((suffix, index) => ({
       id: `standalone-${suffix}`,
       type: "booking-declined",
@@ -746,7 +748,7 @@ describe("FSBookingNoticeCoordinator", () => {
     expect(controller.update).toHaveBeenCalled();
   });
 
-  it("opens the first visible real booking when a fan reviews a summary", async () => {
+  it("uses the original standalone Review Adjustment action for one summary candidate", async () => {
     const activityFeed = {
       ...feed,
       activities: [{
@@ -766,9 +768,14 @@ describe("FSBookingNoticeCoordinator", () => {
     await vi.runAllTicks();
 
     const mountOptions = window.FSEventsEmbed.mountBookingNotices.mock.calls[0][0];
+    expect(mountOptions.notices).toEqual([expect.objectContaining({
+      id: "activity-summary-item",
+      type: "price-adjustment",
+      action: expect.objectContaining({ id: "review-adjustment" }),
+    })]);
     mountOptions.onPrimaryAction({
-      noticeId: "booking-activity-summary",
-      action: { id: "review-summary" },
+      noticeId: "activity-summary-item",
+      action: { id: "review-adjustment", bookingId: "booking-summary-item" },
       dismissedItemIds: ["activity-summary-item"],
     });
 
@@ -974,40 +981,46 @@ describe("FSBookingNoticeCoordinator", () => {
     await vi.runAllTicks();
 
     const mountOptions = window.FSEventsEmbed.mountBookingNotices.mock.calls[0][0];
+    const readyNotice = mountOptions.notices.find((notice) => notice.type === "ready-to-join");
     const summary = mountOptions.notices.find((notice) => notice.id === "booking-activity-summary");
-    expect(summary.audience).toBe("fan");
-    expect(summary.sections.map((section) => section.type)).toEqual(["ready-to-join", "events-today", "booking-confirmed"]);
-    const readySection = summary.sections[0];
-    const todaySection = summary.sections[1];
-    expect(readySection.items[0]).toMatchObject({
+    expect(readyNotice).toMatchObject({
+      type: "ready-to-join",
+      serverActivityIds: ["confirm-ready"],
+    });
+    expect(readyNotice.items[0]).toMatchObject({
       bookingId: "ready-booking",
       representedActivityIds: ["confirm-ready"],
     });
+    expect(summary.audience).toBe("fan");
+    expect(summary.sections.map((section) => section.type)).toEqual(["events-today", "booking-confirmed"]);
+    const todaySection = summary.sections[0];
     expect(todaySection).toMatchObject({ priority: "events-today", totalCount: 2 });
     expect(todaySection.items.map((item) => item.bookingId)).toEqual(["today-confirmed", "today-accepted"]);
     expect(todaySection.items[0].representedActivityIds).toEqual(["confirm-today"]);
-    expect(summary.allItemIds).toEqual(expect.arrayContaining(["confirm-ready", "confirm-today", "confirm-today-hidden"]));
+    expect(summary.allItemIds).toEqual(expect.arrayContaining(["confirm-today", "confirm-today-hidden"]));
+    expect(summary.allItemIds).not.toContain("confirm-ready");
     expect(summary.allItemIds).toContain("confirm-tomorrow");
-    const confirmedSection = summary.sections[2];
+    const confirmedSection = summary.sections[1];
     expect(confirmedSection).toMatchObject({ type: "booking-confirmed", totalCount: 1 });
     expect(confirmedSection.items[0]).toMatchObject({ bookingId: "tomorrow", id: "confirm-tomorrow" });
     expect(confirmedSection.items.map((item) => item.bookingId)).not.toEqual(expect.arrayContaining(["ready-booking", "today-confirmed", "today-accepted"]));
 
     const savedBeforeClose = JSON.parse(localStorage.getItem("fsBookingNoticeState:v1:10"));
-    expect(savedBeforeClose.visibleSummaryItemIds).toEqual(expect.arrayContaining(["confirm-ready", "confirm-today"]));
-    expect(savedBeforeClose.visibleSummaryItemIds).not.toContain("confirm-today-hidden");
+    expect(savedBeforeClose.visibleSummaryItemIds).toEqual(expect.arrayContaining(["confirm-today", "confirm-today-hidden"]));
+    expect(savedBeforeClose.visibleSummaryItemIds).not.toContain("confirm-ready");
     expect(savedBeforeClose.visibleSummaryItemIds).not.toContain("confirm-tomorrow");
-    expect(savedBeforeClose.visibleSummaryItemIds).not.toContain(todaySection.items[1].id);
+    expect(savedBeforeClose.visibleSummaryItemIds).toContain(todaySection.items[1].id);
     mountOptions.onClose({
       noticeId: "booking-activity-summary",
       dismissedItemIds: summary.allItemIds,
     });
     const savedAfterClose = JSON.parse(localStorage.getItem("fsBookingNoticeState:v1:10"));
-    expect(savedAfterClose.dismissedActivityIds["confirm-ready"]).toBeDefined();
+    expect(savedAfterClose.dismissedActivityIds["confirm-ready"]).toBeUndefined();
     expect(savedAfterClose.dismissedActivityIds["confirm-today"]).toBeDefined();
     expect(savedAfterClose.dismissedActivityIds["confirm-today-hidden"]).toBeDefined();
     expect(savedAfterClose.dismissedActivityIds["confirm-tomorrow"]).toBeDefined();
-    expect(window.FSEventsEmbed.mountBookingNotices.mock.results[0].value.update.mock.calls.at(-1)[0].notices).toEqual([]);
+    expect(window.FSEventsEmbed.mountBookingNotices.mock.results[0].value.update.mock.calls.at(-1)[0].notices)
+      .toEqual([expect.objectContaining({ type: "ready-to-join" })]);
 
     const dismissedBroadcast = postMessage.mock.calls
       .map(([message]) => message)
@@ -1177,6 +1190,10 @@ describe("FSBookingNoticeCoordinator", () => {
   it("groups all open creator booking requests before the visible notice limit", async () => {
     window.FSBookingNoticeSettings.userId = 1407;
     window.FSBookingNoticeSettings.config = { refreshIntervalSeconds: 10, maxVisibleNotices: 1 };
+    localStorage.setItem("fsBookingNoticeState:v1:1407", JSON.stringify({
+      openActivityIds: [], openActivityTimestamps: {}, dismissedActivityIds: {},
+      dailyDismissalDate: [new Date().getFullYear(), String(new Date().getMonth() + 1).padStart(2, "0"), String(new Date().getDate()).padStart(2, "0")].join("-"),
+    }));
     const request = (id, startIso) => ({
       id,
       type: "booking-request",
@@ -1201,7 +1218,7 @@ describe("FSBookingNoticeCoordinator", () => {
     await vi.runAllTicks();
 
     const mountOptions = window.FSEventsEmbed.mountBookingNotices.mock.calls[0][0];
-    const grouped = mountOptions.notices.find((notice) => notice.id === "booking-request-group|1407");
+    const grouped = mountOptions.notices.find((notice) => notice.id === "notice-group|1407|booking-request||creator");
     expect(grouped).toMatchObject({
       type: "booking-request",
       heading: "You have 2 new pending bookings:",
@@ -1212,8 +1229,7 @@ describe("FSBookingNoticeCoordinator", () => {
     });
     expect(grouped.items.map((item) => item.id)).toEqual(["activity-sooner", "activity-later"]);
 
-    const summary = mountOptions.notices.find((notice) => notice.id === "booking-activity-summary");
-    expect(summary.sections.find((section) => section.type === "booking-request").items).toHaveLength(2);
+    expect(mountOptions.notices.some((notice) => notice.id === "booking-activity-summary")).toBe(false);
 
     mountOptions.onClose({ noticeId: grouped.id, dismissedItemIds: grouped.dismissItemIds });
     const saved = JSON.parse(localStorage.getItem("fsBookingNoticeState:v1:1407"));
@@ -1221,9 +1237,119 @@ describe("FSBookingNoticeCoordinator", () => {
     expect(saved.openActivityIds).toEqual([]);
   });
 
+  it("groups every repeatable standalone type without combining adjustment states", async () => {
+    vi.setSystemTime(new Date(2026, 8, 16, 12, 0, 0));
+    window.FSBookingNoticeSettings.config = { refreshIntervalSeconds: 10, maxVisibleNotices: 10 };
+    localStorage.setItem("fsBookingNoticeState:v1:10", JSON.stringify({
+      openActivityIds: [], openActivityTimestamps: {}, dismissedActivityIds: {}, dailyDismissalDate: "2026-09-16",
+    }));
+    const types = [
+      "booking-confirmed",
+      "booking-cancelled",
+      "price-adjustment-sent",
+      "price-adjustment-accepted",
+      "price-adjustment-declined",
+    ];
+    const activities = types.flatMap((type, typeIndex) => [1, 2].map((number) => ({
+      id: `${type}-${number}`,
+      type,
+      priority: type === "price-adjustment-sent" ? "action-required" : "status-change",
+      recipientRole: "fan",
+      bookingId: `${type}-booking-${number}`,
+      occurredAt: new Date(2026, 8, 16, 10, typeIndex * 2 + number).toISOString(),
+      display: {
+        title: `${type} ${number}`,
+        startIso: new Date(2026, 8, 20 + typeIndex, 10, number).toISOString(),
+      },
+    })));
+    vi.stubGlobal("fetch", vi.fn(async () => ({
+      ok: true,
+      json: async () => ({ ...feed, bookings: [], activities, nextCursor: activities.length }),
+    })));
+
+    window.eval(coordinatorSource);
+    await vi.advanceTimersByTimeAsync(50);
+    await vi.runAllTicks();
+
+    const notices = window.FSEventsEmbed.mountBookingNotices.mock.calls[0][0].notices;
+    expect(notices).toHaveLength(5);
+    expect(notices.map((notice) => notice.heading)).toEqual(expect.arrayContaining([
+      "You have 2 confirmed bookings:",
+      "You have 2 cancelled bookings:",
+      "You have 2 new price adjustment requests:",
+      "You have 2 accepted price adjustments:",
+      "You have 2 declined price adjustments:",
+    ]));
+    expect(notices.filter((notice) => notice.type === "price-adjustment").map((notice) => notice.priceAdjustmentState))
+      .toEqual(expect.arrayContaining(["request-sent", "accepted", "declined"]));
+    expect(notices.every((notice) => notice.totalCount === 2 && notice.serverActivityIds.length === 2)).toBe(true);
+  });
+
+  it("filters fan booking requests and does not consume the summary trigger for a one-item fallback", async () => {
+    const request = (id, recipientRole) => ({
+      id,
+      type: "booking-request",
+      priority: "action-required",
+      recipientRole,
+      bookingId: `booking-${id}`,
+      occurredAt: "2026-09-13T10:00:00.000Z",
+      display: { title: id, startIso: "2026-09-20T10:00:00.000Z" },
+    });
+    const adjustment = (id) => ({
+      id,
+      type: "price-adjustment-sent",
+      priority: "action-required",
+      recipientRole: "fan",
+      bookingId: `booking-${id}`,
+      occurredAt: "2026-09-13T10:00:00.000Z",
+      display: { title: id, startIso: "2026-09-20T11:00:00.000Z" },
+    });
+    let responseData = {
+      ...feed,
+      bookings: [],
+      activities: [request("fan-request", "fan"), request("legacy-request", ""), adjustment("adjustment-one")],
+      nextCursor: 3,
+    };
+    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, json: async () => responseData })));
+
+    window.eval(coordinatorSource);
+    await vi.advanceTimersByTimeAsync(50);
+    await vi.runAllTicks();
+
+    const initial = window.FSEventsEmbed.mountBookingNotices.mock.calls[0][0].notices;
+    expect(initial).toEqual([expect.objectContaining({
+      id: "adjustment-one",
+      type: "price-adjustment",
+      action: expect.objectContaining({ id: "review-adjustment" }),
+    })]);
+    let saved = JSON.parse(localStorage.getItem("fsBookingNoticeState:v1:10"));
+    expect(saved.dailyDismissalDate).toBeUndefined();
+
+    responseData = {
+      ...responseData,
+      activities: [...responseData.activities, adjustment("adjustment-two")],
+      nextCursor: 4,
+    };
+    window.FSBookingNoticeCoordinator.refresh("second-summary-item");
+    await vi.advanceTimersByTimeAsync(50);
+    await vi.runAllTicks();
+
+    const updated = window.FSEventsEmbed.mountBookingNotices.mock.results[0].value.update.mock.calls.at(-1)[0].notices;
+    expect(updated).toEqual([expect.objectContaining({
+      id: "booking-activity-summary",
+      allItemIds: expect.arrayContaining(["adjustment-one", "adjustment-two"]),
+    })]);
+    saved = JSON.parse(localStorage.getItem("fsBookingNoticeState:v1:10"));
+    expect(saved.summaryOpen).toBe(true);
+  });
+
   it("keeps booking requests separate when related-change grouping is disabled", async () => {
     window.FSBookingNoticeSettings.userId = 1407;
     window.FSBookingNoticeSettings.config = { refreshIntervalSeconds: 10, groupRelatedChanges: false };
+    localStorage.setItem("fsBookingNoticeState:v1:1407", JSON.stringify({
+      openActivityIds: [], openActivityTimestamps: {}, dismissedActivityIds: {},
+      dailyDismissalDate: [new Date().getFullYear(), String(new Date().getMonth() + 1).padStart(2, "0"), String(new Date().getDate()).padStart(2, "0")].join("-"),
+    }));
     const activityFeed = {
       ...feed,
       viewer: { id: 1407, role: "creator", displayName: "Creator" },
@@ -1245,7 +1371,7 @@ describe("FSBookingNoticeCoordinator", () => {
 
     const notices = window.FSEventsEmbed.mountBookingNotices.mock.calls[0][0].notices;
     expect(notices.filter((notice) => notice.type === "booking-request")).toHaveLength(2);
-    expect(notices.some((notice) => String(notice.id).startsWith("booking-request-group|"))).toBe(false);
+    expect(notices.some((notice) => String(notice.id).startsWith("notice-group|"))).toBe(false);
   });
 
   it("persists only server-backed activity IDs when a notice closes", async () => {
@@ -1291,19 +1417,40 @@ describe("FSBookingNoticeCoordinator", () => {
     expect(saved.pendingActivityDismissalIds[activity.id]).toBeUndefined();
   });
 
-  it("syncs represented confirmation IDs but not calculated Ready IDs when a summary closes", async () => {
+  it("keeps Ready separate and syncs only activity-backed IDs when the summary closes", async () => {
     vi.setSystemTime(new Date(2026, 8, 16, 12, 0, 0));
     window.FSBookingNoticeSettings.dismissEndpoint = "https://example.test/wp-json/api/bookings/notices-dismiss";
-    const startIso = new Date(2026, 8, 16, 12, 4, 0).toISOString();
-    const activity = {
-      id: "confirmation-in-ready-summary",
-      type: "booking-confirmed",
-      priority: "general-information",
-      recipientRole: "fan",
-      bookingId: "ready-summary-booking",
-      occurredAt: new Date().toISOString(),
-      display: { title: "Ready booking", startIso },
-    };
+    const readyStart = new Date(2026, 8, 16, 12, 4, 0).toISOString();
+    const todayStart = new Date(2026, 8, 16, 13, 0, 0).toISOString();
+    const activities = [
+      {
+        id: "confirmation-ready-separate",
+        type: "booking-confirmed",
+        priority: "general-information",
+        recipientRole: "fan",
+        bookingId: "ready-booking",
+        occurredAt: new Date().toISOString(),
+        display: { title: "Ready booking", startIso: readyStart },
+      },
+      {
+        id: "confirmation-events-today",
+        type: "booking-confirmed",
+        priority: "general-information",
+        recipientRole: "fan",
+        bookingId: "today-booking",
+        occurredAt: new Date().toISOString(),
+        display: { title: "Today booking", startIso: todayStart },
+      },
+      {
+        id: "declined-summary-activity",
+        type: "booking-declined",
+        priority: "status-change",
+        recipientRole: "fan",
+        bookingId: "declined-booking",
+        occurredAt: new Date().toISOString(),
+        display: { title: "Declined booking", startIso: new Date(2026, 8, 18, 12, 0, 0).toISOString() },
+      },
+    ];
     const fetchMock = vi.fn(async (_url, options = {}) => {
       if (options.method === "POST") {
         const ids = JSON.parse(options.body).activityIds;
@@ -1311,9 +1458,12 @@ describe("FSBookingNoticeCoordinator", () => {
       }
       return { ok: true, json: async () => ({
         ...feed,
-        activities: [activity],
-        bookings: [{ bookingId: activity.bookingId, status: "confirmed", startIso }],
-        nextCursor: 1,
+        activities,
+        bookings: [
+          { bookingId: "ready-booking", status: "confirmed", startIso: readyStart },
+          { bookingId: "today-booking", status: "confirmed", startIso: todayStart },
+        ],
+        nextCursor: 3,
       }) };
     });
     vi.stubGlobal("fetch", fetchMock);
@@ -1323,15 +1473,30 @@ describe("FSBookingNoticeCoordinator", () => {
     await vi.runAllTicks();
 
     const mountOptions = window.FSEventsEmbed.mountBookingNotices.mock.calls[0][0];
+    const ready = mountOptions.notices.find((notice) => notice.type === "ready-to-join");
     const summary = mountOptions.notices.find((notice) => notice.id === "booking-activity-summary");
-    const calculatedReadyId = summary.sections[0].items[0].id;
-    expect(summary.serverActivityIds).toEqual([activity.id]);
-    expect(summary.allItemIds).toEqual(expect.arrayContaining([activity.id, calculatedReadyId]));
+    const calculatedTodayId = summary.sections.find((section) => section.type === "events-today").items[0].id;
+    expect(ready.serverActivityIds).toEqual(["confirmation-ready-separate"]);
+    expect(summary.serverActivityIds).toEqual(expect.arrayContaining([
+      "confirmation-events-today",
+      "declined-summary-activity",
+    ]));
+    expect(summary.serverActivityIds).not.toContain("confirmation-ready-separate");
+    expect(summary.allItemIds).toEqual(expect.arrayContaining([
+      calculatedTodayId,
+      "confirmation-events-today",
+      "declined-summary-activity",
+    ]));
 
     mountOptions.onClose({ noticeId: summary.id, dismissedItemIds: summary.allItemIds });
     await vi.runAllTicks();
     const dismissalCall = fetchMock.mock.calls.find(([, options]) => options?.method === "POST");
-    expect(JSON.parse(dismissalCall?.[1]?.body)).toEqual({ activityIds: [activity.id] });
+    expect(JSON.parse(dismissalCall?.[1]?.body).activityIds).toEqual(expect.arrayContaining([
+      "confirmation-events-today",
+      "declined-summary-activity",
+    ]));
+    expect(JSON.parse(dismissalCall?.[1]?.body).activityIds).not.toContain("confirmation-ready-separate");
+    expect(JSON.parse(dismissalCall?.[1]?.body).activityIds).not.toContain(calculatedTodayId);
   });
 
   it("keeps failed activity dismissals queued and retries them on focus", async () => {

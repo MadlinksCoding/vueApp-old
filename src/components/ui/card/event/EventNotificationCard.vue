@@ -88,7 +88,7 @@
               :variant="notice.type"
               :ready-label="readyLabelForItem(item)"
               :show-detail="showPerItemDetail"
-              :show-accent="isGroupedBookingRequest"
+              :show-accent="isGroupedNotice"
               @detail="emitDetail"
             />
           </div>
@@ -157,17 +157,17 @@ const configuredInitialDelay = props.notice.initialDelaySeconds
   ?? 0;
 const delayComplete = ref(Number(configuredInitialDelay) <= 0);
 const resolvedConfig = computed(() => resolveBookingNoticeConfig(props.notice.type, props.config));
+const viewerRole = computed(() => String(props.notice.audience || props.notice.viewer?.role || "").toLowerCase());
 const summary = computed(() => buildBookingNoticeSummary(
   props.notice.sections || [],
   resolvedConfig.value.summary,
-  { additionalVisibleItems: props.additionalVisibleItems },
+  { additionalVisibleItems: props.additionalVisibleItems, viewerRole: viewerRole.value },
 ));
 const visibleItems = computed(() => {
   const initialLimit = Number(props.notice.itemLimit ?? resolvedConfig.value.summary.perSectionLimit) || 0;
   return (props.notice.items || []).slice(0, Math.max(0, initialLimit + props.additionalVisibleItems));
 });
 const standaloneHiddenCount = computed(() => Math.max(0, (props.notice.totalCount ?? props.notice.items?.length ?? 0) - visibleItems.value.length));
-const viewerRole = computed(() => String(props.notice.audience || props.notice.viewer?.role || "").toLowerCase());
 const isFan = computed(() => viewerRole.value === "fan");
 const completeItemCount = computed(() => {
   if (props.notice.type === BOOKING_NOTICE_TYPES.SUMMARY) return summary.value.totalCount;
@@ -186,6 +186,9 @@ const isSingleBookingRequest = computed(() => props.notice.type === BOOKING_NOTI
   && (props.notice.totalCount ?? 1) === 1);
 const isGroupedBookingRequest = computed(() => props.notice.type === BOOKING_NOTICE_TYPES.BOOKING_REQUEST
   && !isSingleBookingRequest.value);
+const isGroupedNotice = computed(() => props.notice.type !== BOOKING_NOTICE_TYPES.SUMMARY
+  && props.notice.type !== BOOKING_NOTICE_TYPES.READY_TO_JOIN
+  && completeItemCount.value > 1);
 const isReadyToJoin = computed(() => props.notice.type === BOOKING_NOTICE_TYPES.READY_TO_JOIN);
 const countdownNowMs = ref(Date.now());
 const readyItems = computed(() => {
@@ -242,11 +245,11 @@ const showPerItemDetail = computed(() => {
   if (isFan.value) return false;
   return props.notice.showDetail === true;
 });
-const showAccent = computed(() => props.notice.type !== BOOKING_NOTICE_TYPES.SUMMARY
-  && !(props.notice.type === BOOKING_NOTICE_TYPES.BOOKING_REQUEST && !isSingleBookingRequest.value));
+const showAccent = computed(() => props.notice.type !== BOOKING_NOTICE_TYPES.SUMMARY && !isGroupedNotice.value);
 const variationClass = computed(() => ({
   "booking-notice-card--single-request": isSingleBookingRequest.value,
   "booking-notice-card--grouped-request": isGroupedBookingRequest.value,
+  "booking-notice-card--grouped": isGroupedNotice.value,
   "booking-notice-card--summary": props.notice.type === BOOKING_NOTICE_TYPES.SUMMARY,
   "booking-notice-card--ready": isReadyToJoin.value,
 }));
@@ -301,8 +304,11 @@ const appearance = computed(() => {
   if ([noticeTypes.BOOKING_DECLINED, noticeTypes.BOOKING_CANCELLED].includes(props.notice.type) || props.notice.priceAdjustmentState === "declined") {
     return { icon: CalendarCrossIcon, accent: "#FDB022", headingColor: "#FF4405" };
   }
-  if (props.notice.type === noticeTypes.BOOKING_CONFIRMED || props.notice.priceAdjustmentState === "accepted") {
+  if ([noticeTypes.BOOKING_CONFIRMED, noticeTypes.EVENTS_TODAY].includes(props.notice.type) || props.notice.priceAdjustmentState === "accepted") {
     return { icon: CalendarGreenCheckIcon, accent: "#FDB022", headingColor: "#107569" };
+  }
+  if (props.notice.type === noticeTypes.PRICE_ADJUSTMENT) {
+    return { icon: FilePinkIcon, accent: "#F06", headingColor: "#F06" };
   }
   return { icon: CalendarPinkIcon, accent: "#F06", headingColor: "#F06" };
 });

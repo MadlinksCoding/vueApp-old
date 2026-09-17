@@ -93,7 +93,6 @@ const examples = [
     audience: "creator",
     viewer: { displayName: "Beaver Boy" },
     sections: [
-      { type: BOOKING_NOTICE_TYPES.READY_TO_JOIN, label: "Ready to join", items: [readyItem], totalCount: 1 },
       { type: BOOKING_NOTICE_TYPES.EVENTS_TODAY, label: "Events today", items: confirmedItems, totalCount: 2, sort: "soonest-first", priority: "events-today" },
       { type: BOOKING_NOTICE_TYPES.BOOKING_REQUEST, label: "New pending bookings", items: pendingItems, totalCount: 5, sort: "oldest-first" },
       { id: "price-adjustment:request-sent", type: BOOKING_NOTICE_TYPES.PRICE_ADJUSTMENT, variant: "request-sent", label: "Price adjustment requests", items: [priceRequestSummaryItem], totalCount: 1 },
@@ -106,15 +105,14 @@ const examples = [
     action: { id: "review-summary", label: "REVIEW IN EVENT PAGE", showArrow: true },
   },
   {
-    id: "demo-fan-summary-single",
-    demoLabel: "Fan activity summary — one item",
-    type: BOOKING_NOTICE_TYPES.SUMMARY,
+    id: "demo-events-today-single",
+    demoLabel: "One summary candidate — standalone Events Today fallback",
+    type: BOOKING_NOTICE_TYPES.EVENTS_TODAY,
     audience: "fan",
-    viewer: { role: "fan", displayName: "Grape Gatsby" },
-    sections: [
-      { type: BOOKING_NOTICE_TYPES.EVENTS_TODAY, label: "Events today", items: [confirmedItems[0]], totalCount: 1 },
-    ],
-    action: { id: "review-summary", label: "REVIEW IN EVENT PAGE", showArrow: true },
+    heading: "You have 1 event today:",
+    items: [confirmedItems[0]],
+    totalCount: 1,
+    showDetail: true,
   },
   {
     id: "demo-fan-summary-multiple",
@@ -190,6 +188,22 @@ const examples = [
       cancellationReason: "both_no_show_auto_cancel",
       person: { name: "Cows of Lantau", avatar },
     })],
+    showDetail: true,
+  },
+  {
+    id: "demo-cancelled-group",
+    demoLabel: "Grouped cancelled bookings",
+    type: BOOKING_NOTICE_TYPES.BOOKING_CANCELLED,
+    audience: "fan",
+    heading: "You have 2 cancelled bookings:",
+    cancellationStatus: "cancelled_system",
+    cancellationReason: "both_no_show_auto_cancel",
+    items: [cancelledSummaryItem, booking("cancelled-summary-2", {
+      status: "cancelled_system",
+      activityType: "booking-cancelled",
+      cancellationReason: "both_no_show_auto_cancel",
+    })],
+    totalCount: 2,
     showDetail: true,
   },
   {

@@ -284,7 +284,6 @@ describe("EventNotificationCard", () => {
           id: "summary-headings",
           type: BOOKING_NOTICE_TYPES.SUMMARY,
           sections: [
-            { type: BOOKING_NOTICE_TYPES.READY_TO_JOIN, totalCount: 2, items: [summaryItem("ready", "ready-to-join")] },
             { type: BOOKING_NOTICE_TYPES.BOOKING_REQUEST, totalCount: 3, items: [summaryItem("pending", "booking-request", "pending")] },
             { id: "price:sent", type: BOOKING_NOTICE_TYPES.PRICE_ADJUSTMENT, variant: "request-sent", totalCount: 4, items: [summaryItem("price-sent", "price-adjustment-sent", "pending")] },
             { id: "price:accepted", type: BOOKING_NOTICE_TYPES.PRICE_ADJUSTMENT, variant: "accepted", priority: "status-change", totalCount: 5, items: [summaryItem("price-accepted", "price-adjustment-accepted")] },
@@ -298,8 +297,7 @@ describe("EventNotificationCard", () => {
     });
 
     const heading = (variant) => wrapper.get(`[data-summary-section-variant="${variant}"]`);
-    expect(heading("ready-to-join").text()).toBe("You have 2 events starting in 5 minutes:");
-    expect(heading("ready-to-join").get("img").attributes("src")).toContain("alarm-green");
+    expect(wrapper.find('[data-summary-section-variant="ready-to-join"]').exists()).toBe(false);
     expect(heading("booking-request").text()).toBe("You have 3 new pending bookings:");
     expect(heading("booking-request").attributes("style")).toContain("rgb(255, 0, 102)");
     expect(heading("booking-request").get("img").attributes("src")).toContain("calendar-icon-pink");
@@ -322,7 +320,6 @@ describe("EventNotificationCard", () => {
           id: "singular-summary",
           type: BOOKING_NOTICE_TYPES.SUMMARY,
           sections: [
-            { type: BOOKING_NOTICE_TYPES.READY_TO_JOIN, totalCount: 1, items: [booking("ready-one")] },
             { type: BOOKING_NOTICE_TYPES.EVENTS_TODAY, totalCount: 1, priority: BOOKING_NOTICE_PRIORITIES.TODAY, items: [booking("today-one")] },
           ],
         },
@@ -330,7 +327,6 @@ describe("EventNotificationCard", () => {
       },
     });
 
-    expect(wrapper.get('[data-summary-section-variant="ready-to-join"]').text()).toBe("You have 1 event starting in 1 minute:");
     expect(wrapper.get('[data-summary-section-variant="events-today"]').text()).toBe("You have 1 event today:");
   });
 
@@ -432,50 +428,32 @@ describe("EventNotificationCard", () => {
     expect(wrapper.get(".booking-notice-countdown").text()).toContain("in 3 min");
   });
 
-  it("counts down each ready summary row independently and catches up when the tab becomes visible", async () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-09-14T10:00:00.000Z"));
-    let visibilityState = "visible";
-    const visibilitySpy = vi.spyOn(document, "visibilityState", "get").mockImplementation(() => visibilityState);
+  it("never renders ready-to-join rows inside a summary", () => {
     const wrapper = mount(EventNotificationCard, {
       props: {
         notice: {
-          id: "ready-summary-countdown",
+          id: "ready-summary-filter",
           type: BOOKING_NOTICE_TYPES.SUMMARY,
           audience: "fan",
-          sections: [{
-            type: BOOKING_NOTICE_TYPES.READY_TO_JOIN,
-            totalCount: 2,
-            items: [
-              booking("ready-five", { status: "confirmed", eventAt: "2026-09-14T10:05:00.000Z" }),
-              booking("ready-two", { status: "confirmed", eventAt: "2026-09-14T10:02:00.000Z" }),
-            ],
-          }],
+          sections: [
+            {
+              type: BOOKING_NOTICE_TYPES.READY_TO_JOIN,
+              totalCount: 2,
+              items: [booking("ready-five"), booking("ready-two")],
+            },
+            {
+              type: BOOKING_NOTICE_TYPES.BOOKING_CONFIRMED,
+              totalCount: 2,
+              items: [booking("confirmed-one"), booking("confirmed-two")],
+            },
+          ],
         },
-        config: { readyToJoinLeadMinutes: 5, summary: { totalLimit: 6 } },
       },
     });
-    const countdownLabels = () => wrapper.findAll(".booking-notice-countdown").map((item) => item.text());
 
-    expect(wrapper.get('[data-summary-section-variant="ready-to-join"]').text())
-      .toBe("You have 2 events starting in 5 minutes:");
-    expect(countdownLabels()).toEqual(expect.arrayContaining(["in 5 min", "in 2 min"]));
-
-    visibilityState = "hidden";
-    document.dispatchEvent(new Event("visibilitychange"));
-    await vi.advanceTimersByTimeAsync(60_000);
-    await wrapper.vm.$nextTick();
-    expect(countdownLabels()).toEqual(expect.arrayContaining(["in 5 min", "in 2 min"]));
-
-    visibilityState = "visible";
-    document.dispatchEvent(new Event("visibilitychange"));
-    await wrapper.vm.$nextTick();
-    expect(countdownLabels()).toEqual(expect.arrayContaining(["in 4 min", "in 1 min"]));
-
-    await vi.advanceTimersByTimeAsync(1_000);
-    await wrapper.vm.$nextTick();
-    expect(countdownLabels()).toEqual(expect.arrayContaining(["in 4 min", "live now"]));
-    visibilitySpy.mockRestore();
+    expect(wrapper.find('[data-summary-section-variant="ready-to-join"]').exists()).toBe(false);
+    expect(wrapper.findAll(".booking-notice-countdown")).toHaveLength(0);
+    expect(wrapper.findAll(".booking-notice-item")).toHaveLength(2);
   });
 
   it("uses one price-adjustment card for sent, accepted, and declined wording", async () => {
@@ -748,44 +726,56 @@ describe("EventNotificationCard", () => {
     expect(multiple.findAll('[data-test="notice-detail"]')).toHaveLength(2);
   });
 
-  it("keeps Join Call available when a ready item is shown inside a summary", async () => {
-    const wrapper = mount(EventNotificationCard, {
+  it("keeps each ready item as a separate Join Call card beside a summary", async () => {
+    const ready = {
+      id: "fan-ready",
+      type: BOOKING_NOTICE_TYPES.READY_TO_JOIN,
+      audience: "fan",
+      items: [booking("ready-item", {
+        bookingId: "booking-ready",
+        joinUrl: "/scheduled-meeting/booking-ready",
+        status: "confirmed",
+        timeOnly: true,
+      })],
+      action: {
+        id: "join-call",
+        label: "JOIN CALL",
+        bookingId: "booking-ready",
+        url: "/scheduled-meeting/booking-ready",
+      },
+    };
+    const wrapper = mount(EventNotificationStack, {
       props: {
-        notice: {
+        notices: [ready, {
           id: "fan-summary-ready",
           type: BOOKING_NOTICE_TYPES.SUMMARY,
           audience: "fan",
           viewer: { role: "fan", displayName: "Fan" },
           sections: [{
-            type: BOOKING_NOTICE_TYPES.READY_TO_JOIN,
-            label: "Ready to join",
-            totalCount: 1,
-            items: [booking("ready-item", {
-              bookingId: "booking-ready",
-              joinUrl: "/scheduled-meeting/booking-ready",
-              status: "confirmed",
-              timeOnly: true,
-            })],
+            type: BOOKING_NOTICE_TYPES.BOOKING_CONFIRMED,
+            label: "Confirmed",
+            totalCount: 2,
+            items: [booking("confirmed-one"), booking("confirmed-two")],
           }],
-        },
+        }],
       },
     });
 
-    const join = wrapper.get('[data-test="notice-item-join"]');
+    expect(wrapper.findAllComponents(EventNotificationCard).map((card) => card.props("notice").id))
+      .toEqual(["fan-ready", "fan-summary-ready"]);
+    const join = wrapper.findAllComponents(EventNotificationCard)[0].get('[data-test="notice-primary-action"]');
     expect(join.text()).toBe("JOIN CALL");
-    expect(join.classes()).toContain("booking-notice-item-join--pulse");
-    expect(wrapper.find('[data-test="notice-detail"]').exists()).toBe(false);
+    expect(join.classes()).toContain("booking-notice-action--ready");
     await join.trigger("click");
     expect(wrapper.emitted("primary-action")[0][0]).toMatchObject({
-      noticeId: "ready-item",
-      parentNoticeId: "fan-summary-ready",
+      noticeId: "fan-ready",
       action: {
         id: "join-call",
         bookingId: "booking-ready",
         url: "/scheduled-meeting/booking-ready",
       },
     });
-    expect(wrapper.emitted("join")[0][0]).toMatchObject({ noticeId: "ready-item" });
+    expect(wrapper.emitted("join")[0][0]).toMatchObject({ noticeId: "fan-ready" });
   });
 
   it("does not show Detail on a multi-item ready notice that has Join Call", () => {
@@ -1038,7 +1028,7 @@ describe("EventNotificationStack", () => {
     const notice = {
       id: "expandable-group",
       type: BOOKING_NOTICE_TYPES.BOOKING_REQUEST,
-      audience: "fan",
+      audience: "creator",
       items,
       totalCount: items.length,
       itemLimit: 3,
@@ -1063,20 +1053,19 @@ describe("EventNotificationStack", () => {
   });
 
   it("suppresses standalone notices hidden by summary section and overall limits", () => {
-    const summaryItem = booking("ready-visible");
-    const readyHidden = booking("ready-hidden");
+    const summaryItem = booking("confirmed-visible");
+    const confirmedHidden = booking("confirmed-hidden");
     const infoHidden = booking("info-hidden");
     const notices = [
       {
         id: "summary",
         type: BOOKING_NOTICE_TYPES.SUMMARY,
         sections: [
-          { type: BOOKING_NOTICE_TYPES.READY_TO_JOIN, label: "Ready", items: [summaryItem, readyHidden] },
-          { type: BOOKING_NOTICE_TYPES.BOOKING_CONFIRMED, label: "Confirmed", items: [infoHidden] },
+          { type: BOOKING_NOTICE_TYPES.BOOKING_CONFIRMED, label: "Confirmed", items: [summaryItem, confirmedHidden, infoHidden] },
         ],
       },
-      { id: "ready-visible", type: BOOKING_NOTICE_TYPES.READY_TO_JOIN, items: [summaryItem] },
-      { id: "ready-hidden", type: BOOKING_NOTICE_TYPES.READY_TO_JOIN, items: [readyHidden] },
+      { id: "confirmed-visible", type: BOOKING_NOTICE_TYPES.BOOKING_CONFIRMED, items: [summaryItem] },
+      { id: "confirmed-hidden", type: BOOKING_NOTICE_TYPES.BOOKING_CONFIRMED, items: [confirmedHidden] },
       { id: "info-hidden", type: BOOKING_NOTICE_TYPES.BOOKING_CONFIRMED, items: [infoHidden] },
       { id: "outside-summary", type: BOOKING_NOTICE_TYPES.BOOKING_CONFIRMED, items: [booking("outside-summary")] },
     ];
@@ -1089,14 +1078,26 @@ describe("EventNotificationStack", () => {
   });
 
   it("keeps a hidden urgent summary item suppressed before and after Show more", async () => {
-    const readyItems = Array.from({ length: 12 }, (_, index) => booking(`ready-${index + 1}`));
+    const adjustmentItems = Array.from({ length: 12 }, (_, index) => booking(`adjustment-${index + 1}`, {
+      activityType: "price-adjustment-sent",
+    }));
     const notices = [
       {
         id: "summary-expand-suppression",
         type: BOOKING_NOTICE_TYPES.SUMMARY,
-        sections: [{ type: BOOKING_NOTICE_TYPES.READY_TO_JOIN, label: "Ready", items: readyItems }],
+        sections: [{
+          type: BOOKING_NOTICE_TYPES.PRICE_ADJUSTMENT,
+          variant: "request-sent",
+          label: "Adjustments",
+          items: adjustmentItems,
+        }],
       },
-      { id: "ready-8", type: BOOKING_NOTICE_TYPES.READY_TO_JOIN, items: [readyItems[7]] },
+      {
+        id: "adjustment-8",
+        type: BOOKING_NOTICE_TYPES.PRICE_ADJUSTMENT,
+        priceAdjustmentState: "request-sent",
+        items: [adjustmentItems[7]],
+      },
     ];
     const wrapper = mount(EventNotificationStack, {
       props: { notices, config: { maxVisibleNotices: 3, summary: { perSectionLimit: 3, totalLimit: 3 } } },

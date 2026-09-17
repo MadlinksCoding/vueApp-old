@@ -102,16 +102,42 @@ onBeforeUnmount(() => {
 });
 
 const resolvedConfig = computed(() => resolveBookingNoticeConfig(BOOKING_NOTICE_TYPES.SUMMARY, props.config));
-const summaryNotice = computed(() => props.notices.find((notice) => notice.type === BOOKING_NOTICE_TYPES.SUMMARY
+const summaryCandidateNotice = computed(() => props.notices.find((notice) => notice.type === BOOKING_NOTICE_TYPES.SUMMARY
   && !locallyDismissedIds.value.has(notice.id)));
-const resolvedSummaryConfig = computed(() => summaryNotice.value
-  ? resolveBookingNoticeConfig(BOOKING_NOTICE_TYPES.SUMMARY, configForNotice(summaryNotice.value))
+const resolvedSummaryConfig = computed(() => summaryCandidateNotice.value
+  ? resolveBookingNoticeConfig(BOOKING_NOTICE_TYPES.SUMMARY, configForNotice(summaryCandidateNotice.value))
   : resolvedConfig.value);
-const activeSummary = computed(() => summaryNotice.value
-  ? buildBookingNoticeSummary(summaryNotice.value.sections || [], resolvedSummaryConfig.value.summary, {
-    additionalVisibleItems: additionalVisibleItems(summaryNotice.value.id),
+const candidateSummary = computed(() => summaryCandidateNotice.value
+  ? buildBookingNoticeSummary(summaryCandidateNotice.value.sections || [], resolvedSummaryConfig.value.summary, {
+    additionalVisibleItems: additionalVisibleItems(summaryCandidateNotice.value.id),
+    viewerRole: summaryCandidateNotice.value.audience || summaryCandidateNotice.value.viewer?.role,
   })
   : null);
+const summaryNotice = computed(() => candidateSummary.value?.totalCount > 1 ? summaryCandidateNotice.value : null);
+const activeSummary = computed(() => summaryNotice.value ? candidateSummary.value : null);
+
+const summaryFallbackNotice = computed(() => {
+  if (!summaryCandidateNotice.value || candidateSummary.value?.totalCount !== 1) return null;
+  const section = candidateSummary.value.sections?.[0];
+  const item = section?.items?.[0];
+  if (!item || section.type !== BOOKING_NOTICE_TYPES.EVENTS_TODAY) return null;
+  const representedIds = new Set([item.id, ...(item.representedActivityIds || [])].filter(Boolean));
+  const alreadyProvided = props.notices.some((notice) => notice.type !== BOOKING_NOTICE_TYPES.SUMMARY
+    && (notice.items || []).some((candidate) => [candidate?.id, ...(candidate?.representedActivityIds || [])]
+      .filter(Boolean).some((id) => representedIds.has(id))));
+  if (alreadyProvided) return null;
+  return {
+    id: `summary-fallback|${item.id}`,
+    type: BOOKING_NOTICE_TYPES.EVENTS_TODAY,
+    activityType: BOOKING_NOTICE_TYPES.EVENTS_TODAY,
+    audience: summaryCandidateNotice.value.audience || summaryCandidateNotice.value.viewer?.role,
+    heading: "You have 1 event today:",
+    items: [item],
+    totalCount: 1,
+    showDetail: true,
+    serverActivityIds: item.representedActivityIds || [],
+  };
+});
 
 watch(activeSummary, (summary) => {
   if (!summaryNotice.value || !summary) return;
@@ -124,9 +150,12 @@ watch(activeSummary, (summary) => {
   });
 }, { immediate: true, deep: true });
 
-const visibleNotices = computed(() => props.notices
+const visibleNotices = computed(() => props.notices.concat(summaryFallbackNotice.value ? [summaryFallbackNotice.value] : [])
   .filter((notice) => !locallyDismissedIds.value.has(notice.id))
   .filter((notice) => notice.enabled !== false && resolveBookingNoticeConfig(notice.type, configForNotice(notice)).enabled !== false)
+  .filter((notice) => !(String(notice.audience || notice.viewer?.role || "").toLowerCase() === "fan"
+    && notice.type === BOOKING_NOTICE_TYPES.BOOKING_REQUEST))
+  .filter((notice) => notice.type !== BOOKING_NOTICE_TYPES.SUMMARY || notice.id === summaryNotice.value?.id)
   .filter((notice) => notice.type === BOOKING_NOTICE_TYPES.SUMMARY
     || shouldShowStandaloneNotice(notice, activeSummary.value, Boolean(summaryNotice.value)))
   .slice(0, resolvedConfig.value.maxVisibleNotices));

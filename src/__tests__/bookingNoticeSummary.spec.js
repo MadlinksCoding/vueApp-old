@@ -31,8 +31,8 @@ describe("booking notice configuration", () => {
     expect(DEFAULT_BOOKING_NOTICE_CONFIG.summary.desktopPosition).toBe("top-right");
     expect(DEFAULT_BOOKING_NOTICE_CONFIG.summary.mobilePosition).toBe("bottom");
     expect(DEFAULT_BOOKING_NOTICE_CONFIG.summary.sectionOrder.slice(0, 2)).toEqual([
-      BOOKING_NOTICE_TYPES.READY_TO_JOIN,
       BOOKING_NOTICE_TYPES.EVENTS_TODAY,
+      BOOKING_NOTICE_TYPES.BOOKING_REQUEST,
     ]);
     expect(DEFAULT_BOOKING_NOTICE_CONFIG.summary.priorityOrder.slice(0, 2)).toEqual([
       BOOKING_NOTICE_PRIORITIES.READY,
@@ -122,26 +122,26 @@ describe("buildBookingNoticeSummary", () => {
     expect(expandedTwice.hiddenCount).toBe(0);
   });
 
-  it("puts a new ready-to-join item ahead of lower-priority content", () => {
-    const original = buildBookingNoticeSummary([
-      { type: BOOKING_NOTICE_TYPES.EVENTS_TODAY, label: "Events today", items: [item("info-1", "2026-04-25")] },
-    ], { totalLimit: 1 });
-    const refreshed = buildBookingNoticeSummary([
-      { type: BOOKING_NOTICE_TYPES.EVENTS_TODAY, label: "Events today", items: [item("info-1", "2026-04-25")] },
+  it("excludes ready-to-join items and fan pending requests from summary content", () => {
+    const sections = [
       { type: BOOKING_NOTICE_TYPES.READY_TO_JOIN, label: "Ready", items: [item("ready-1", "2026-04-25")] },
-    ], { totalLimit: 1 });
+      { type: BOOKING_NOTICE_TYPES.EVENTS_TODAY, label: "Events today", items: [item("today-1", "2026-04-25")] },
+      { type: BOOKING_NOTICE_TYPES.BOOKING_REQUEST, label: "Pending", items: [item("pending-1", "2026-04-25")] },
+    ];
 
-    expect(original.visibleItemIds).toEqual(["info-1"]);
-    expect(refreshed.visibleItemIds).toEqual(["ready-1"]);
-    expect(refreshed.hiddenItemIds).toContain("info-1");
+    const creator = buildBookingNoticeSummary(sections, { totalLimit: 3 }, { viewerRole: "creator" });
+    const fan = buildBookingNoticeSummary(sections, { totalLimit: 3 }, { viewerRole: "fan" });
+
+    expect(creator.allItemIds).toEqual(["today-1", "pending-1"]);
+    expect(fan.allItemIds).toEqual(["today-1"]);
   });
 
   it("suppresses and dismisses every contained item, including hidden overflow and represented activities", () => {
     const summary = buildBookingNoticeSummary([
       {
-        type: BOOKING_NOTICE_TYPES.READY_TO_JOIN,
-        label: "Ready",
-        items: [item("ready-visible", "2026-04-25"), item("ready-hidden", "2026-04-26")],
+        type: BOOKING_NOTICE_TYPES.BOOKING_CONFIRMED,
+        label: "Confirmed",
+        items: [item("confirmed-visible", "2026-04-25"), item("confirmed-hidden", "2026-04-26")],
       },
       {
         type: BOOKING_NOTICE_TYPES.EVENTS_TODAY,
@@ -150,20 +150,20 @@ describe("buildBookingNoticeSummary", () => {
       },
     ], { totalLimit: 1 });
 
-    expect(shouldShowStandaloneNotice({ id: "ready-visible", type: BOOKING_NOTICE_TYPES.READY_TO_JOIN }, summary)).toBe(false);
-    expect(shouldShowStandaloneNotice({ id: "ready-hidden", type: BOOKING_NOTICE_TYPES.READY_TO_JOIN }, summary)).toBe(false);
+    expect(shouldShowStandaloneNotice({ id: "confirmed-visible", type: BOOKING_NOTICE_TYPES.BOOKING_CONFIRMED }, summary)).toBe(false);
+    expect(shouldShowStandaloneNotice({ id: "confirmed-hidden", type: BOOKING_NOTICE_TYPES.BOOKING_CONFIRMED }, summary)).toBe(false);
     expect(shouldShowStandaloneNotice({ id: "info-hidden", type: BOOKING_NOTICE_TYPES.BOOKING_CONFIRMED }, summary)).toBe(false);
     expect(shouldShowStandaloneNotice({ id: "action-hidden", priority: BOOKING_NOTICE_PRIORITIES.ACTION }, summary)).toBe(true);
     expect(shouldShowStandaloneNotice({
       id: "synthetic-group-id",
       type: BOOKING_NOTICE_TYPES.BOOKING_REQUEST,
-      items: [{ id: "ready-visible" }, { id: "ready-hidden" }],
+      items: [{ id: "confirmed-visible" }, { id: "confirmed-hidden" }],
     }, summary)).toBe(false);
     expect(getSummaryDismissedItemIds(summary)).toEqual([
-      "ready-visible",
-      "ready-hidden",
       "today-hidden",
       "info-hidden",
+      "confirmed-visible",
+      "confirmed-hidden",
     ]);
   });
 

@@ -38,6 +38,7 @@ function sortItems(items, sort = "soonest-first") {
 
 export function buildBookingNoticeSummary(sections = [], settings = {}, options = {}) {
   const config = { ...DEFAULT_BOOKING_NOTICE_CONFIG.summary, ...settings };
+  const viewerRole = String(options.viewerRole || "").toLowerCase();
   const priorityOrder = new Map(config.priorityOrder.map((value, index) => [value, index]));
   const sectionOrder = new Map(config.sectionOrder.map((value, index) => [value, index]));
   const perSectionDefault = numberOr(config.perSectionLimit, 3);
@@ -46,6 +47,8 @@ export function buildBookingNoticeSummary(sections = [], settings = {}, options 
   const eligibleSections = sections
     .filter((section) => section
       && section.enabled !== false
+      && section.type !== BOOKING_NOTICE_TYPES.READY_TO_JOIN
+      && !(viewerRole === "fan" && section.type === BOOKING_NOTICE_TYPES.BOOKING_REQUEST)
       && config.sectionVisibility?.[section.type] !== false)
     .map((section, originalIndex) => {
       const sort = section.sort || config.sectionSort?.[section.type];
