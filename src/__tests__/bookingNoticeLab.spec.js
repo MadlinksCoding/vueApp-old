@@ -39,17 +39,24 @@ describe("Booking Notice Test Lab", () => {
 
   it("creates every fake notice variation without using a backend", () => {
     const all = createAllBookingNoticeLabNotices({ sequence: 10, viewerRole: "fan", itemCount: 2 });
-    expect(all).toHaveLength(9);
+    expect(all).toHaveLength(10);
     expect(new Set(all.map((notice) => notice.type))).toEqual(new Set([
       "booking-request",
       "booking-confirmed",
       "booking-declined",
+      "booking-cancelled",
       "price-adjustment",
       "ready-to-join",
       "summary",
     ]));
     const expandableSummary = createBookingNoticeLabNotice("summary", { itemCount: 3 });
-    expect(expandableSummary.sections).toHaveLength(8);
+    expect(expandableSummary.sections).toHaveLength(9);
+
+    expect(expandableSummary.sections.find((section) => section.type === "booking-cancelled")).toMatchObject({
+      label: "Cancelled bookings",
+      totalCount: 3,
+      priority: "status-change",
+    });
     expect(expandableSummary.sections.find((section) => section.type === "events-today")).toMatchObject({
       label: "Events today",
       totalCount: 3,

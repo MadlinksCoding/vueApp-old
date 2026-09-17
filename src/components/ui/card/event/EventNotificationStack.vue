@@ -8,7 +8,7 @@
       v-for="notice in visibleNotices"
       :key="notice.id"
       :notice="notice"
-      :config="config"
+      :config="configForNotice(notice)"
       :additional-visible-items="additionalVisibleItems(notice.id)"
       :viewport-mode="viewportMode"
       class="pointer-events-auto"
@@ -39,6 +39,22 @@ const emit = defineEmits(["close", "primary-action", "detail", "join", "summary-
 const locallyDismissedIds = ref(new Set());
 const expandedItemsByNoticeId = ref(new Map());
 const localDismissTimers = new Map();
+
+function configForNotice(notice) {
+  const override = notice?.config && typeof notice.config === "object" ? notice.config : {};
+  return {
+    ...props.config,
+    ...override,
+    summary: {
+      ...(props.config.summary || {}),
+      ...(override.summary || {}),
+    },
+    noticeTypes: {
+      ...(props.config.noticeTypes || {}),
+      ...(override.noticeTypes || {}),
+    },
+  };
+}
 
 function additionalVisibleItems(noticeId) {
   return expandedItemsByNoticeId.value.get(noticeId) || 0;
@@ -88,8 +104,11 @@ onBeforeUnmount(() => {
 const resolvedConfig = computed(() => resolveBookingNoticeConfig(BOOKING_NOTICE_TYPES.SUMMARY, props.config));
 const summaryNotice = computed(() => props.notices.find((notice) => notice.type === BOOKING_NOTICE_TYPES.SUMMARY
   && !locallyDismissedIds.value.has(notice.id)));
+const resolvedSummaryConfig = computed(() => summaryNotice.value
+  ? resolveBookingNoticeConfig(BOOKING_NOTICE_TYPES.SUMMARY, configForNotice(summaryNotice.value))
+  : resolvedConfig.value);
 const activeSummary = computed(() => summaryNotice.value
-  ? buildBookingNoticeSummary(summaryNotice.value.sections || [], resolvedConfig.value.summary, {
+  ? buildBookingNoticeSummary(summaryNotice.value.sections || [], resolvedSummaryConfig.value.summary, {
     additionalVisibleItems: additionalVisibleItems(summaryNotice.value.id),
   })
   : null);
@@ -107,7 +126,7 @@ watch(activeSummary, (summary) => {
 
 const visibleNotices = computed(() => props.notices
   .filter((notice) => !locallyDismissedIds.value.has(notice.id))
-  .filter((notice) => notice.enabled !== false && resolveBookingNoticeConfig(notice.type, props.config).enabled !== false)
+  .filter((notice) => notice.enabled !== false && resolveBookingNoticeConfig(notice.type, configForNotice(notice)).enabled !== false)
   .filter((notice) => notice.type === BOOKING_NOTICE_TYPES.SUMMARY
     || shouldShowStandaloneNotice(notice, activeSummary.value, Boolean(summaryNotice.value)))
   .slice(0, resolvedConfig.value.maxVisibleNotices));

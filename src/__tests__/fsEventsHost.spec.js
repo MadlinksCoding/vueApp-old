@@ -49,6 +49,11 @@ describe("fs-events-host openFanBookingPopup", () => {
     expect(hosts.every((host) => host.querySelector("iframe").style.width === "408px")).toBe(true);
     expect(hosts.every((host) => host.style.width === "0px" && host.style.height === "0px")).toBe(true);
     expect(hosts.every((host) => host.querySelector("iframe").dataset.interactive === "false")).toBe(true);
+    expect(document.querySelector('[data-position="top-right"]').style.position).toBe("fixed");
+    expect(document.querySelector('[data-position="top-right"]').style.right).toBe("8px");
+    expect(document.querySelector('[data-position="top-right"] iframe').style.background).toBe("transparent");
+    expect(document.querySelector('[data-position="top-right"] iframe').style.pointerEvents).toBe("none");
+    expect(document.querySelector('[data-position="top-right"] iframe').getAttribute("allowtransparency")).toBe("true");
     expect(controller.isReady()).toBe(false);
     controller.destroy();
     expect(document.querySelector(".fs-booking-notices-host")).toBeNull();
@@ -580,6 +585,7 @@ describe("fs-events-host openFanBookingPopup", () => {
     expect(host.style.width).toBe("408px");
     expect(host.style.height).toBe("220px");
     expect(iframe.dataset.interactive).toBe("true");
+    expect(iframe.style.pointerEvents).toBe("auto");
 
     window.dispatchEvent(new MessageEvent("message", {
       origin: window.location.origin,
@@ -595,6 +601,7 @@ describe("fs-events-host openFanBookingPopup", () => {
     expect(host.style.width).toBe("0px");
     expect(host.style.height).toBe("0px");
     expect(iframe.dataset.interactive).toBe("false");
+    expect(iframe.style.pointerEvents).toBe("none");
     controller.destroy();
   });
 

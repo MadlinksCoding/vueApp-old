@@ -10,6 +10,7 @@ const DEFAULT_PRIORITY_BY_TYPE = Object.freeze({
   [BOOKING_NOTICE_TYPES.EVENTS_TODAY]: BOOKING_NOTICE_PRIORITIES.TODAY,
   [BOOKING_NOTICE_TYPES.BOOKING_REQUEST]: BOOKING_NOTICE_PRIORITIES.ACTION,
   [BOOKING_NOTICE_TYPES.PRICE_ADJUSTMENT]: BOOKING_NOTICE_PRIORITIES.ACTION,
+  [BOOKING_NOTICE_TYPES.BOOKING_CANCELLED]: BOOKING_NOTICE_PRIORITIES.STATUS,
   [BOOKING_NOTICE_TYPES.BOOKING_DECLINED]: BOOKING_NOTICE_PRIORITIES.STATUS,
   [BOOKING_NOTICE_TYPES.BOOKING_CONFIRMED]: BOOKING_NOTICE_PRIORITIES.INFO,
 });
@@ -126,7 +127,11 @@ export function shouldShowStandaloneNotice(notice, summary, summaryOpen = true) 
 }
 
 export function getSummaryDismissedItemIds(summary) {
-  return [...(summary?.visibleItemIds || [])];
+  const completeItemIds = summary?.allItemIds || [
+    ...(summary?.visibleItemIds || []),
+    ...(summary?.hiddenItemIds || []),
+  ];
+  return [...new Set(completeItemIds.filter(Boolean))];
 }
 
 export function getLocalCalendarDay(date = new Date()) {

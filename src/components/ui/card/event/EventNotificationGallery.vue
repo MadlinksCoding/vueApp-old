@@ -60,6 +60,7 @@ const eventTodayItem = (id, offsetMinutes) => {
 };
 const confirmedItems = [eventTodayItem("today-1", 30), eventTodayItem("today-2", 60)];
 const confirmedSummaryItem = booking("confirmed-summary-1", { status: "confirmed", activityType: "booking-confirmed" });
+const cancelledSummaryItem = booking("cancelled-summary-1", { status: "cancelled_system", activityType: "booking-cancelled", cancellationReason: "both_no_show_auto_cancel" });
 const declinedSummaryItem = booking("declined-summary-1", { status: "declined" });
 const priceRequestSummaryItem = booking("price-request-summary-1", { status: "pending", activityType: "price-adjustment-sent" });
 const priceAcceptedSummaryItem = booking("price-accepted-summary-1", { status: "confirmed", activityType: "price-adjustment-accepted" });
@@ -98,6 +99,7 @@ const examples = [
       { id: "price-adjustment:request-sent", type: BOOKING_NOTICE_TYPES.PRICE_ADJUSTMENT, variant: "request-sent", label: "Price adjustment requests", items: [priceRequestSummaryItem], totalCount: 1 },
       { id: "price-adjustment:accepted", type: BOOKING_NOTICE_TYPES.PRICE_ADJUSTMENT, variant: "accepted", priority: "status-change", label: "Accepted price adjustments", items: [priceAcceptedSummaryItem], totalCount: 1 },
       { id: "price-adjustment:declined", type: BOOKING_NOTICE_TYPES.PRICE_ADJUSTMENT, variant: "declined", priority: "status-change", label: "Declined price adjustments", items: [priceDeclinedSummaryItem], totalCount: 1 },
+      { type: BOOKING_NOTICE_TYPES.BOOKING_CANCELLED, priority: "status-change", label: "Cancelled bookings", items: [cancelledSummaryItem], totalCount: 1 },
       { type: BOOKING_NOTICE_TYPES.BOOKING_DECLINED, label: "Declined booking requests", items: [declinedSummaryItem], totalCount: 1 },
       { type: BOOKING_NOTICE_TYPES.BOOKING_CONFIRMED, priority: "general-information", label: "Confirmed bookings", items: [confirmedSummaryItem], totalCount: 1 },
     ],
@@ -172,6 +174,22 @@ const examples = [
     audience: "fan",
     actor: { displayName: "@lantaucows" },
     items: [booking("declined-1", { status: "declined", person: { name: "Cows of Lantau", avatar } })],
+    showDetail: true,
+  },
+  {
+    id: "demo-cancelled",
+    demoLabel: "Booking cancelled — neither participant joined",
+    type: BOOKING_NOTICE_TYPES.BOOKING_CANCELLED,
+    audience: "fan",
+    cancellationStatus: "cancelled_system",
+    cancellationReason: "both_no_show_auto_cancel",
+    items: [booking("cancelled-1", {
+      status: "cancelled_system",
+      activityType: BOOKING_NOTICE_TYPES.BOOKING_CANCELLED,
+      cancellationStatus: "cancelled_system",
+      cancellationReason: "both_no_show_auto_cancel",
+      person: { name: "Cows of Lantau", avatar },
+    })],
     showDetail: true,
   },
   {

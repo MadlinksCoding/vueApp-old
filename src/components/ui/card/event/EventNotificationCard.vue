@@ -211,7 +211,7 @@ const readyLabelForItem = (item) => {
 const standaloneReadyCountdown = computed(() => readyCountdown(visibleItems.value[0]));
 const isStandaloneFanBookingResult = computed(() => isFan.value
   && completeItemCount.value === 1
-  && [BOOKING_NOTICE_TYPES.BOOKING_CONFIRMED, BOOKING_NOTICE_TYPES.BOOKING_DECLINED].includes(props.notice.type));
+  && [BOOKING_NOTICE_TYPES.BOOKING_CONFIRMED, BOOKING_NOTICE_TYPES.BOOKING_DECLINED, BOOKING_NOTICE_TYPES.BOOKING_CANCELLED].includes(props.notice.type));
 const isReviewAction = (action) => String(action?.id || "").startsWith("review")
   || String(action?.label || "").toUpperCase().includes("REVIEW");
 const isBookingRequestReviewAction = computed(() => props.notice.type === BOOKING_NOTICE_TYPES.BOOKING_REQUEST
@@ -273,6 +273,24 @@ const heading = computed(() => {
   if (props.notice.type === noticeTypes.BOOKING_REQUEST) return "New event booking received:";
   if (props.notice.type === noticeTypes.BOOKING_CONFIRMED) return `${name} has confirmed your booking:`;
   if (props.notice.type === noticeTypes.BOOKING_DECLINED) return `${name} has declined your booking request:`;
+  if (props.notice.type === noticeTypes.BOOKING_CANCELLED) {
+    const reason = String(props.notice.cancellationReason || props.notice.items?.[0]?.cancellationReason || "").toLowerCase();
+    const status = String(props.notice.cancellationStatus || props.notice.items?.[0]?.cancellationStatus || "").toLowerCase();
+    if (viewerRole.value === "creator") {
+      if (reason.includes("fan_no_show") || status === "no_show_fan") {
+        return "The booking was cancelled because the fan did not join:";
+      }
+      const fanName = name.startsWith("@") ? name : `@${name}`;
+      return `${fanName} cancelled the booking:`;
+    }
+    if (reason.includes("both_no_show") || reason.includes("neither") || (status === "cancelled_system" && reason.includes("no_show"))) {
+      return "Your booking was cancelled because neither participant joined:";
+    }
+    if (reason.includes("creator_no_show") || status === "no_show_creator") {
+      return "Your booking was cancelled because the creator did not join:";
+    }
+    return "Your booking was cancelled:";
+  }
   if (props.notice.priceAdjustmentState === "accepted") return `${name} has accepted your price adjustment:`;
   if (props.notice.priceAdjustmentState === "declined") return `${name} has declined your price adjustment:`;
   return `${name} sent you a price adjustment request:`;
@@ -280,7 +298,7 @@ const heading = computed(() => {
 
 const appearance = computed(() => {
   if (props.notice.type === noticeTypes.READY_TO_JOIN) return { icon: AlarmGreenIcon, accent: "#FDB022", headingColor: "#107569" };
-  if (props.notice.type === noticeTypes.BOOKING_DECLINED || props.notice.priceAdjustmentState === "declined") {
+  if ([noticeTypes.BOOKING_DECLINED, noticeTypes.BOOKING_CANCELLED].includes(props.notice.type) || props.notice.priceAdjustmentState === "declined") {
     return { icon: CalendarCrossIcon, accent: "#FDB022", headingColor: "#FF4405" };
   }
   if (props.notice.type === noticeTypes.BOOKING_CONFIRMED || props.notice.priceAdjustmentState === "accepted") {
@@ -329,6 +347,9 @@ const summarySectionPresentation = (section) => {
   }
   if (section.type === noticeTypes.BOOKING_DECLINED) {
     return { icon: CalendarCrossIcon, color: "#FF4405", heading: `You have ${count} declined ${countedNoun(count, "booking request")}:` };
+  }
+  if (section.type === noticeTypes.BOOKING_CANCELLED) {
+    return { icon: CalendarCrossIcon, color: "#FF4405", heading: `You have ${count} cancelled ${countedNoun(count, "booking")}:` };
   }
   if (section.type === noticeTypes.PRICE_ADJUSTMENT) {
     const variant = priceAdjustmentVariant(section);

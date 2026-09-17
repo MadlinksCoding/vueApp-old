@@ -55,13 +55,99 @@ describe("EventNotificationCard", () => {
 
     resolveProfile({
       ok: true,
-      json: async () => ({ user: { avatar: "https://example.com/correct-avatar.webp" } }),
+      json: async () => ({ user: {
+        display_name: "Current Creator Name",
+        avatar: "https://example.com/correct-avatar.webp",
+      } }),
     });
     await flushPromises();
 
     expect(wrapper.find('[data-test="notice-avatar-skeleton"]').exists()).toBe(false);
     expect(wrapper.get('[data-test="notice-avatar"]').attributes("src")).toBe("https://example.com/correct-avatar.webp");
+    expect(wrapper.get('[data-test="notice-person-name"]').text()).toBe("Current Creator Name");
     expect(wrapper.html()).not.toContain("wrong-avatar.png");
+  });
+
+  it("uses the fetched username and keeps the stored avatar when the profile has no avatar", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => ({
+      ok: true,
+      json: async () => ({ user: { username: "current-creator" } }),
+    })));
+    const wrapper = mount(EventNotificationCard, {
+      props: {
+        notice: {
+          id: "profile-username",
+          type: BOOKING_NOTICE_TYPES.BOOKING_CONFIRMED,
+          items: [booking("profile-username-item", {
+            person: { userId: 1407, name: "Stored creator", avatar: "stored-avatar.png" },
+          })],
+        },
+      },
+    });
+    await flushPromises();
+
+    expect(wrapper.get('[data-test="notice-person-name"]').text()).toBe("current-creator");
+    expect(wrapper.get('[data-test="notice-avatar"]').attributes("src")).toBe("stored-avatar.png");
+  });
+
+  it("keeps the stored notice identity when get-profile-data fails", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: false, status: 503 })));
+    const wrapper = mount(EventNotificationCard, {
+      props: {
+        notice: {
+          id: "profile-fallback",
+          type: BOOKING_NOTICE_TYPES.BOOKING_CONFIRMED,
+          items: [booking("profile-fallback-item", {
+            person: { userId: 1407, name: "Stored creator", avatar: "stored-avatar.png" },
+          })],
+        },
+      },
+    });
+    await flushPromises();
+
+    expect(wrapper.get('[data-test="notice-person-name"]').text()).toBe("Stored creator");
+    expect(wrapper.get('[data-test="notice-avatar"]').attributes("src")).toBe("stored-avatar.png");
+  });
+
+  it("falls back from a broken profile avatar to the stored avatar", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => ({
+      ok: true,
+      json: async () => ({ user: {
+        display_name: "Current Creator",
+        avatar: "broken-profile-avatar.png",
+      } }),
+    })));
+    const wrapper = mount(EventNotificationCard, {
+      props: {
+        notice: {
+          id: "profile-image-fallback",
+          type: BOOKING_NOTICE_TYPES.BOOKING_CONFIRMED,
+          items: [booking("profile-image-fallback-item", {
+            person: { userId: 1407, name: "Stored creator", avatar: "stored-avatar.png" },
+          })],
+        },
+      },
+    });
+    await flushPromises();
+
+    expect(wrapper.get('[data-test="notice-avatar"]').attributes("src")).toBe("broken-profile-avatar.png");
+    await wrapper.get('[data-test="notice-avatar"]').trigger("error");
+    expect(wrapper.get('[data-test="notice-avatar"]').attributes("src")).toBe("stored-avatar.png");
+  });
+
+  it("uses a neutral name when no participant identity can be recovered", () => {
+    const wrapper = mount(EventNotificationCard, {
+      props: {
+        notice: {
+          id: "anonymous-profile",
+          type: BOOKING_NOTICE_TYPES.BOOKING_CONFIRMED,
+          items: [booking("anonymous-profile-item", { person: {} })],
+        },
+      },
+    });
+
+    expect(wrapper.get('[data-test="notice-person-name"]').text()).toBe("Someone");
+    expect(wrapper.find('[data-test="notice-avatar"]').exists()).toBe(false);
   });
 
   it("shares one profile request when several notice items belong to the same user", async () => {
@@ -434,6 +520,7 @@ describe("EventNotificationCard", () => {
   it.each([
     [BOOKING_NOTICE_TYPES.BOOKING_CONFIRMED, "confirmed"],
     [BOOKING_NOTICE_TYPES.BOOKING_DECLINED, "declined"],
+    [BOOKING_NOTICE_TYPES.BOOKING_CANCELLED, "cancelled"],
   ])("shows Detail instead of Review for a standalone fan %s notice", async (type, status) => {
     const wrapper = mount(EventNotificationCard, {
       props: {
@@ -458,6 +545,86 @@ describe("EventNotificationCard", () => {
     expect(wrapper.emitted("primary-action")).toBeUndefined();
     expect(wrapper.emitted("close")).toBeUndefined();
     expect(wrapper.find("article").exists()).toBe(true);
+  });
+
+  it.each([
+    ["both_no_show_auto_cancel", "cancelled_system", "Your booking was cancelled because neither participant joined:"],
+    ["creator_no_show_auto_cancel", "no_show_creator", "Your booking was cancelled because the creator did not join:"],
+    ["creator_cancelled", "cancelled_creator", "Your booking was cancelled:"],
+  ])("uses the correct standalone cancellation wording for %s", (reason, status, expected) => {
+    const wrapper = mount(EventNotificationCard, {
+      props: {
+        notice: {
+          id: `fan-cancelled-${reason}`,
+          type: BOOKING_NOTICE_TYPES.BOOKING_CANCELLED,
+          audience: "fan",
+          cancellationReason: reason,
+          cancellationStatus: status,
+          items: [booking("booking-cancelled", {
+            bookingId: "booking-cancelled-real",
+            status,
+            cancellationReason: reason,
+            cancellationStatus: status,
+          })],
+          showDetail: true,
+        },
+      },
+    });
+
+    expect(wrapper.text()).toContain(expected);
+    expect(wrapper.find('[data-test="notice-primary-action"]').exists()).toBe(false);
+    expect(wrapper.find('[data-test="notice-detail"]').exists()).toBe(true);
+  });
+
+  it.each([
+    ["fan_cancelled", "cancelled_user", "Cosmania Fan", "@Cosmania Fan cancelled the booking:"],
+    ["fan_no_show", "no_show_fan", "Cosmania Fan", "The booking was cancelled because the fan did not join:"],
+  ])("uses the creator-facing cancellation wording for %s", (reason, status, fanName, expected) => {
+    const wrapper = mount(EventNotificationCard, {
+      props: {
+        notice: {
+          id: `creator-cancelled-${reason}`,
+          type: BOOKING_NOTICE_TYPES.BOOKING_CANCELLED,
+          audience: "creator",
+          actor: { displayName: fanName },
+          cancellationReason: reason,
+          cancellationStatus: status,
+          items: [booking("creator-cancellation", {
+            status,
+            cancellationReason: reason,
+            cancellationStatus: status,
+          })],
+          showDetail: true,
+        },
+      },
+    });
+
+    expect(wrapper.text()).toContain(expected);
+    expect(wrapper.find('[data-test="notice-primary-action"]').exists()).toBe(false);
+    expect(wrapper.find('[data-test="notice-detail"]').exists()).toBe(true);
+  });
+
+  it("uses the orange cancellation heading in summaries", () => {
+    const wrapper = mount(EventNotificationCard, {
+      props: {
+        notice: {
+          id: "cancelled-summary",
+          type: BOOKING_NOTICE_TYPES.SUMMARY,
+          audience: "fan",
+          viewer: { role: "fan", displayName: "Fan" },
+          sections: [{
+            type: BOOKING_NOTICE_TYPES.BOOKING_CANCELLED,
+            priority: BOOKING_NOTICE_PRIORITIES.STATUS,
+            totalCount: 2,
+            items: [booking("cancelled-one"), booking("cancelled-two")],
+          }],
+        },
+      },
+    });
+
+    const heading = wrapper.get('[data-test="summary-section-heading"]');
+    expect(heading.text()).toBe("You have 2 cancelled bookings:");
+    expect(heading.attributes("style")).toContain("color: rgb(255, 68, 5)");
   });
 
   it("keeps the contextual Review Adjustment label for a single fan price request", () => {
@@ -672,7 +839,20 @@ describe("EventNotificationCard", () => {
     });
   });
 
-  it("dismisses only the visible summary items through close or its main action", async () => {
+  it("dismisses every summary item through close, timeout, or its main action", async () => {
+    const summaryItems = Array.from({ length: 7 }, (_, index) => booking(`summary-${index + 1}`, {
+      representedActivityIds: index === 0 ? ["represented-confirmation"] : [],
+    }));
+    const expectedDismissedIds = [
+      "summary-1",
+      "represented-confirmation",
+      "summary-2",
+      "summary-3",
+      "summary-4",
+      "summary-5",
+      "summary-6",
+      "summary-7",
+    ];
     const notice = {
       id: "summary-1",
       type: BOOKING_NOTICE_TYPES.SUMMARY,
@@ -680,24 +860,43 @@ describe("EventNotificationCard", () => {
       sections: [{
         type: BOOKING_NOTICE_TYPES.BOOKING_REQUEST,
         label: "Pending",
-        totalCount: 3,
-        items: [booking("shown-1"), booking("hidden-1")],
+        totalCount: summaryItems.length,
+        items: summaryItems,
       }],
       action: { id: "review", label: "REVIEW" },
     };
-    const config = { exitEffect: "none", summary: { totalLimit: 1 } };
+    const config = { exitEffect: "none", summary: { perSectionLimit: 3, totalLimit: 3 } };
     const closed = mount(EventNotificationCard, { props: { notice, config } });
+    expect(closed.findAll(".booking-notice-item")).toHaveLength(3);
+    expect(closed.get('[data-test="summary-overflow"]').text()).toBe("and 4 more");
     await closed.get('[data-test="notice-close"]').trigger("click");
     expect(closed.emitted("close")[0][0]).toMatchObject({
       noticeId: "summary-1",
       reason: "close",
-      dismissedItemIds: ["shown-1"],
+      dismissedItemIds: expectedDismissedIds,
     });
 
     const acted = mount(EventNotificationCard, { props: { notice, config } });
     await acted.get('[data-test="notice-primary-action"]').trigger("click");
-    expect(acted.emitted("primary-action")[0][0].dismissedItemIds).toEqual(["shown-1"]);
+    expect(acted.emitted("primary-action")[0][0].dismissedItemIds).toEqual(expectedDismissedIds);
     expect(acted.find("article").exists()).toBe(false);
+
+    const expanded = mount(EventNotificationCard, { props: { notice, config } });
+    await expanded.get('[data-test="summary-overflow"]').trigger("click");
+    await expanded.setProps({ additionalVisibleItems: 10 });
+    expect(expanded.findAll(".booking-notice-item")).toHaveLength(7);
+    await expanded.get('[data-test="notice-close"]').trigger("click");
+    expect(expanded.emitted("close")[0][0].dismissedItemIds).toEqual(expectedDismissedIds);
+
+    vi.useFakeTimers();
+    const timed = mount(EventNotificationCard, {
+      props: { notice, config: { ...config, durationSeconds: 1 } },
+    });
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(timed.emitted("close")[0][0]).toMatchObject({
+      reason: "automatic",
+      dismissedItemIds: expectedDismissedIds,
+    });
   });
 
   it("emits Join and primary-action for a ready-to-join notice", async () => {
@@ -779,6 +978,31 @@ describe("EventNotificationCard", () => {
 });
 
 describe("EventNotificationStack", () => {
+  it("applies an individual notice configuration without leaking it to sibling notices", () => {
+    const notices = [
+      {
+        id: "lab-notice",
+        type: BOOKING_NOTICE_TYPES.BOOKING_CONFIRMED,
+        config: { attentionAnimation: "blink", durationSeconds: 9 },
+        items: [booking("lab-booking")],
+      },
+      {
+        id: "real-notice",
+        type: BOOKING_NOTICE_TYPES.BOOKING_CONFIRMED,
+        items: [booking("real-booking")],
+      },
+    ];
+    const wrapper = mount(EventNotificationStack, {
+      props: { notices, config: { attentionAnimation: "pulse", durationSeconds: 0 } },
+    });
+    const cards = wrapper.findAllComponents(EventNotificationCard);
+
+    expect(cards[0].props("config")).toMatchObject({ attentionAnimation: "blink", durationSeconds: 9 });
+    expect(cards[1].props("config")).toMatchObject({ attentionAnimation: "pulse", durationSeconds: 0 });
+    expect(cards[0].classes()).not.toContain("booking-notice-attention-pulse");
+    expect(cards[1].props("notice").config).toBeUndefined();
+  });
+
   it("expands summaries by ten, updates the remaining count, and dismisses every expanded item", async () => {
     const pending = Array.from({ length: 13 }, (_, index) => booking(`pending-${index + 1}`));
     const confirmed = Array.from({ length: 13 }, (_, index) => booking(`confirmed-${index + 1}`, { status: "confirmed" }));
