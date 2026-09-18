@@ -766,6 +766,15 @@ async function applyPriceAdjustment(adjustment = {}, { reportFailure = true } = 
 
 async function acceptPriceAdjustment(adjustment = {}) {
   if (actionLoading.value) return;
+  if (adjustment.hasTimeChange && !adjustment.hasPriceChange) {
+    actionLoading.value = true;
+    try {
+      await applyPriceAdjustment(adjustment);
+    } finally {
+      actionLoading.value = false;
+    }
+    return;
+  }
   const originalTokens = Number(adjustment.originalTokens);
   const proposedTokens = Number(adjustment.proposedTokens);
   if (!Number.isFinite(originalTokens) || !Number.isFinite(proposedTokens)) {

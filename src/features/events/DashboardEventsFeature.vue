@@ -2589,10 +2589,19 @@ const priceAdjustmentDecision = useBookingAdjustmentDecision(priceAdjustmentBook
   fanId: () => normalizedFanId.value,
 });
 
-const onAcceptPriceAdjustment = (payload) => {
+const onAcceptPriceAdjustment = async (payload) => {
   const value = payload?.booking || payload?.event?.raw || null;
   if (!value) return;
   priceAdjustmentBooking.value = value;
+  if (payload?.hasTimeChange && !payload?.hasPriceChange) {
+    priceAdjustmentLoading.value = true;
+    try {
+      await applyPriceAdjustment(payload);
+    } finally {
+      priceAdjustmentLoading.value = false;
+    }
+    return;
+  }
   priceAdjustmentDecision.open("accept", payload);
 };
 
@@ -2646,7 +2655,9 @@ const applyPriceAdjustment = async (adjustment = {}, { reportFailure = true } = 
       return outcome;
     }
 
-    refreshFanTokenBalance("accept_adjustment", bookingId);
+    if (adjustment.hasPriceChange !== false) {
+      refreshFanTokenBalance("accept_adjustment", bookingId);
+    }
 
     await syncBookingToChat(item || booking, "accepted", "accept_adjustment");
     priceAdjustmentDecision.reset({ force: true });

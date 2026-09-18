@@ -97,6 +97,10 @@ describe('EventDetailsFan', () => {
     expect(wrapper.get('[data-test="event-details-fan-session-cost-original"]').text()).toBe('100');
     expect(wrapper.get('[data-test="event-details-fan-session-cost-proposed"]').text()).toBe('135');
     expect(wrapper.find('[data-test="event-details-fan-price-adjustment"]').exists()).toBe(true);
+    expect(wrapper.get('[data-test="event-details-fan-price-adjustment"]').text())
+      .toContain('has adjusted the cost of the session:');
+    expect(wrapper.get('[data-test="event-details-fan-accept-adjustment"]').text())
+      .toContain('Accept New Price');
     expect(wrapper.find('[data-test="event-details-fan-menu"]').exists()).toBe(false);
     expect(wrapper.find('[data-test="event-details-fan-close"]').exists()).toBe(true);
     expect(wrapper.get('[data-test="event-details-fan-session-cost-original-icon"]').attributes('src')).toBe(tokenIcon);
@@ -128,7 +132,7 @@ describe('EventDetailsFan', () => {
 
     const notice = wrapper.get('[data-test="booking-details-adjustment-waiting-notice"]');
     expect(notice.get('[data-test="booking-details-adjustment-waiting-heading"]').text())
-      .toBe('Adjusted event detail has been sent to @grapegatsby to review:');
+      .toBe('Price adjustment has been sent to @grapegatsby to review:');
     expect(notice.get('img').attributes('src')).toBe('https://example.test/fan.webp');
     expect(wrapper.find('[data-test="event-details-fan-price-adjustment"]').exists()).toBe(false);
     expect(wrapper.find('[data-test="event-details-fan-accept-adjustment"]').exists()).toBe(false);

@@ -1668,6 +1668,55 @@ describe("one-on-one booking step translations", () => {
     ]);
   });
 
+  it("requests calendar focus when off-hours changes in every availability mode", async () => {
+    const { default: OneOnOneBookinStep1 } = await import(
+      "@/components/ui/form/BookingForm/OneOnOneBookinStep1.vue"
+    );
+    const wrapper = shallowMount(OneOnOneBookinStep1, {
+      props: {
+        engine: createEngine({
+          eventType: "1on1-call",
+          repeatRule: "weekly",
+          weeklyAvailability: [{
+            key: "thu",
+            name: "Thu",
+            unavailable: false,
+            slots: [{ startTime: "13:25", endTime: "14:25", offHours: false }],
+          }],
+          monthlyAvailability: [{ startTime: "09:15", endTime: "10:15", offHours: false }],
+          oneTimeAvailability: [{
+            id: "date_focus",
+            date: "2037-09-24",
+            slots: [{ startTime: "18:30", endTime: "19:30", offHours: false }],
+          }],
+        }),
+        bookingType: "private",
+      },
+      global: mountOptions(),
+    });
+
+    wrapper.vm.toggleSlotOffHours(0, 0);
+    wrapper.vm.toggleSlotOffHours(0, 0);
+
+    unrefPublic(wrapper.vm.formData).repeatRule = "monthly";
+    wrapper.vm.toggleMonthlySlotOffHours(0);
+    wrapper.vm.toggleMonthlySlotOffHours(0);
+
+    unrefPublic(wrapper.vm.formData).repeatRule = "doesNotRepeat";
+    wrapper.vm.toggleOneTimeSlotOffHours(0, 0);
+    wrapper.vm.toggleOneTimeSlotOffHours(0, 0);
+    await nextTick();
+
+    expect(wrapper.emitted("schedule-preview-focus")).toEqual([
+      [{ repeatRule: "weekly", weekday: 4, date: "", startTime: "13:25" }],
+      [{ repeatRule: "weekly", weekday: 4, date: "", startTime: "13:25" }],
+      [{ repeatRule: "monthly", weekday: null, date: "", startTime: "09:15" }],
+      [{ repeatRule: "monthly", weekday: null, date: "", startTime: "09:15" }],
+      [{ repeatRule: "doesNotRepeat", weekday: null, date: "2037-09-24", startTime: "18:30" }],
+      [{ repeatRule: "doesNotRepeat", weekday: null, date: "2037-09-24", startTime: "18:30" }],
+    ]);
+  });
+
   it("requests calendar focus when either schedule time dropdown is opened", async () => {
     const { default: OneOnOneBookinStep1 } = await import(
       "@/components/ui/form/BookingForm/OneOnOneBookinStep1.vue"
@@ -2310,6 +2359,59 @@ describe("one-on-one booking step translations", () => {
     expect(wrapper.text()).not.toContain("Give next-session discount");
   });
 
+  it("hides the reschedule fee setting unless its feature flag is enabled", async () => {
+    const { default: OneOnOneBookinStep1 } = await import(
+      "@/components/ui/form/BookingForm/OneOnOneBookinStep1.vue"
+    );
+    const disabledEngine = createEngine({
+      eventType: "1on1-call",
+      enableRescheduleFee: false,
+      rescheduleFee: "25",
+    });
+    const disabledWrapper = shallowMount(OneOnOneBookinStep1, {
+      props: {
+        engine: disabledEngine,
+        embedded: true,
+        bookingType: "private",
+      },
+      global: mountOptions(),
+    });
+
+    expect(disabledWrapper.find("[data-test='reschedule-fee-setting']").exists()).toBe(false);
+    expect(disabledWrapper.find("[data-booking-validation-input-field='rescheduleFee']").exists()).toBe(false);
+
+    const disabledGroupWrapper = shallowMount(OneOnOneBookinStep1, {
+      props: {
+        engine: createEngine({ eventType: "group-event", enableRescheduleFee: false }),
+        embedded: true,
+        bookingType: "group",
+      },
+      global: mountOptions(),
+    });
+    expect(disabledGroupWrapper.find("[data-test='reschedule-fee-setting']").exists()).toBe(false);
+
+    await disabledWrapper.vm.goToNext();
+    expect(disabledEngine.goToStep).toHaveBeenCalledWith(2, { throwOnBlocked: true });
+
+    const enabledWrapper = shallowMount(OneOnOneBookinStep1, {
+      props: {
+        engine: createEngine({
+          eventType: "1on1-call",
+          enableRescheduleFee: true,
+          rescheduleFee: "25",
+        }),
+        embedded: true,
+        bookingType: "private",
+        rescheduleFeeSettingEnabled: true,
+      },
+      global: mountOptions(),
+    });
+
+    expect(enabledWrapper.get("[data-test='reschedule-fee-setting']").text())
+      .toContain("Enable reschedule fee");
+    expect(enabledWrapper.find("[data-booking-validation-input-field='rescheduleFee']").exists()).toBe(true);
+  });
+
   it("hides session duration in group step 1 and keeps it for private step 1", async () => {
     const { default: OneOnOneBookinStep1 } = await import(
       "@/components/ui/form/BookingForm/OneOnOneBookinStep1.vue"
@@ -2842,6 +2944,11 @@ describe("one-on-one booking step translations", () => {
     expect(dateTimeSection.text()).not.toContain("Tooltip agregar periodo");
     expect(dateTimeSection.text()).not.toContain("Tooltip marcar fuera de horario");
     expect(dateTimeSection.text()).not.toContain("Tooltip agregar disponibilidad");
+
+    wrapper.vm.toggleSlotOffHours(0, 0);
+    wrapper.vm.toggleMonthlySlotOffHours(0);
+    wrapper.vm.toggleOneTimeSlotOffHours(0, 0);
+    expect(wrapper.emitted("schedule-preview-focus")).toBeUndefined();
   });
 
   it("keeps active date and time section hover scoped away from child tooltip groups", async () => {
@@ -2933,17 +3040,20 @@ describe("one-on-one booking step translations", () => {
     expect(pricingSection.findAll("[data-disabled]")[0]?.attributes("data-disabled")).toBe("false");
   });
 
-  it("shows additional request only for private step 2", async () => {
+  it("hides recording by default while keeping private additional requests", async () => {
     const { default: OneOnOneBookinStep2 } = await import(
       "@/components/ui/form/BookingForm/OneOnOneBookinStep2.vue"
     );
 
+    const disabledEngine = createEngine({
+      eventType: "1on1-call",
+      allowRecording: true,
+      recordingPrice: "25",
+      addOns: [{ title: "VIP setup", description: "", priceTokens: "25" }],
+    });
     const privateWrapper = shallowMount(OneOnOneBookinStep2, {
       props: {
-        engine: createEngine({
-          eventType: "1on1-call",
-          addOns: [{ title: "VIP setup", description: "", priceTokens: "25" }],
-        }),
+        engine: disabledEngine,
         embedded: true,
         bookingType: "private",
       },
@@ -2963,7 +3073,9 @@ describe("one-on-one booking step translations", () => {
     });
 
     expect(privateWrapper.text()).toContain("Additional Request");
-    expect(privateWrapper.text()).toContain("Allow fan record the session");
+    expect(privateWrapper.find("[data-test='recording-setting']").exists()).toBe(false);
+    expect(privateWrapper.text()).not.toContain("Allow fan record the session");
+    expect(disabledEngine.state.allowRecording).toBe(false);
     expect(privateWrapper.text()).toContain("Allow personal request");
     expect(privateWrapper.text()).toContain("Add-on service 1");
 
@@ -2971,6 +3083,19 @@ describe("one-on-one booking step translations", () => {
     expect(groupWrapper.text()).not.toContain("Allow fan record the session");
     expect(groupWrapper.text()).not.toContain("Allow personal request");
     expect(groupWrapper.text()).not.toContain("Add-on service 1");
+
+    const enabledWrapper = shallowMount(OneOnOneBookinStep2, {
+      props: {
+        engine: createEngine({ eventType: "1on1-call", allowRecording: true }),
+        embedded: true,
+        bookingType: "private",
+        recordingSettingEnabled: true,
+      },
+      global: mountOptions(),
+    });
+
+    expect(enabledWrapper.get("[data-test='recording-setting']").text())
+      .toContain("Allow fan record the session");
   });
 
   it("emits preview from the mobile step 2 footer button", async () => {
@@ -3075,6 +3200,39 @@ describe("one-on-one booking step translations", () => {
     expect(wrapper.emitted("created")?.[0]?.[0]).toEqual(expect.objectContaining({ mode: "create" }));
   });
 
+  it("submits event creation with hidden fee settings disabled", async () => {
+    const { default: OneOnOneBookinStep2 } = await import(
+      "@/components/ui/form/BookingForm/OneOnOneBookinStep2.vue"
+    );
+    window.localStorage.setItem("booking.callAttendancePolicy.dismissed.1407", "true");
+    const engine = createEngine({
+      creatorId: 1407,
+      eventType: "1on1-call",
+      enableRescheduleFee: false,
+      rescheduleFee: "25",
+      allowRecording: true,
+      recordingPrice: "25",
+    });
+    engine.validate.mockResolvedValue({ valid: true, errors: [] });
+    engine.callFlow.mockResolvedValue({ ok: true, data: { eventId: "evt_no_reschedule_fee" } });
+    const wrapper = shallowMount(OneOnOneBookinStep2, {
+      props: { engine, bookingType: "private", embedded: true },
+      global: mountOptions(),
+    });
+
+    await wrapper.vm.createEvent();
+    await settleValidation();
+
+    expect(engine.callFlow).toHaveBeenCalledWith(
+      "events.createEvent",
+      null,
+      expect.objectContaining({ context: expect.objectContaining({ stateEngine: engine }) }),
+    );
+    expect(engine.state.enableRescheduleFee).toBe(false);
+    expect(engine.state.allowRecording).toBe(false);
+    expect(wrapper.emitted("created")?.[0]?.[0]).toEqual(expect.objectContaining({ mode: "create" }));
+  });
+
   it("remembers attendance confirmation per creator and tolerates unavailable storage", async () => {
     const { default: OneOnOneBookinStep2 } = await import(
       "@/components/ui/form/BookingForm/OneOnOneBookinStep2.vue"
@@ -3145,6 +3303,7 @@ describe("one-on-one booking step translations", () => {
       props: {
         engine,
         bookingType: "private",
+        recordingSettingEnabled: true,
       },
       global: mountOptions(),
     });
@@ -3183,6 +3342,7 @@ describe("one-on-one booking step translations", () => {
       props: {
         engine,
         bookingType: "private",
+        recordingSettingEnabled: true,
       },
       global: mountOptions(),
     });
@@ -3228,6 +3388,7 @@ describe("one-on-one booking step translations", () => {
       props: {
         engine,
         bookingType: "private",
+        recordingSettingEnabled: true,
       },
       global: mountOptions(),
     });
@@ -3319,6 +3480,7 @@ describe("one-on-one booking step translations", () => {
       props: {
         engine,
         bookingType: "private",
+        recordingSettingEnabled: true,
       },
       global: mountOptions(),
     });
@@ -3533,6 +3695,7 @@ describe("one-on-one booking step translations", () => {
         isEditMode: true,
         editEventId: "evt_confirmation_validation",
         editBaseline: { allowPersonalRequest: false },
+        recordingSettingEnabled: true,
       },
       global: mountOptions({
         booking_edit_confirmation_message: "Translated confirmation message",
@@ -4275,6 +4438,7 @@ describe("one-on-one booking step translations", () => {
       props: {
         engine,
         bookingType: "private",
+        recordingSettingEnabled: true,
       },
       global: mountOptions({
         booking_future_bookings_warning: "Translated future-bookings warning",

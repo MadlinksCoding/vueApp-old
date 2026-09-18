@@ -85,6 +85,7 @@ const DEFAULT_VUE_CREATOR_ID = 1407;
 const DEFAULT_CREATOR_TIMEZONE = "Asia/Hong_Kong";
 const ACTIVE_BOOKING_LOCK_STATUSES = new Set(["pending", "pending_hold", "confirmed"]);
 const RESCHEDULE_FEE_SETTING_ENABLED = false;
+const RECORDING_SETTING_ENABLED = false;
 const X_POST_SETTINGS_LOAD_TIMEOUT_MS = 10_000;
 const showBookingDebugPanel = computed(() => (
     import.meta.env.DEV
@@ -229,7 +230,7 @@ const bookingFlow = createFlowStateEngine({
         goalNotMet: "cancelEvent",
 
         // Step 2 & Group Defaults
-        allowRecording: false,
+        allowRecording: RECORDING_SETTING_ENABLED,
         recordingPrice: "",
         allowPersonalRequest: false,
         personalRequestNote: "",
@@ -737,6 +738,10 @@ const fetchCreatorBookedSlots = async (forceRefresh = false, { scrollToCurrentTi
         },
         {
             forceRefresh,
+            // This form requests one visible week at a time. The flow's state-engine
+            // destination is shared across payloads, so it cannot safely answer a
+            // different date range. The payload-keyed local cache remains available.
+            skipDestinationRead: true,
             context: {
                 stateEngine: bookingFlow,
                 creatorId,
@@ -804,6 +809,9 @@ function applyFormStateToEngine(formState = {}, reason = "edit-form-hydration") 
     const normalizedState = normalizeHydratedAudienceState(formState);
     if (!RESCHEDULE_FEE_SETTING_ENABLED) {
         normalizedState.enableRescheduleFee = false;
+    }
+    if (!RECORDING_SETTING_ENABLED) {
+        normalizedState.allowRecording = false;
     }
     Object.entries(normalizedState).forEach(([key, value]) => {
         bookingFlow.setState(key, value, { reason, silent: true });
@@ -1745,8 +1753,8 @@ function rebuildAvailabilityPreview() {
     calendarAvailabilitySlots.value = availabilityCalendarSlots;
 }
 
-watch(
-    () => [
+const draftCalendarFocusSignature = computed(() => (
+    [
         bookingFlow.state?.repeatRule,
         bookingFlow.state?.dateFrom,
         bookingFlow.state?.selectedDate,
@@ -1760,7 +1768,11 @@ watch(
             : [])
             .map((entry) => `${entry?.date || ""}:${entry?.slots?.length || 0}`)
             .join("|"),
-    ],
+    ].join("||")
+));
+
+watch(
+    draftCalendarFocusSignature,
     () => {
         const nextFocus = resolveDraftCalendarFocusDate(bookingFlow.state || {});
         if (!nextFocus || Number.isNaN(nextFocus.getTime())) return;
@@ -1771,6 +1783,7 @@ watch(
         state.focus = new Date(nextFocus);
         state.selected = new Date(nextFocus);
         rebuildAvailabilityPreview();
+        void fetchCreatorBookedSlots(false, { scrollToCurrentTime: false });
     },
 );
 
@@ -2375,6 +2388,7 @@ useBodyOverflowHidden({ minWidth: 1010 });
                             :is-edit-mode="isEditMode"
                             :edit-baseline="editWarningBaseline"
                             :edit-event-id="resolvedEditEventId"
+                            :recording-setting-enabled="RECORDING_SETTING_ENABLED"
                             :x-post-settings-hydration-promise="xPostSettingsHydrationPromise"
                             @created="handleCreateFlowCreated"
                             @preview-schedule="previewSchedule = true"
@@ -2409,6 +2423,7 @@ useBodyOverflowHidden({ minWidth: 1010 });
                             :is-edit-mode="isEditMode"
                             :edit-baseline="editWarningBaseline"
                             :edit-event-id="resolvedEditEventId"
+                            :recording-setting-enabled="RECORDING_SETTING_ENABLED"
                             :x-post-settings-hydration-promise="xPostSettingsHydrationPromise"
                             @created="handleCreateFlowCreated"
                             @preview-schedule="previewSchedule = true"
@@ -2489,7 +2504,7 @@ useBodyOverflowHidden({ minWidth: 1010 });
                 <MainCalendar v-else ref="mainCalendarRef" class="w-full px-2 md:px-4 lg:px-6 pt-6" variant="theme2" :focus-date="state.focus" :selected-date="state.selected" :events="events2"
                     :theme="theme2" :data-attrs="{ 'data-calendar': 'main-2' }" :console-overlaps="true"
                     :highlight-today-column="true" time-start="00:00" time-end="24:00" :slot-minutes="60"
-                    day-column-mode="events" min-week-event-column-width="5.625rem" :row-height-px="120" :min-event-height-px="0"
+                    day-column-mode="events" min-week-event-column-width="5.625rem" :row-height-px="120" :min-event-height-px="48"
                     @date-selected="onSelectFromMain"
                     @update:focus-date="onFocusFromMain"
                     @preview-schedule="previewSchedule = true"

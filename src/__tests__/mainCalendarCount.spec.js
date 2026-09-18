@@ -2882,6 +2882,107 @@ describe("MainCalendar all events count", () => {
     });
   });
 
+  it("keeps short booking-form events readable while preserving exact availability geometry", async () => {
+    const wrapper = await mountCalendar(
+      [
+        makeEvent({
+          id: "short_booking_1",
+          eventId: "evt_booking_form_short",
+          title: "Short booking 1",
+          start: new Date(2026, 3, 23, 12, 0, 0),
+          end: new Date(2026, 3, 23, 12, 10, 0),
+          isAvailabilityBlock: false,
+        }),
+        makeEvent({
+          id: "short_booking_overlap",
+          eventId: "evt_booking_form_short",
+          title: "Short booking overlap",
+          start: new Date(2026, 3, 23, 12, 0, 0),
+          end: new Date(2026, 3, 23, 12, 10, 0),
+          isAvailabilityBlock: false,
+        }),
+        makeEvent({
+          id: "short_booking_2",
+          eventId: "evt_booking_form_short",
+          title: "Short booking 2",
+          start: new Date(2026, 3, 23, 12, 15, 0),
+          end: new Date(2026, 3, 23, 12, 25, 0),
+          isAvailabilityBlock: false,
+        }),
+        makeEvent({
+          id: "short_booking_3",
+          eventId: "evt_booking_form_short",
+          title: "Short booking 3",
+          start: new Date(2026, 3, 23, 12, 35, 0),
+          end: new Date(2026, 3, 23, 12, 45, 0),
+          isAvailabilityBlock: false,
+        }),
+        makeEvent({
+          id: "short_availability",
+          eventId: "evt_booking_form_short",
+          title: "Short availability",
+          start: new Date(2026, 3, 23, 14, 0, 0),
+          end: new Date(2026, 3, 23, 14, 10, 0),
+          slot: "availability",
+          isAvailabilityBlock: true,
+        }),
+      ],
+      {
+        variant: "theme2",
+        initialView: "week",
+        dayColumnMode: "events",
+        rowHeightPx: 120,
+        minEventHeightPx: 48,
+      },
+      {
+        slots: {
+          event: `
+            <template #event="{ event, style }">
+              <div data-test="booking-form-short-booking" :data-booking-id="event.id" :style="style">{{ event.title }}</div>
+            </template>
+          `,
+          "event-availability": `
+            <template #event-availability="{ event, style }">
+              <div data-test="booking-form-short-availability" :style="style">{{ event.title }}</div>
+            </template>
+          `,
+        },
+      },
+    );
+
+    const bookings = wrapper.findAll("[data-test='booking-form-short-booking']");
+    const bookingById = Object.fromEntries(bookings.map((booking) => [
+      booking.attributes("data-booking-id"),
+      booking,
+    ]));
+    const availability = wrapper.get("[data-test='booking-form-short-availability']");
+
+    expect(bookings).toHaveLength(4);
+    expect(bookings.map((booking) => stylePixels(booking, "height"))).toEqual([48, 48, 48, 48]);
+    expect(stylePixels(bookingById.short_booking_overlap, "top"))
+      .toBe(stylePixels(bookingById.short_booking_1, "top"));
+    expect(bookingById.short_booking_1.attributes("style")).toContain("width: calc(50% - 4px)");
+    expect(bookingById.short_booking_overlap.attributes("style")).toContain("width: calc(50% - 4px)");
+
+    const sequentialBookings = [
+      bookingById.short_booking_1,
+      bookingById.short_booking_2,
+      bookingById.short_booking_3,
+    ];
+    for (let index = 1; index < sequentialBookings.length; index += 1) {
+      const previous = sequentialBookings[index - 1];
+      const current = sequentialBookings[index];
+      expect(stylePixels(current, "top")).toBeGreaterThanOrEqual(
+        stylePixels(previous, "top") + stylePixels(previous, "height"),
+      );
+    }
+
+    expect(stylePixels(availability, "height")).toBe(20);
+    expect(availability.attributes("style")).toContain("left: 0px");
+    expect(availability.attributes("style")).toContain("right: 2px");
+    expect(availability.attributes("style")).not.toContain("width:");
+  });
+
   it("honors per-event minimum heights while preserving the configured fallback", async () => {
     const wrapper = await mountCalendar(
       [
