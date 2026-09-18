@@ -209,6 +209,10 @@ const props = defineProps({
   baselineMediaValue: {
     type: String,
     default: "",
+  },
+  defaultMessage: {
+    type: String,
+    default: "I have a new event coming up. Limited seats available. Join now!",
   }
 });
 
@@ -218,8 +222,6 @@ const localMessage = ref(String(props.messageValue || ""));
 const localMedia = ref(String(props.mediaValue || ""));
 const messageTextareaRef = ref(null);
 
-const DEFAULT_PREVIEW_MESSAGE = "I have a new event coming up. Limited seats available. Join now!";
-
 function editImpactMessages(currentValue, baselineValue) {
   return props.isEditMode && !editWarningValuesEqual(currentValue, baselineValue)
     ? [t("booking_future_bookings_warning")]
@@ -228,7 +230,7 @@ function editImpactMessages(currentValue, baselineValue) {
 
 const previewMessage = computed(() => {
   const message = String(localMessage.value || "").trim();
-  return message || DEFAULT_PREVIEW_MESSAGE;
+  return message || (props.defaultMessage || "I have a new event coming up. Limited seats available. Join now!");
 });
 
 const checkboxModel = computed({
