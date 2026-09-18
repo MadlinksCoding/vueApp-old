@@ -658,6 +658,7 @@ const xRepostPopupState = ref({
   inputName: "",
   textareaName: "",
   uploaderName: "",
+  defaultMessage: "",
 });
 const xRepostPopupConfig = {
   actionType: 'popup',
@@ -751,6 +752,7 @@ function openXRepostPopup(config = {}) {
     inputName: String(config.inputName || ""),
     textareaName: String(config.textareaName || ""),
     uploaderName: String(config.uploaderName || ""),
+    defaultMessage: String(config.defaultMessage || ""),
   };
   xRepostPopupOpen.value = true;
 }
@@ -1839,7 +1841,7 @@ const createEvent = async () => {
     </div>
 
 
-    <BookingSectionsWrapper v-if="!isGroupBooking" :title="t('booking_additional_request')" leftIcon="https://i.ibb.co/39kq5wcX/Icon-3.png"
+    <BookingSectionsWrapper v-if="!isGroupBooking" :title="t('booking_add_ons')" leftIcon="https://i.ibb.co/39kq5wcX/Icon-3.png"
       accordionIcon="https://i.ibb.co/MD46QRZS/Frame-1410099649.png" :is-open="sectionsState.additionalRequest"
       @toggle="toggleSection('additionalRequest')">
       <div v-show="sectionsState.additionalRequest" class="inline-flex flex-col gap-5 w-full mt-5">
@@ -1921,7 +1923,7 @@ const createEvent = async () => {
                 alt=""
                 class="w-3 h-3 transition duration-200 group-hover:[filter:brightness(0)_saturate(100%)] rounded-sm outline outline-[1.50px] outline-offset-[-0.75px]"
               />
-              <span>{{ t("booking_add_on_service") }}</span>
+              <span>{{ t("booking_add_add_ons") }}</span>
             </button>
           </div>
 
@@ -2391,7 +2393,7 @@ const createEvent = async () => {
       <div class="w-full bg-[#D0D5DD] h-[1px]"></div>
 
       <BookingSectionsWrapper :title="t('booking_x_repost_settings')" leftIcon="https://i.ibb.co/7t7vR7n8/Vector.png"
-        accordionIcon="https://i.ibb.co/MD46QRZS/Frame-1410099649.png" :is-open="sectionsState.xRepost"
+        accordionIcon="https://i.ibb.co/MD46QRZS/Frame-1410099649.png" tooltipText="Link your X account in Dashboard > Settings to enable X reposts" :is-open="sectionsState.xRepost"
         @toggle="toggleSection('xRepost')">
         <div v-show="sectionsState.xRepost" class="flex flex-col gap-5 mt-5">
 
@@ -2407,6 +2409,7 @@ const createEvent = async () => {
                 inputName: 'on_schedule_live',
                 textareaName: 'on_schedule_live_message',
                 uploaderName: 'on_schedule_live_media_url',
+                defaultMessage: t('booking_x_post_live_default'),
               })"
             >
               <img class="w-5 h-5 min-h-5 min-w-5" src="https://i.ibb.co/QFV4GNPF/Icon.png" alt="" />
@@ -2430,6 +2433,7 @@ const createEvent = async () => {
                 inputName: 'on_booking_received',
                 textareaName: 'on_booking_received_message',
                 uploaderName: 'on_booking_received_media_url',
+                defaultMessage: t('booking_x_post_booked_default'),
               })"
             >
               <img class="w-5 h-5 min-h-5 min-w-5" src="https://i.ibb.co/QFV4GNPF/Icon.png" alt="" />
@@ -2453,6 +2457,7 @@ const createEvent = async () => {
                 inputName: 'on_in_session',
                 textareaName: 'on_in_session_message',
                 uploaderName: 'on_in_session_media_url',
+                defaultMessage: t('booking_x_post_in_session_default'),
               })"
             >
               <img class="w-5 h-5 min-h-5 min-w-5" src="https://i.ibb.co/QFV4GNPF/Icon.png" alt="" />
@@ -2476,6 +2481,7 @@ const createEvent = async () => {
                 inputName: 'on_tipped_session',
                 textareaName: 'on_tipped_session_message',
                 uploaderName: 'on_tipped_session_media_url',
+                defaultMessage: t('booking_x_post_tipped_default'),
               })"
             >
               <img class="w-5 h-5 min-h-5 min-w-5" src="https://i.ibb.co/QFV4GNPF/Icon.png" alt="" />
@@ -2499,6 +2505,7 @@ const createEvent = async () => {
                 inputName: 'on_purchased',
                 textareaName: 'on_purchased_message',
                 uploaderName: 'on_purchased_media_url',
+                defaultMessage: t('booking_x_post_purchase_default'),
               })"
             >
               <img class="w-5 h-5 min-h-5 min-w-5" src="https://i.ibb.co/QFV4GNPF/Icon.png" alt="" />
@@ -2583,6 +2590,7 @@ const createEvent = async () => {
       :baseline-model-value="editBaselineValue(xRepostPopupState.checkboxField)"
       :baseline-message-value="editBaselineValue(xRepostPopupState.messageField)"
       :baseline-media-value="editBaselineValue(xRepostPopupState.mediaField)"
+      :default-message="xRepostPopupState.defaultMessage"
     />
   </PopupHandler>
 

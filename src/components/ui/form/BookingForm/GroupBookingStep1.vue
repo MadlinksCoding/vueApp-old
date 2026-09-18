@@ -274,7 +274,7 @@
 
       <div class="w-full bg-[#D0D5DD] h-[1px]"></div>
 
-      <BookingSectionsWrapper :title="t('booking_booking_settings')" leftIcon="https://i.ibb.co/nNmmvwnf/Icon-1.png"
+      <BookingSectionsWrapper :title="t('booking_booking_scheduling_setting')" leftIcon="https://i.ibb.co/nNmmvwnf/Icon-1.png"
         accordionIcon="https://i.ibb.co/MD46QRZS/Frame-1410099649.png" :is-open="sectionsState.bookingSettings"
         @toggle="toggleSection('bookingSettings')">
         <div v-show="sectionsState.bookingSettings" class="flex flex-col justify-start items-start gap-5 mt-5">
