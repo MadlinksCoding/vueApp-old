@@ -2022,6 +2022,7 @@
     reconcileOffHoursBoundaries(day.slots);
     day.offHours = day.slots.some((item) => Boolean(item.offHours));
     syncAvailabilityToForm();
+    focusSchedulePreview({ day, startTime: slot.startTime });
   }
 
   function onSlotChanged() {
@@ -2120,6 +2121,7 @@
     }
     reconcileOffHoursBoundaries(monthlySlots.value);
     syncAvailabilityToForm();
+    focusSchedulePreview({ startTime: slot.startTime });
   }
 
   function onMonthlySlotChanged(slotIndex, changedField = null, selectedValue = null) {
@@ -2276,9 +2278,10 @@
 
   function toggleOneTimeSlotOffHours(entryIndex, slotIndex) {
     if (isScheduleLocked.value) return;
-    const slots = oneTimeDates.value?.[entryIndex]?.slots;
+    const dateEntry = oneTimeDates.value?.[entryIndex];
+    const slots = dateEntry?.slots;
     const slot = slots?.[slotIndex];
-    if (!slot || !Array.isArray(slots)) return;
+    if (!dateEntry || !slot || !Array.isArray(slots)) return;
     if (slot.offHours) {
       restoreOffHoursSlotBoundary(slots, slotIndex);
       slot.offHours = false;
@@ -2287,6 +2290,10 @@
     }
     reconcileOffHoursBoundaries(slots);
     syncAvailabilityToForm();
+    focusSchedulePreview({
+      date: dateEntry.date,
+      startTime: slot.startTime,
+    });
   }
 
   function removeOneTimeSlot(dateIndex, slotIndex) {
@@ -2982,7 +2989,11 @@
               spacing-class="mt-0"
             />
           </div>
-          <div class="self-stretch flex flex-col justify-center items-start gap-3">
+          <div
+            v-if="rescheduleFeeSettingEnabled"
+            data-test="reschedule-fee-setting"
+            class="self-stretch flex flex-col justify-center items-start gap-3"
+          >
             <div class="self-stretch flex flex-col justify-center items-start gap-1">
               <div
                 class="flex gap-2 items-center"

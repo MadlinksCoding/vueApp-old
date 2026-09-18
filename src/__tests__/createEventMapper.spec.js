@@ -110,6 +110,34 @@ describe("createEventMapper", () => {
     expect(mapped.eventGoalTokens).toBeUndefined();
   });
 
+  it("omits reschedule fee tokens when the setting is disabled", () => {
+    const mapped = createEventMapper({
+      ...baseDraft,
+      eventType: "1on1-call",
+      basePrice: "120",
+      enableRescheduleFee: false,
+      rescheduleFee: "25",
+      rescheduleFeeTokens: "25",
+    });
+
+    expect(mapped.enableRescheduleFee).toBe(false);
+    expect(mapped.rescheduleFeeTokens).toBeUndefined();
+  });
+
+  it("omits recording tokens when the setting is disabled", () => {
+    const mapped = createEventMapper({
+      ...baseDraft,
+      eventType: "1on1-call",
+      basePrice: "120",
+      allowRecording: false,
+      recordingPrice: "25",
+      allowFanRecordingTokens: "25",
+    });
+
+    expect(mapped.allowFanRecordingEnabled).toBe(false);
+    expect(mapped.allowFanRecordingTokens).toBeUndefined();
+  });
+
   it("defaults the ringtone URL when the hidden form field is omitted", () => {
     const draftWithoutRingtone = { ...baseDraft };
     delete draftWithoutRingtone.eventRingtoneUrl;

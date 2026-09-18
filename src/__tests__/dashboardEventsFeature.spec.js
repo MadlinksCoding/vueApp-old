@@ -5610,6 +5610,60 @@ describe("DashboardEventsFeature", () => {
     }));
   });
 
+  it("applies a time-only adjustment directly without opening the wallet decision", async () => {
+    callFlow.mockResolvedValue({ ok: true, data: { events: [], bookedSlots: [], bookedSlotsIndex: {} } });
+    const { default: FlowHandler } = await import("@/services/flow-system/FlowHandler.js");
+    const bookingFlowRun = vi.spyOn(FlowHandler, "run").mockImplementation(async (flowName, payload) => {
+      if (flowName === "bookings.renegotiateBooking") {
+        return {
+          ok: true,
+          data: {
+            item: {
+              bookingId: payload.bookingId,
+              status: "pending",
+              startAtIso: payload.startAtIso,
+              endAtIso: "2026-03-24T11:30:00Z",
+              payment: { total: 100 },
+            },
+          },
+        };
+      }
+      if (flowName === "bookings.reviewPendingBooking") {
+        return { ok: true, data: { item: { bookingId: payload.bookingId, status: "confirmed" } } };
+      }
+      return { ok: true, data: {} };
+    });
+    const wrapper = await mountDashboardEventsFeature({ fanId: 2615, userRole: "fan" });
+    const mainCalendar = wrapper.getComponent({ name: "MainCalendar" });
+
+    mainCalendar.vm.$emit("accept-adjustment", {
+      booking: { bookingId: "booking_time_only", payment: { total: 100 } },
+      hasPriceChange: false,
+      hasTimeChange: true,
+      originalTokens: 100,
+      proposedTokens: 100,
+      proposedStartAtIso: "2026-03-24T11:00:00Z",
+      proposedDurationMinutes: 30,
+      negotiationId: "neg_time_only",
+    });
+    await flushPromises();
+
+    expect(wrapper.getComponent({ name: "BookingAdjustmentDecisionPopup" }).props("modelValue")).toBe(false);
+    expect(bookingFlowRun).toHaveBeenCalledWith("bookings.renegotiateBooking", expect.objectContaining({
+      bookingId: "booking_time_only",
+      startAtIso: "2026-03-24T11:00:00Z",
+      durationMinutes: 30,
+      costTokens: 100,
+    }), expect.any(Object));
+    expect(bookingFlowRun).toHaveBeenCalledWith("bookings.reviewPendingBooking", expect.objectContaining({
+      bookingId: "booking_time_only",
+      decision: "approve",
+      actor: "fan",
+    }), expect.any(Object));
+    expect(requestFanTokenBalanceRefresh).not.toHaveBeenCalled();
+    bookingFlowRun.mockRestore();
+  });
+
   it("turns an approval_window_closed backend race into friendly copy and refreshes context", async () => {
     callFlow.mockImplementation(async (flowName) => {
       if (flowName === "bookings.reviewPendingBooking") {

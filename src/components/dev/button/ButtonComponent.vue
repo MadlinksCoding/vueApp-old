@@ -1,12 +1,29 @@
 <template>
   <div v-bind="resolvedAttrs.wrapperAttrs.wrapper1">
     <div v-bind="resolvedAttrs.wrapperAttrs.wrapper2">
-      <button :type="type" v-bind="resolvedAttrs.inputAttrs" :disabled="disabled" @click="handleClick">
-        <img v-if="leftIcon" :src="leftIcon" :class="` inline-block ${leftIconClass}`" />
+      <button
+        :type="type"
+        v-bind="resolvedAttrs.inputAttrs"
+        :class="{ relative: loading }"
+        :disabled="disabled || loading"
+        :aria-busy="loading ? 'true' : undefined"
+        @click="handleClick"
+      >
+        <img v-if="leftIcon" :src="leftIcon" :class="[`inline-block ${leftIconClass}`, { invisible: loading }]" />
 
-        <span>{{ text }}</span>
+        <span :class="{ invisible: loading }">{{ text }}</span>
 
-        <img v-if="rightIcon" :src="rightIcon" :class="` inline-block ${rightIconClass}`" />
+        <img v-if="rightIcon" :src="rightIcon" :class="[`inline-block ${rightIconClass}`, { invisible: loading }]" />
+
+        <Spinner
+          v-if="loading"
+          aria-hidden="true"
+          size="sm"
+          thickness="3"
+          color="text-current"
+          :show-track="false"
+          wrapper-class="absolute inset-0"
+        />
       </button>
     </div>
   </div>
@@ -15,6 +32,7 @@
 <script setup>
 import { computed } from "vue";
 import { resolveAllConfigs } from "../../../utils/componentRenderingUtils";
+import Spinner from "@/components/ui/spinner/Spinner.vue";
 
 const emit = defineEmits(["click"]);
 
@@ -41,6 +59,7 @@ const props = defineProps({
   rightIcon: [String, Object, Function],
 
   disabled: { type: Boolean, default: false },
+  loading: { type: Boolean, default: false },
   type: { type: String, default: "button" },
 
   btnBg: { type: String, default: "#07f468" },

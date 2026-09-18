@@ -170,6 +170,10 @@ const props = defineProps({
     default: "private",
     validator: (value) => ["private", "group"].includes(value),
   },
+  recordingSettingEnabled: {
+    type: Boolean,
+    default: false,
+  },
   isEditMode: {
     type: Boolean,
     default: false,
@@ -285,7 +289,7 @@ const initialWhoCanBook = initialSpendingRequirement === "mustOwnProducts"
   : (props.engine.state.whoCanBook || "everyone");
 
 const formData = ref({
-  allowRecording: props.engine.state.allowRecording || false,
+  allowRecording: props.recordingSettingEnabled && Boolean(props.engine.state.allowRecording),
   recordingPrice: props.engine.state.recordingPrice || "",
   allowPersonalRequest: props.engine.state.allowPersonalRequest || false,
   personalRequestNote: props.engine.state.personalRequestNote || "",
@@ -1845,7 +1849,11 @@ const createEvent = async () => {
       accordionIcon="https://i.ibb.co/MD46QRZS/Frame-1410099649.png" :is-open="sectionsState.additionalRequest"
       @toggle="toggleSection('additionalRequest')">
       <div v-show="sectionsState.additionalRequest" class="inline-flex flex-col gap-5 w-full mt-5">
-        <div class="flex flex-col justify-center items-start gap-1">
+        <div
+          v-if="recordingSettingEnabled"
+          data-test="recording-setting"
+          class="flex flex-col justify-center items-start gap-1"
+        >
           <div class="flex gap-2">
             <CheckboxGroup v-model="formData.allowRecording" :label="t('booking_allow_recording')"
               checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"

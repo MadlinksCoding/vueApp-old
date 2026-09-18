@@ -282,8 +282,8 @@ vi.mock("@/components/ui/form/BookingForm/GroupBookingStep2.vue", () => ({
 vi.mock("@/components/calendar/MainCalendar.vue", () => ({
   default: {
     name: "MainCalendar",
-    props: ["events", "variant", "dayColumnMode", "minWeekEventColumnWidth", "rowHeightPx", "focusDate", "selectedDate"],
-    emits: ["approve-booking", "reject-booking", "cancel-booking", "join-call", "refresh-events", "date-selected"],
+    props: ["events", "variant", "dayColumnMode", "minWeekEventColumnWidth", "rowHeightPx", "minEventHeightPx", "focusDate", "selectedDate"],
+    emits: ["approve-booking", "reject-booking", "cancel-booking", "join-call", "refresh-events", "date-selected", "update:focus-date"],
     methods: {
       noop() {},
       scrollToCurrentTime() {
@@ -524,6 +524,92 @@ describe("UnifiedBookingForm mobile step scroll", () => {
     expect(mock.engine.callFlow).toHaveBeenCalledTimes(fetchCountBeforeFocus);
   });
 
+  it("anchors an off-hours edit to the edited weekday without a topology reset", async () => {
+    mock.engine.state.repeatRule = "weekly";
+    mock.engine.state.dateFrom = "2037-09-18";
+    mock.engine.state.weeklyAvailability = [
+      {
+        key: "thu",
+        name: "Thu",
+        unavailable: false,
+        slots: [{ startTime: "13:25", endTime: "14:25", offHours: false }],
+      },
+      {
+        key: "sat",
+        name: "Sat",
+        unavailable: false,
+        slots: [{ startTime: "10:00", endTime: "11:00", offHours: false }],
+      },
+    ];
+
+    const { default: UnifiedBookingForm } = await import("@/components/ui/form/BookingForm/UnifiedBookingForm.vue");
+    const wrapper = mount(UnifiedBookingForm);
+    await flushPromises();
+
+    const calendar = wrapper.getComponent({ name: "MainCalendar" });
+    calendar.vm.$emit("update:focus-date", new Date(2037, 8, 25));
+    await flushPromises();
+    expect(calendar.props("focusDate")).toEqual(new Date(2037, 8, 25));
+
+    mock.engine.setState("weeklyAvailability", [
+      {
+        key: "thu",
+        name: "Thu",
+        unavailable: false,
+        slots: [{ startTime: "13:25", endTime: "14:25", offHours: true }],
+      },
+      {
+        key: "sat",
+        name: "Sat",
+        unavailable: false,
+        slots: [{ startTime: "10:00", endTime: "11:00", offHours: false }],
+      },
+    ]);
+    await flushPromises();
+    expect(calendar.props("focusDate")).toEqual(new Date(2037, 8, 25));
+
+    wrapper.getComponent({ name: "OneOnOneBookinStep1" }).vm.$emit("schedule-preview-focus", {
+      repeatRule: "weekly",
+      weekday: 4,
+      startTime: "13:25",
+    });
+    await vi.waitFor(() => {
+      expect(calendar.props("focusDate")).toEqual(new Date(2037, 8, 24));
+    });
+    expect(calendar.props("selectedDate")).toEqual(new Date(2037, 8, 24));
+    expect(mock.revealSelectedWeekDay).toHaveBeenCalledTimes(1);
+    expect(mock.scrollToTime).toHaveBeenCalledWith("13:25", {
+      behavior: "smooth",
+      viewportOffset: 0.32,
+    });
+  });
+
+  it("preserves calendar focus when the edited weekday is outside dateTo", async () => {
+    mock.engine.state.repeatRule = "weekly";
+    mock.engine.state.dateFrom = "2037-09-18";
+    mock.engine.state.dateTo = "2037-09-20";
+
+    const { default: UnifiedBookingForm } = await import("@/components/ui/form/BookingForm/UnifiedBookingForm.vue");
+    const wrapper = mount(UnifiedBookingForm);
+    await flushPromises();
+
+    const calendar = wrapper.getComponent({ name: "MainCalendar" });
+    calendar.vm.$emit("date-selected", new Date(2037, 8, 19));
+    await flushPromises();
+
+    wrapper.getComponent({ name: "OneOnOneBookinStep1" }).vm.$emit("schedule-preview-focus", {
+      repeatRule: "weekly",
+      weekday: 4,
+      startTime: "13:25",
+    });
+    await flushPromises();
+
+    expect(calendar.props("focusDate")).toEqual(new Date(2037, 8, 19));
+    expect(calendar.props("selectedDate")).toEqual(new Date(2037, 8, 19));
+    expect(mock.revealSelectedWeekDay).not.toHaveBeenCalled();
+    expect(mock.scrollToTime).not.toHaveBeenCalled();
+  });
+
   it("does not scroll for unrelated mobile step changes", async () => {
     const { default: UnifiedBookingForm } = await import("@/components/ui/form/BookingForm/UnifiedBookingForm.vue");
     const wrapper = mount(UnifiedBookingForm);
@@ -647,6 +733,7 @@ describe("UnifiedBookingForm mobile step scroll", () => {
     expect(calendar.props("variant")).toBe("theme2");
     expect(calendar.props("dayColumnMode")).toBe("events");
     expect(calendar.props("rowHeightPx")).toBe(120);
+    expect(calendar.props("minEventHeightPx")).toBe(48);
   });
 
   it("shows the state manager only for opted-in non-embedded development forms", async () => {
@@ -696,6 +783,9 @@ describe("UnifiedBookingForm mobile step scroll", () => {
     const { default: UnifiedBookingForm } = await import("@/components/ui/form/BookingForm/UnifiedBookingForm.vue");
     const wrapper = mount(UnifiedBookingForm);
     await flushPromises();
+    const fetchCountBeforeScheduleChange = mock.engine.callFlow.mock.calls.filter(
+      ([flowName]) => flowName === "bookings.fetchCreatorBookingContext",
+    ).length;
 
     mock.engine.setState("weeklyAvailability", [{
       key: "tue",
@@ -716,6 +806,19 @@ describe("UnifiedBookingForm mobile step scroll", () => {
         end: new Date("2026-05-19T11:00:00"),
       }),
     ]));
+
+    const creatorFetches = mock.engine.callFlow.mock.calls.filter(
+      ([flowName]) => flowName === "bookings.fetchCreatorBookingContext",
+    );
+    expect(creatorFetches).toHaveLength(fetchCountBeforeScheduleChange + 1);
+    expect(creatorFetches.at(-1)?.[1]).toEqual(expect.objectContaining({
+      fromIso: "2026-05-16",
+      toIso: "2026-05-23",
+    }));
+    expect(creatorFetches.at(-1)?.[2]).toEqual(expect.objectContaining({
+      forceRefresh: false,
+      skipDestinationRead: true,
+    }));
   });
 
   it("decorates completed bookings and groups every draft window under one event id", async () => {
@@ -1510,6 +1613,9 @@ describe("UnifiedBookingForm mobile step scroll", () => {
       toIso: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
     }));
     expect(initialFetch?.[1]).not.toHaveProperty("periodMonths");
+    expect(initialFetch?.[2]).toEqual(expect.objectContaining({
+      skipDestinationRead: true,
+    }));
 
     const fetchCountBeforeNavigation = mock.engine.callFlow.mock.calls.filter(
       ([flowName]) => flowName === "bookings.fetchCreatorBookingContext",

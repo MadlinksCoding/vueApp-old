@@ -65,6 +65,23 @@
           <!-- New event date / time (optional) -->
           <EventSlotDateTimePicker v-model="slotPickerValue" :event="event" :duration-ms="originalDurationMs"
             :original-event-date="originalEventDate" :original-start-time="originalStartTime" :optional="true" />
+          <p
+            v-if="availabilityStatus === 'conflict'"
+            class="text-amber-500 text-xs"
+            role="alert"
+            data-testid="booking-availability-conflict"
+          >
+            You have an existing booking at this time. Please select a different time.
+          </p>
+          <div
+            v-else-if="availabilityStatus === 'error'"
+            class="flex items-center gap-1 text-amber-500 text-xs"
+            role="alert"
+            data-testid="booking-availability-error"
+          >
+            <span>We couldn’t verify this time. Please try again.</span>
+            <button type="button" class="font-semibold underline" @click="retryAvailabilityCheck">Retry</button>
+          </div>
 
           <!-- Creator's Remarks -->
           <div class="flex flex-col gap-2 mt-1">
@@ -152,6 +169,7 @@
                 </div>
               </div>
               <ButtonComponent
+                data-testid="adjust-booking-submit"
                 :text="submitting ? 'Saving...' : 'SUBMIT'"
                 variant="polygonLeft"
                 btnBg="#07f468"
@@ -159,6 +177,7 @@
                 btnText="black"
                 btnHoverText="#07f468"
                 :disabled="isSubmitDisabled"
+                :loading="availabilityStatus === 'checking'"
                 class="fixed bottom-0 right-0 md:absolute"
                 @click="handleSubmit"
               />
@@ -172,14 +191,13 @@
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import FlowHandler    from '@/services/flow-system/FlowHandler'
-import BaseInput               from '@/components/dev/input/BaseInput.vue'
 import CloseIcon               from '@/assets/images/icons/cross-white.webp'
 import ButtonComponent         from '@/components/dev/button/ButtonComponent.vue'
 import EventSlotDateTimePicker from '@/components/ui/chat/EventSlotDateTimePicker.vue'
 import { showToast }           from '@/utils/toastBus.js'
-import { localDateTimeToHkt, hktDateTimeToLocalDate, toLocalISOString }  from "@/services/events/eventsApiUtils.js";
+import { localDateTimeToHkt, toLocalISOString }  from "@/services/events/eventsApiUtils.js";
 
 const props = defineProps({
   message:   { type: Object, required: true },
@@ -195,10 +213,16 @@ const event      = ref(null)
 
 const ADJUSTMENT_REPEAT_DELAY_MS = 400
 const ADJUSTMENT_REPEAT_INTERVAL_MS = 80
+const AVAILABILITY_DEBOUNCE_MS = 200
 
 let adjustmentRepeatDelayId = null
 let adjustmentRepeatIntervalId = null
 let suppressNextPointerClick = false
+let availabilityTimerId = null
+let availabilityRequestId = 0
+
+const availabilityStatus = ref('idle')
+const checkedAvailabilityFingerprint = ref('')
 
 const form = reactive({
   durationMinutes:  30,
@@ -218,6 +242,8 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   stopAdjustmentRepeat()
+  clearAvailabilityTimer()
+  availabilityRequestId += 1
   window.removeEventListener('pointerup', stopAdjustmentRepeat)
   window.removeEventListener('pointercancel', stopAdjustmentRepeat)
   window.removeEventListener('blur', stopAdjustmentRepeat)
@@ -414,9 +440,103 @@ const isDateTimeValid = computed(() => {
   return true
 })
 
+function resolveProposedStartAtIso() {
+  if (!form.newDate || !form.newStartTime) return null
+
+  const [year, month, day] = form.newDate.split('-').map(Number)
+  const [hour, minute] = form.newStartTime.split(':').map(Number)
+  if (![year, month, day, hour, minute].every(Number.isFinite)) return null
+
+  const localDate = new Date(year, month - 1, day, hour, minute, 0, 0)
+  if (Number.isNaN(localDate.getTime())) return null
+  return localDateTimeToHkt(toLocalISOString(localDate), form.newStartTime).iso || null
+}
+
+const currentAvailabilityFingerprint = computed(() => {
+  const startAtIso = resolveProposedStartAtIso()
+  const durationMinutes = Number(form.durationMinutes)
+  if (!startAtIso || !Number.isInteger(durationMinutes) || durationMinutes <= 0) return ''
+  return `${startAtIso}|${durationMinutes}`
+})
+
+const hasCompleteDateTimeSelection = computed(() => Boolean(form.newDate && form.newStartTime))
+
+const hasVerifiedCurrentAvailability = computed(() => (
+  availabilityStatus.value === 'available'
+  && checkedAvailabilityFingerprint.value === currentAvailabilityFingerprint.value
+  && Boolean(currentAvailabilityFingerprint.value)
+))
+
+function clearAvailabilityTimer() {
+  if (availabilityTimerId !== null) {
+    window.clearTimeout(availabilityTimerId)
+    availabilityTimerId = null
+  }
+}
+
+async function runAvailabilityCheck(requestId, fingerprint) {
+  availabilityTimerId = null
+  const bookingId = messageContent.value.booking_id
+  const startAtIso = resolveProposedStartAtIso()
+  const durationMinutes = Number(form.durationMinutes)
+
+  if (!bookingId || !startAtIso || fingerprint !== currentAvailabilityFingerprint.value) {
+    if (requestId === availabilityRequestId) availabilityStatus.value = 'error'
+    return
+  }
+
+  const result = await FlowHandler.run('bookings.checkAdjustmentAvailability', {
+    bookingId,
+    startAtIso,
+    durationMinutes,
+  })
+
+  if (requestId !== availabilityRequestId || fingerprint !== currentAvailabilityFingerprint.value) return
+
+  checkedAvailabilityFingerprint.value = fingerprint
+  if (!result?.ok) {
+    availabilityStatus.value = 'error'
+    return
+  }
+
+  availabilityStatus.value = result.data?.available === true ? 'available' : 'conflict'
+}
+
+function scheduleAvailabilityCheck({ immediate = false } = {}) {
+  clearAvailabilityTimer()
+  const requestId = ++availabilityRequestId
+  checkedAvailabilityFingerprint.value = ''
+
+  if (!hasCompleteDateTimeSelection.value || !isDateTimeValid.value || !currentAvailabilityFingerprint.value) {
+    availabilityStatus.value = 'idle'
+    return
+  }
+
+  availabilityStatus.value = 'checking'
+  const fingerprint = currentAvailabilityFingerprint.value
+  if (immediate) {
+    void runAvailabilityCheck(requestId, fingerprint)
+    return
+  }
+
+  availabilityTimerId = window.setTimeout(() => {
+    void runAvailabilityCheck(requestId, fingerprint)
+  }, AVAILABILITY_DEBOUNCE_MS)
+}
+
+function retryAvailabilityCheck() {
+  scheduleAvailabilityCheck({ immediate: true })
+}
+
+watch(
+  [() => form.newDate, () => form.newStartTime, () => form.durationMinutes],
+  () => scheduleAvailabilityCheck(),
+)
+
 const isSubmitDisabled = computed(() =>
   submitting.value ||
   !isDateTimeValid.value ||
+  (hasCompleteDateTimeSelection.value && !hasVerifiedCurrentAvailability.value) ||
   (!form.newDate && !form.newStartTime && Number(form.adjustmentTokens) === 0)
 )
 
@@ -428,16 +548,7 @@ async function handleSubmit() {
 
   try {
     // 1. Compute new slot ISO (used for reschedule + meta)
-    let newSlotDate = null
-    if (form.newDate && form.newStartTime) {
-      const [h, m] = form.newStartTime.split(':').map(Number)
-      const d      = new Date(form.newDate)
-      d.setHours(h, m, 0, 0)
-
-
-      console.log("Computed newSlotDate:", localDateTimeToHkt( toLocalISOString(d), form.newStartTime), form)
-      newSlotDate = localDateTimeToHkt(toLocalISOString(d), form.newStartTime).iso
-    }
+    const newSlotDate = resolveProposedStartAtIso()
 
     // return;
     // Capture previous values before renegotiation overwrites them

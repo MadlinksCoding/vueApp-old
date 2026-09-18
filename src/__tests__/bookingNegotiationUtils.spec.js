@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  getPendingCounterOffer,
   isPendingCounterOffer,
   isPendingPriceAdjustment,
 } from "@/services/bookings/utils/bookingNegotiationUtils.js";
@@ -132,5 +133,67 @@ describe("isPendingCounterOffer", () => {
     expect(isPendingCounterOffer({
       meta: { negotiation: bookingWithNegotiation().meta.negotiation },
     })).toBe(false);
+  });
+});
+
+describe("getPendingCounterOffer", () => {
+  it("keeps an equal-price canonical Adjust actionable when its start changes", () => {
+    const value = bookingWithNegotiation({ proposedTokens: 100 });
+    value.startAtIso = "2027-04-25T14:15:00Z";
+    value.meta.negotiation.actor = "creator";
+    value.meta.negotiation.original = {
+      totalTokens: 100,
+      startAtIso: "2027-04-25T14:15:00Z",
+      durationMinutes: 30,
+    };
+    value.meta.negotiation.proposed = {
+      totalTokens: 100,
+      startAtIso: "2027-04-26T15:15:00Z",
+      durationMinutes: 30,
+    };
+
+    expect(getPendingCounterOffer(value)).toEqual(expect.objectContaining({
+      type: "adjust",
+      proposed: expect.objectContaining({
+        proposedSlotDate: "2027-04-26T15:15:00Z",
+        proposedTokens: 100,
+      }),
+    }));
+  });
+
+  it("keeps a duration-only Adjust actionable", () => {
+    const value = bookingWithNegotiation({ proposedTokens: 100 });
+    value.meta.negotiation.original.durationMinutes = 30;
+    value.meta.negotiation.proposed.durationMinutes = 45;
+
+    expect(getPendingCounterOffer(value).type).toBe("adjust");
+  });
+
+  it("supports legacy schedule metadata even when the projected price flag is false", () => {
+    const value = {
+      startAtIso: "2027-04-25T14:15:00Z",
+      pendingPriceAdjustment: false,
+      meta: {
+        currentCounterOffer: "adjust",
+        adjust: {
+          prevTotalTokens: 100,
+          proposedTokens: 100,
+          proposedSlotDate: "2027-04-25T16:15:00Z",
+        },
+      },
+    };
+
+    expect(getPendingCounterOffer(value).type).toBe("adjust");
+  });
+
+  it.each([
+    ["a genuine no-op", {}],
+    ["an invalid proposed schedule", { proposedStart: "not-a-date" }],
+    ["a terminal proposal", { status: "accepted", proposedStart: "2027-04-26T15:15:00Z" }],
+  ])("rejects %s Adjust proposal", (_label, options) => {
+    const value = bookingWithNegotiation({ proposedTokens: 100, status: options.status || "sent" });
+    value.meta.negotiation.original.startAtIso = "2027-04-25T14:15:00Z";
+    if (options.proposedStart) value.meta.negotiation.proposed.startAtIso = options.proposedStart;
+    expect(getPendingCounterOffer(value).type).toBeNull();
   });
 });

@@ -27,6 +27,66 @@ function finiteTokenAmount(value) {
   return Number.isFinite(amount) ? amount : null;
 }
 
+function validDateMs(value) {
+  const parsed = new Date(value || "");
+  return Number.isNaN(parsed.getTime()) ? null : parsed.getTime();
+}
+
+function firstBookingValue(bookingLike, keys) {
+  const sources = Array.isArray(bookingLike) ? bookingLike : [bookingLike];
+  for (const sourceValue of sources) {
+    for (const candidate of bookingCandidates(sourceValue)) {
+      for (const key of keys) {
+        if (candidate[key] !== null && candidate[key] !== undefined && candidate[key] !== "") {
+          return candidate[key];
+        }
+      }
+    }
+  }
+  return null;
+}
+
+function isActionableAdjustmentMeta(meta, bookingLike) {
+  if (!isPendingCounterOfferMeta(meta) || normalizeOfferType(meta.currentCounterOffer) !== "adjust") {
+    return false;
+  }
+
+  const negotiation = asObject(meta.negotiation);
+  const legacy = asObject(meta.adjust) || {};
+  const originalTokens = finiteTokenAmount(negotiation?.original?.totalTokens)
+    ?? finiteTokenAmount(legacy.prevTotalTokens);
+  const proposedTokens = finiteTokenAmount(negotiation?.proposed?.totalTokens)
+    ?? finiteTokenAmount(legacy.proposedTokens);
+  const hasPriceChange = originalTokens !== null
+    && proposedTokens !== null
+    && originalTokens !== proposedTokens;
+
+  const originalStart = negotiation?.original?.startAtIso
+    ?? firstBookingValue(bookingLike, ["startAtIso", "startIso", "start"]);
+  const proposedStart = negotiation?.proposed?.startAtIso ?? legacy.proposedSlotDate;
+  const originalStartMs = validDateMs(originalStart);
+  const proposedStartMs = validDateMs(proposedStart);
+  const hasStartChange = proposedStartMs !== null
+    && (originalStartMs === null || proposedStartMs !== originalStartMs);
+
+  const originalDuration = finiteTokenAmount(negotiation?.original?.durationMinutes)
+    ?? finiteTokenAmount(firstBookingValue(bookingLike, ["durationMinutes", "eventDurationMinutes"]))
+    ?? (() => {
+      const startMs = validDateMs(firstBookingValue(bookingLike, ["startAtIso", "startIso", "start"]));
+      const endMs = validDateMs(firstBookingValue(bookingLike, ["endAtIso", "endIso", "end"]));
+      return startMs !== null && endMs !== null && endMs > startMs
+        ? Math.round((endMs - startMs) / 60000)
+        : null;
+    })();
+  const proposedDuration = finiteTokenAmount(negotiation?.proposed?.durationMinutes)
+    ?? finiteTokenAmount(legacy.adjustedDurationMinutes);
+  const hasDurationChange = proposedDuration !== null
+    && originalDuration !== null
+    && proposedDuration !== originalDuration;
+
+  return hasPriceChange || hasStartChange || hasDurationChange;
+}
+
 function isPendingPriceAdjustmentMeta(meta) {
   if (normalizeOfferType(meta.currentCounterOffer) !== "adjust") return false;
   const negotiation = asObject(meta.negotiation);
@@ -158,7 +218,7 @@ function firstText(...values) {
  * Returns `EMPTY_COUNTER_OFFER` (with `type: null`) when nothing is pending.
  */
 export function getPendingCounterOffer(bookingLike) {
-  const { projected, meta } = resolveNegotiationState(
+  const { meta } = resolveNegotiationState(
     bookingLike,
     ["currentCounterOffer", "negotiation", "adjust", "moretime", "reschedule"],
   );
@@ -193,11 +253,11 @@ export function getPendingCounterOffer(bookingLike) {
     },
   };
 
-  // A price adjustment that proposes the same total is not actionable, and an
-  // explicitly projected flag from the API wins over the raw meta.
+  // An adjustment can change price, schedule, or both. The API's legacy
+  // `pendingPriceAdjustment` projection is deliberately price-specific, so it
+  // must not hide an otherwise actionable time-only proposal.
   if (type === "adjust") {
-    if (projected && !projected.pendingPriceAdjustment) return EMPTY_COUNTER_OFFER;
-    if (!projected && !isPendingPriceAdjustmentMeta(meta)) return EMPTY_COUNTER_OFFER;
+    if (!isActionableAdjustmentMeta(meta, bookingLike)) return EMPTY_COUNTER_OFFER;
   }
 
   return offer;

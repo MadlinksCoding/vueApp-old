@@ -646,7 +646,7 @@ describe("EventsEmbedBookingDetailsPage", () => {
     expect(mocks.requestClose).not.toHaveBeenCalled();
   });
 
-  it("renders the fan details panel and accepts an adjusted price", async () => {
+  it("keeps a combined price-and-time adjustment on the wallet confirmation path", async () => {
     mocks.bootstrap.userRole = "fan";
     mocks.bootstrap.creatorId = null;
     mocks.bootstrap.fanId = 25;
@@ -661,6 +661,8 @@ describe("EventsEmbedBookingDetailsPage", () => {
     details.vm.$emit("accept-adjustment", {
       originalTokens: 100,
       proposedTokens: 120,
+      hasPriceChange: true,
+      hasTimeChange: true,
       negotiationId: "neg_1",
       proposedStartAtIso: "2026-08-14T11:00:00Z",
       proposedDurationMinutes: 20,
@@ -682,6 +684,8 @@ describe("EventsEmbedBookingDetailsPage", () => {
     expect(mocks.flowRun).toHaveBeenCalledWith("bookings.renegotiateBooking", expect.objectContaining({
       bookingId: "booking_123",
       costTokens: 120,
+      startAtIso: "2026-08-14T11:00:00Z",
+      durationMinutes: 20,
       actor: "user",
     }), expect.any(Object));
     expect(mocks.flowRun).toHaveBeenCalledWith("bookings.reviewPendingBooking", expect.objectContaining({
@@ -703,6 +707,44 @@ describe("EventsEmbedBookingDetailsPage", () => {
     });
     expect(decision.props("modelValue")).toBe(false);
     expect(mocks.notifyDecisionVisibility).toHaveBeenLastCalledWith(false);
+  });
+
+  it("accepts a time-only adjustment directly without a wallet lookup or decision popup", async () => {
+    mocks.bootstrap.userRole = "fan";
+    mocks.bootstrap.creatorId = null;
+    mocks.bootstrap.fanId = 25;
+    const { default: Page } = await import("@/embeds/events/pages/EventsEmbedBookingDetailsPage.vue");
+    const wrapper = mount(Page, { global: { stubs: pageStubs } });
+    await flushPromises();
+    mocks.flowRun.mockClear();
+    mocks.tokenGet.mockClear();
+
+    wrapper.getComponent(FanDetailsStub).vm.$emit("accept-adjustment", {
+      originalTokens: 100,
+      proposedTokens: 100,
+      hasPriceChange: false,
+      hasTimeChange: true,
+      negotiationId: "neg_time_1",
+      proposedStartAtIso: "2026-08-15T11:00:00Z",
+      proposedDurationMinutes: 30,
+      remarks: "Tomorrow works better",
+    });
+    await flushPromises();
+
+    expect(wrapper.findComponent(AdjustmentDecisionStub).props("modelValue")).toBe(false);
+    expect(mocks.tokenGet).not.toHaveBeenCalled();
+    expect(mocks.flowRun).toHaveBeenCalledWith("bookings.renegotiateBooking", expect.objectContaining({
+      bookingId: "booking_123",
+      startAtIso: "2026-08-15T11:00:00Z",
+      durationMinutes: 30,
+      costTokens: 100,
+      actor: "user",
+    }), expect.any(Object));
+    expect(mocks.flowRun).toHaveBeenCalledWith("bookings.reviewPendingBooking", expect.objectContaining({
+      bookingId: "booking_123",
+      decision: "approve",
+      actor: "fan",
+    }), expect.any(Object));
   });
 
   it("opens the fee-aware cancel decision before running an ordinary fan cancellation", async () => {
