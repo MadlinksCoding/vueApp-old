@@ -68,6 +68,7 @@
       <span v-if="originalStartTime" class="text-gray-400 text-xs mt-0.5">
         Original start time: {{ originalStartTime }}
       </span>
+      <span class="text-xs text-[#F06]">You have an existing booking at this time Please select a differnt time.</span>
       <span v-if="!dateReadonly && localDate && !isValidDay" class="text-gray-400 text-xs">
         Select a valid date to see available times.
       </span>
