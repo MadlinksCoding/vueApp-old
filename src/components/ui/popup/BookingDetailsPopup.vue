@@ -342,7 +342,7 @@
 
       <div
         v-else-if="creatorWaitingForAdjustment"
-        class="self-stretch min-h-16 border-b-[0.5px] border-[#EAECF0] inline-flex items-stretch"
+        class="self-stretch min-h-16 shrink-0 border-b-[0.5px] border-[#EAECF0] inline-flex items-stretch"
         :data-counteroffer-type="counterOfferType"
         data-test="booking-details-adjustment-waiting-notice"
       >

@@ -278,6 +278,9 @@ onMounted(async () => {
     event.value = eventRes.data.item
   }
 
+  form.newDate = formatDateInputValue(parseOriginalStartMs())
+  form.newStartTime = ''
+
 })
 
 const raw = computed(() => booking.value || {})
@@ -288,6 +291,14 @@ function parseOriginalStartMs() {
   if (!iso) return null
   const ms = Date.parse(iso)
   return isNaN(ms) ? null : ms
+}
+
+function formatDateInputValue(ms) {
+  if (!Number.isFinite(ms)) return ''
+  const date = new Date(ms)
+  if (Number.isNaN(date.getTime())) return ''
+  const pad = value => String(value).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
 }
 
 const originalEventDate = computed(() => {
@@ -427,8 +438,7 @@ function handleAdjustmentClick(direction, event) {
 const isDateTimeValid = computed(() => {
   const hasDate = !!form.newDate
   const hasTime = !!form.newStartTime
-  if (!hasDate && !hasTime) return true
-  if (hasDate && !hasTime) return false
+  if (!hasTime) return true
   if (hasTime && !hasDate) return false
   if (hasDate && event.value?.slots?.length) {
     const DAY_NAMES = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
@@ -537,7 +547,7 @@ const isSubmitDisabled = computed(() =>
   submitting.value ||
   !isDateTimeValid.value ||
   (hasCompleteDateTimeSelection.value && !hasVerifiedCurrentAvailability.value) ||
-  (!form.newDate && !form.newStartTime && Number(form.adjustmentTokens) === 0)
+  (!hasCompleteDateTimeSelection.value && Number(form.adjustmentTokens) === 0)
 )
 
 async function handleSubmit() {

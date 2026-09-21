@@ -145,6 +145,7 @@ describe('BookingDetailsPopup counter offers', () => {
 
     const notice = wrapper.get('[data-test="booking-details-adjustment-waiting-notice"]');
     expect(notice.attributes('data-counteroffer-type')).toBe('adjust');
+    expect(notice.classes()).toContain('shrink-0');
     expect(notice.classes()).toContain('border-[#EAECF0]');
     expect(wrapper.get('[data-test="booking-details-counteroffer-rail"]').classes()).toContain('bg-[#98A2B3]');
     expect(wrapper.get('[data-test="booking-details-counteroffer-sent-icon"]').classes()).toContain('bg-[#FCE40D]');
@@ -161,7 +162,7 @@ describe('BookingDetailsPopup counter offers', () => {
     expect(wrapper.find('[data-test="booking-details-counteroffer-original-token"]').exists()).toBe(true);
     expect(wrapper.find('[data-test="booking-details-counteroffer-proposed-token"]').exists()).toBe(true);
     expect(wrapper.get('[data-test="booking-details-adjustment-waiting-heading"]').text())
-      .toBe('Price adjustment has been sent to @grapegatsby to review:');
+      .toBe('Price adjustment has been sent to @grapegatsby for review:');
 
     wrapper.unmount();
   });
@@ -266,7 +267,7 @@ describe('BookingDetailsPopup counter offers', () => {
     }), { userRole: 'creator' });
 
     expect(wrapper.get('[data-test="booking-details-adjustment-waiting-heading"]').text())
-      .toBe('Time adjustment has been sent to @grapegatsby to review:');
+      .toBe('Time adjustment has been sent to @grapegatsby for review:');
     expect(wrapper.get('[data-comparison-type="time"] [data-test="booking-details-counteroffer-original-value"]').findAll('span')).toHaveLength(2);
     expect(wrapper.get('[data-comparison-type="time"] [data-test="booking-details-counteroffer-proposed-value"]').findAll('span')).toHaveLength(2);
 

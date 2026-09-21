@@ -15,9 +15,11 @@ vi.mock('@/utils/toastBus.js', () => ({ showToast: vi.fn() }))
 
 const PickerStub = defineComponent({
   name: 'EventSlotDateTimePicker',
+  props: ['modelValue'],
   emits: ['update:modelValue'],
   template: `
     <div>
+      <button data-testid="select-booking-time" @click="$emit('update:modelValue', { date: modelValue.date, startTime: '10:00' })">booking time</button>
       <button data-testid="select-first-time" @click="$emit('update:modelValue', { date: '2026-09-20', startTime: '10:00' })">first</button>
       <button data-testid="select-second-time" @click="$emit('update:modelValue', { date: '2026-09-27', startTime: '11:00' })">second</button>
     </div>
@@ -30,28 +32,40 @@ function deferred() {
   return { promise, resolve }
 }
 
-function mountPopup(availabilityHandler = async () => ({ ok: true, data: { available: true } })) {
+const defaultBooking = {
+  bookingId: 'booking_1',
+  eventId: 'event_1',
+  creatorId: 'creator_1',
+  durationMinutes: 30,
+  startAtIso: '2026-09-19T10:00:00+08:00',
+  endAtIso: '2026-09-19T10:30:00+08:00',
+  payment: { total: 20 },
+}
+
+function localDateIso(value) {
+  const date = new Date(value)
+  const pad = part => String(part).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
+}
+
+function mountPopup(
+  availabilityHandler = async () => ({ ok: true, data: { available: true } }),
+  { bookingItem = defaultBooking, messageContent = {} } = {},
+) {
   runMock.mockImplementation((flowId, payload) => {
     if (flowId === 'bookings.fetchBooking') {
       return Promise.resolve({
         ok: true,
-        data: {
-          item: {
-            bookingId: 'booking_1',
-            eventId: 'event_1',
-            creatorId: 'creator_1',
-            durationMinutes: 30,
-            startAtIso: '2026-09-19T10:00:00+08:00',
-            endAtIso: '2026-09-19T10:30:00+08:00',
-            payment: { total: 20 },
-          },
-        },
+        data: { item: bookingItem },
       })
     }
     if (flowId === 'events.fetchEvent') {
       return Promise.resolve({
         ok: true,
-        data: { item: { eventId: 'event_1', slots: [{ day: 'sunday', startTime: '09:00', endTime: '17:00' }] } },
+        data: { item: { eventId: 'event_1', slots: [
+          { day: 'saturday', startTime: '09:00', endTime: '17:00' },
+          { day: 'sunday', startTime: '09:00', endTime: '17:00' },
+        ] } },
       })
     }
     if (flowId === 'bookings.checkAdjustmentAvailability') return availabilityHandler(payload)
@@ -63,7 +77,7 @@ function mountPopup(availabilityHandler = async () => ({ ok: true, data: { avail
       chatId: 'chat_1',
       message: {
         message_id: 'message_1',
-        content: { booking_id: 'booking_1', event_id: 'event_1' },
+        content: { booking_id: 'booking_1', event_id: 'event_1', ...messageContent },
       },
     },
     global: {
@@ -83,6 +97,64 @@ describe('AdjustBookingPopup availability checks', () => {
 
   afterEach(() => {
     vi.useRealTimers()
+  })
+
+  it('prefills only the booking date without checking availability or enabling a no-op submit', async () => {
+    const wrapper = mountPopup()
+    await flushPromises()
+
+    expect(wrapper.getComponent(PickerStub).props('modelValue')).toEqual({
+      date: localDateIso(defaultBooking.startAtIso),
+      startTime: '',
+    })
+    expect(runMock).not.toHaveBeenCalledWith('bookings.checkAdjustmentAvailability', expect.anything())
+    expect(wrapper.get('[data-testid="adjust-booking-submit"]').get('button').attributes('disabled')).toBeDefined()
+    wrapper.unmount()
+  })
+
+  it.each([
+    ['startIso', { startIso: '2026-10-03T12:00:00Z', startAtIso: '2026-10-04T12:00:00Z' }, {}, '2026-10-03T12:00:00Z'],
+    ['startAtIso', { startAtIso: '2026-10-04T12:00:00Z' }, {}, '2026-10-04T12:00:00Z'],
+    ['message slot_date', {}, { slot_date: '2026-10-05T12:00:00Z' }, '2026-10-05T12:00:00Z'],
+  ])('prefills the local booking date from %s', async (_source, startFields, messageContent, expectedIso) => {
+    const wrapper = mountPopup(undefined, {
+      bookingItem: { ...defaultBooking, startAtIso: undefined, ...startFields },
+      messageContent,
+    })
+    await flushPromises()
+
+    expect(wrapper.getComponent(PickerStub).props('modelValue')).toEqual({
+      date: localDateIso(expectedIso),
+      startTime: '',
+    })
+    wrapper.unmount()
+  })
+
+  it.each([null, 'not-a-date'])('leaves the date empty for a missing or invalid booking date', async (startAtIso) => {
+    const wrapper = mountPopup(undefined, {
+      bookingItem: { ...defaultBooking, startAtIso, endAtIso: null },
+    })
+    await flushPromises()
+
+    expect(wrapper.getComponent(PickerStub).props('modelValue')).toEqual({ date: '', startTime: '' })
+    wrapper.unmount()
+  })
+
+  it('checks availability after selecting a time for the prefilled booking date', async () => {
+    const wrapper = mountPopup()
+    await flushPromises()
+
+    await wrapper.get('[data-testid="select-booking-time"]').trigger('click')
+    expect(wrapper.get('[data-testid="adjust-booking-submit"]').get('button').attributes('disabled')).toBeDefined()
+    await vi.advanceTimersByTimeAsync(200)
+    await flushPromises()
+
+    expect(runMock).toHaveBeenCalledWith(
+      'bookings.checkAdjustmentAvailability',
+      expect.objectContaining({ bookingId: 'booking_1', durationMinutes: 30 }),
+    )
+    expect(wrapper.get('[data-testid="adjust-booking-submit"]').get('button').attributes('disabled')).toBeUndefined()
+    wrapper.unmount()
   })
 
   it('shows a spinner-only disabled submit button while checking, then enables it when available', async () => {
@@ -184,7 +256,23 @@ describe('AdjustBookingPopup availability checks', () => {
     )
     expect(runMock).toHaveBeenCalledWith(
       'bookings.updateMeta',
-      expect.objectContaining({ bookingId: 'booking_1' }),
+      expect.objectContaining({
+        bookingId: 'booking_1',
+        args: expect.objectContaining({
+          negotiation: expect.objectContaining({
+            proposal: expect.objectContaining({ startAtIso: null }),
+          }),
+        }),
+      }),
+    )
+    expect(runMock).toHaveBeenCalledWith(
+      'chat.updateBookingRequestMessage',
+      expect.objectContaining({
+        meta: expect.objectContaining({
+          newSlotDate: null,
+          proposedSlotDate: null,
+        }),
+      }),
     )
     expect(wrapper.emitted('submitted')).toHaveLength(1)
     wrapper.unmount()
