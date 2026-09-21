@@ -8,7 +8,8 @@
   <div class="flex-1 overflow-y-auto overflow-x-hidden w-full flex flex-col items-center gap-6 pr-1">
   <div class="self-stretch flex flex-col justify-start items-start gap-2">
     <div class="self-stretch inline-flex justify-between items-start">
-      <div class="flex-1 justify-start text-gray-700 text-base font-semibold  leading-6">{{ t("booking_call_attendance_policy_publish_intro") }}</div>
+      <div class="hidden md:flex flex-1 justify-start text-gray-700 text-base font-semibold  leading-6">{{ t("booking_call_attendance_policy_publish_intro") }}</div>
+      <span class="flex md:hidden text-sm">{{t("booking_call_attendance_policy_publish_grace") }}</span>
     </div>
   </div>
   <div class="self-stretch flex flex-col justify-start items-start gap-2">
@@ -37,6 +38,7 @@
       </div>
     </div>
   </div>
+  <span class="hidden md:block text-sm">{{t("booking_call_attendance_policy_publish_grace") }}</span>
   <div class="self-stretch flex items-center gap-2">
     <CheckboxGroup
       v-model="dontShowAgain"

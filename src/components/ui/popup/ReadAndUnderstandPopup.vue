@@ -8,7 +8,8 @@
   <div class="flex-1 overflow-y-auto overflow-x-hidden w-full flex flex-col items-center gap-6 pr-1">
   <div class="self-stretch flex flex-col justify-start items-start gap-2">
     <div class="self-stretch inline-flex justify-between items-start">
-      <div class="flex-1 justify-start text-gray-200 text-base font-semibold  leading-6">{{ t("booking_call_attendance_policy_confirmation_intro") }}</div>
+      <div class="hidden md:flex flex-1 justify-start text-gray-200 text-base font-semibold  leading-6">{{ t("booking_call_attendance_policy_confirmation_intro") }}</div>
+       <span class="flex md:hidden text-sm text-white">{{t("booking_call_attendance_policy_publish_grace") }}</span>
     </div>
   </div>
   <div class="size-28 relative overflow-hidden">
@@ -43,6 +44,7 @@
     </div>
   </div>
   </div>
+   <span class="hidden md:block text-sm text-white">{{t("booking_call_attendance_policy_publish_grace") }}</span>
   <div class="self-stretch flex-shrink-0 mt-auto inline-flex justify-start items-center gap-2 flex-col flex-col-reverse md:flex-row pt-2">
     <button
       type="button"

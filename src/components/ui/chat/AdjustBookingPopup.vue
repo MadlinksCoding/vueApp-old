@@ -81,7 +81,10 @@
 
           <!-- Adjustment -->
           <div class="flex flex-col gap-2">
-            <label class="text-gray-700 text-base font-medium">Adjustment ( Original Price = {{ baseTokens }} Tokens )</label>
+            <div class="flex gap-2 items-center">
+              <label class="text-gray-700 text-base font-medium">Adjustment ( Original Price = {{ baseTokens }} Tokens )</label>
+              <TooltipIcon class="mt-1 " tooltipClass="!max-w-[14rem] lg:translate-x-[-70%]" text=" If you want to raise the price, just type the amount you want to add on top. If you want to reduce the price, type - followed by a number (like -2) to lower the original price." />
+            </div>
             <div
               class="flex h-11 w-full items-center justify-between rounded-none border-b border-gray-300 bg-transparent px-1.5 shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] gap-4"
               data-testid="adjustment-token-stepper"
@@ -180,6 +183,7 @@ import ButtonComponent         from '@/components/dev/button/ButtonComponent.vue
 import EventSlotDateTimePicker from '@/components/ui/chat/EventSlotDateTimePicker.vue'
 import { showToast }           from '@/utils/toastBus.js'
 import { localDateTimeToHkt, hktDateTimeToLocalDate, toLocalISOString }  from "@/services/events/eventsApiUtils.js";
+import TooltipIcon from "@/components/ui/tooltip/TooltipIcon.vue";
 
 const props = defineProps({
   message:   { type: Object, required: true },

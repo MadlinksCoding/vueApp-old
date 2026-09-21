@@ -2563,6 +2563,7 @@
                       <div class="self-stretch inline-flex justify-start items-center gap-2.5">
                         <ul class="list-decimal ml-5">
                           <li>{{ t("booking_call_attendance_policy_grace_summary") }}</li>
+                          <li>{{ t("booking_call_attendance_policy_grace_end_summary") }}</li>
                           <li>{{ t("booking_call_attendance_policy_creator_no_show_summary") }}</li>
                           <li>{{ t("booking_call_attendance_policy_fan_no_show_summary") }}</li>
                         </ul>
