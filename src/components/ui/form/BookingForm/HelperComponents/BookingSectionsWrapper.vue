@@ -29,12 +29,12 @@
       </div>
 
       <!-- Optional Accordion Icon -->
-      <div v-if="accordionIcon" class="cursor-pointer absolute top-0 right-0"
+      <div v-if="accordionIcon" class="cursor-pointer absolute top-0 right-0 rounded-full bg-black/5 p-1"
       @click="$emit('toggle')">
         <img
           :src="accordionIcon"
           alt="accordion icon"
-          :class="['transition-transform duration-200', { 'rotate-180': !isOpen }]"
+          :class="['transition-transform duration-200 h-5 w-5', { 'rotate-180': isOpen }]"
         />
       </div>
     </div>
