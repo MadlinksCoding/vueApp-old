@@ -639,13 +639,13 @@
           effectiveView === 'day' ? 'grid-cols-3' : 'grid-cols-7',
           variant === 'theme2' ? 'min-h-[5rem]' : 'h-[3.995rem]'
         ]">
-          <div v-for="(d, i) in headerDays" :key="'xh-' + i" 
+          <div v-for="(d, i) in headerDays" :key="'xh-' + i"
             class="text-center flex flex-col items-center justify-center cursor-pointer transition-all duration-200"
             :class="[
               theme.main.axisXDay,
               (sd(d).getDay() === 0 && variant === 'default') ? 'text-[#FF6A6A]' : '',
               sameDay(d, selectedDay) ? 'opacity-100 scale-110' : 'opacity-50 hover:opacity-80'
-            ]" 
+            ]"
             :data-date="d.toISOString().slice(0, 10)"
             :data-selected="sameDay(d, selectedDay) ? 'true' : 'false'"
             @click="emitDate(d)">
@@ -882,7 +882,7 @@
               <div class="w-full mb-1 flex justify-between gap-1 items-center">
                 <div class="text-sm font-semibold text-[#101828]" data-test="calendar-month-date-label" :class="d.getDay() === 0 ? 'text-red-400 font-semibold' : ''">
                 {{ d.getDate() }}
-                </div>  
+                </div>
 
                 <div class="px-2 py-[2px] flex items-center justify-end gap-[2px] hidden">
                   <span class="text-xs font-medium" :class="sameDay(d, today) ? 'text-[#F06]' : 'text-[#344054]'">+</span>
@@ -1171,7 +1171,7 @@
               <div class="flex justify-between items-center px-4">
                 <h2 class="text-gray-950 text-sm font-semibold">{{ t("dashboard_display_options") }}</h2>
               </div>
-              
+
               <div class="max-h-[70vh] overflow-y-auto pb-6">
                 <EventDropdownContent v-model="dropdownFilters" class="!shadow-none !border-none !w-full" />
               </div>
@@ -1189,7 +1189,7 @@
       @submitted="handleAdjustSubmitted"
     />
     <!-- Responsive sticky booking cards -->
-    <Teleport to="body">
+    <Teleport v-if="stickyCardsEnabled" to="body">
       <div
         v-if="visibleStickyCardEvents.length"
         class="responsive-sticky-booking-list fixed bottom-0 left-0 right-0 z-[90] flex flex-col gap-2 sm:px-3 sm:pb-3 md:hidden"
@@ -1284,6 +1284,7 @@ const props = defineProps({
   responsiveViewportWidth: { type: Number, default: null },
   showCurrentTimeAcrossDates: { type: Boolean, default: false },
   joinComparisonTime: { type: Date, default: null },
+  stickyCardsEnabled: { type: Boolean, default: false },
   stickyCardEvents: { type: Array, default: () => [] },
   stickyCardEvent: { type: Object, default: null }
 });
@@ -1408,6 +1409,8 @@ function stickyCardKey(event = {}) {
 }
 
 const normalizedStickyCardEvents = computed(() => {
+  if (!props.stickyCardsEnabled) return [];
+
   const supplied = Array.isArray(props.stickyCardEvents) && props.stickyCardEvents.length
     ? props.stickyCardEvents
     : (props.stickyCardEvent ? [props.stickyCardEvent] : []);
@@ -1428,8 +1431,11 @@ const mobileStickyCardEvent = computed(() => normalizedStickyCardEvents.value.fi
   && Boolean(event.joinUrl)
 )) || null);
 
-const hasMobileStickyCard = computed(() => Boolean(mobileStickyCardEvent.value));
+const hasMobileStickyCard = computed(() => (
+  props.stickyCardsEnabled && Boolean(mobileStickyCardEvent.value)
+));
 const visibleStickyCardEvents = computed(() => {
+  if (!props.stickyCardsEnabled) return [];
   if (canonicalViewportWidth.value < 678) {
     return mobileStickyCardEvent.value ? [mobileStickyCardEvent.value] : [];
   }
@@ -1437,8 +1443,12 @@ const visibleStickyCardEvents = computed(() => {
 });
 
 watch(
-  normalizedStickyCardEvents,
-  (events) => {
+  [() => props.stickyCardsEnabled, normalizedStickyCardEvents],
+  ([enabled, events]) => {
+    if (!enabled) {
+      openStickyCardMenuKey.value = null;
+      return;
+    }
     const openEvent = events.find((event) => stickyCardKey(event) === openStickyCardMenuKey.value);
     if (openStickyCardMenuKey.value && (!openEvent || isPendingPriceAdjustment(openEvent))) {
       openStickyCardMenuKey.value = null;
@@ -1475,6 +1485,21 @@ const handleStickyCardDocumentClick = (event) => {
   }
 };
 
+let stickyCardDocumentListenerMounted = false;
+let stickyCardDocumentListenerAttached = false;
+const syncStickyCardDocumentListener = () => {
+  if (!stickyCardDocumentListenerMounted) return;
+  if (props.stickyCardsEnabled && !stickyCardDocumentListenerAttached) {
+    document.addEventListener('click', handleStickyCardDocumentClick);
+    stickyCardDocumentListenerAttached = true;
+  } else if (!props.stickyCardsEnabled && stickyCardDocumentListenerAttached) {
+    document.removeEventListener('click', handleStickyCardDocumentClick);
+    stickyCardDocumentListenerAttached = false;
+  }
+};
+
+watch(() => props.stickyCardsEnabled, syncStickyCardDocumentListener);
+
 const handleMobileCalendarClickOutside = (event) => {
   if (
     isMobileCalendarOpen.value &&
@@ -1490,13 +1515,18 @@ const handleMobileCalendarClickOutside = (event) => {
 };
 
 onMounted(() => {
+  stickyCardDocumentListenerMounted = true;
   document.addEventListener('click', handleMobileCalendarClickOutside);
-  document.addEventListener('click', handleStickyCardDocumentClick);
+  syncStickyCardDocumentListener();
 });
 
 onUnmounted(() => {
+  stickyCardDocumentListenerMounted = false;
   document.removeEventListener('click', handleMobileCalendarClickOutside);
-  document.removeEventListener('click', handleStickyCardDocumentClick);
+  if (stickyCardDocumentListenerAttached) {
+    document.removeEventListener('click', handleStickyCardDocumentClick);
+    stickyCardDocumentListenerAttached = false;
+  }
 });
 
 const toggleMobileCalendar = () => {
@@ -3069,15 +3099,15 @@ const getVisualBounds = (ev, sMin, eMin, step, minHeightPx, day = null) => {
   const { startMin, endMin } = getEventMinutesForDay(ev, day);
   const clippedStart = Math.max(startMin, sMin);
   const clippedEnd = Math.max(clippedStart, Math.min(endMin, eMin));
-  
+
   if (clippedEnd <= clippedStart) {
     return { start: 0, end: 0, isValid: false };
   }
-  
+
   const startPx = clippedStart * pixelsPerMinute;
   const durationPx = (clippedEnd - clippedStart) * pixelsPerMinute;
   const endPx = startPx + Math.max(minHeightPx || 20, durationPx);
-  
+
   return { start: startPx, end: endPx, isValid: true };
 };
 
@@ -3173,7 +3203,7 @@ const processedEventsByDay = computed(() => {
   bodyDays.value.forEach(d => {
     eventsByDay[SOD(d).getTime()] = [];
   });
-  
+
   normalized.value.forEach(ev => {
     if (!ev || !ev.start || !ev.end) return;
     bodyDays.value.forEach(d => {
@@ -3188,7 +3218,7 @@ const processedEventsByDay = computed(() => {
   const { sMin, eMin, step } = range.value;
   const minHeightPx = baseEventMinHeightPx.value;
   const processed = {};
-  
+
   for (const [dayKeyStr, dayEvents] of Object.entries(eventsByDay)) {
     const dayKey = Number(dayKeyStr);
     const day = new Date(dayKey);
@@ -3198,13 +3228,13 @@ const processedEventsByDay = computed(() => {
       processed[dayKey] = assignAdaptiveOverlapLanes(sorted);
       continue;
     }
-    
+
     const stacked = [];
     sorted.forEach(ev => {
       const boundsEv = getVisualBounds(ev, sMin, eMin, step, minHeightPx, day);
       const stackGroup = isEventColumnMode.value ? (resolveDayColumnEventId(ev) || '__eventless__') : '__day__';
       let order = 0;
-      
+
       if (!boundsEv.isValid) {
         stacked.push({...ev, stackOrder: 0, stackGroup});
         return;
@@ -3219,7 +3249,7 @@ const processedEventsByDay = computed(() => {
           if (!boundsS.isValid) return false;
           return boundsS.start < boundsEv.end && boundsS.end > boundsEv.start;
         });
-        
+
         if (!overlappingInOrder) {
           stacked.push({...ev, stackOrder: order, stackGroup});
           break;
@@ -3229,7 +3259,7 @@ const processedEventsByDay = computed(() => {
     });
     processed[dayKey] = stacked;
   }
-  
+
   return processed;
 });
 
@@ -3274,7 +3304,7 @@ const gridMetrics = computed(() => {
   const metrics = [];
   let currentOffset = 0;
   const pixelsPerMinute = props.rowHeightPx / step;
-  
+
   // Use a smaller stacking offset to reduce gaps between overlapping events (2px gap).
   const stackOffset = minHeightPx + 2;
 
@@ -3286,7 +3316,7 @@ const gridMetrics = computed(() => {
       const day = new Date(Number(dayKeyStr));
       for (const ev of dayEvents) {
         if (ev.isAvailabilityBlock) continue;
-        
+
         const bounds = getVisualBounds(ev, sMin, eMin, step, minHeightPx, day);
         if (!bounds.isValid) continue;
 
@@ -3300,7 +3330,7 @@ const gridMetrics = computed(() => {
             maxStackInRow = ev.stackOrder;
           }
 
-          // If the event starts within this row, ensure the row expands to contain 
+          // If the event starts within this row, ensure the row expands to contain
           // its full visual bottom (including shift and min-height offset).
           if (bounds.start >= rowStartPx && bounds.start < rowEndPx) {
             const relEnd = (bounds.end - rowStartPx) + ev.stackOrder * stackOffset;
@@ -3309,13 +3339,13 @@ const gridMetrics = computed(() => {
         }
       }
     }
-    
+
     // Total row height is the max of traditional lane-based expansion or the furthest visual end of starting events.
     const height = Math.max(props.rowHeightPx + maxStackInRow * stackOffset, maxVisualEnd);
     metrics.push({ height, offset: currentOffset });
     currentOffset += height;
   }
-  
+
   return { rows: metrics, totalHeight: currentOffset };
 });
 

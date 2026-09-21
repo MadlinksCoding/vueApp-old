@@ -4509,6 +4509,7 @@ describe("MainCalendar all events count", () => {
       [],
       {
         userRole: "creator",
+        stickyCardsEnabled: true,
         stickyCardEvent: {
           title: "Creator Office Hours",
           canJoin: true,
@@ -4568,6 +4569,7 @@ describe("MainCalendar all events count", () => {
       [],
       {
         userRole: "fan",
+        stickyCardsEnabled: true,
         stickyCardEvent: {
           title: "Fan Booking",
           canJoin: true,
@@ -4601,6 +4603,7 @@ describe("MainCalendar all events count", () => {
       [],
       {
         userRole: "creator",
+        stickyCardsEnabled: true,
         stickyCardEvent: {
           title: "Fallback Booking",
           canJoin: true,
@@ -4644,7 +4647,7 @@ describe("MainCalendar all events count", () => {
 
     const wrapper = await mountCalendar(
       [],
-      { userRole: "creator", stickyCardEvent: makeStickyEvent(1407) },
+      { userRole: "creator", stickyCardsEnabled: true, stickyCardEvent: makeStickyEvent(1407) },
       { global: { stubs: { Teleport: true } } },
     );
     await flushPromises();
@@ -4694,7 +4697,7 @@ describe("MainCalendar all events count", () => {
     };
     const wrapper = await mountCalendar(
       [],
-      { stickyCardEvent, userRole: "creator" },
+      { stickyCardsEnabled: true, stickyCardEvent, userRole: "creator" },
       {
         global: {
           stubs: { Teleport: true },
@@ -4721,7 +4724,7 @@ describe("MainCalendar all events count", () => {
     const floatingTodayButton = wrapper.findAll("[data-main-today]")
       .find((button) => button.classes().includes("bottom-[7rem]"));
     expect(floatingTodayButton).toBeTruthy();
-    expect(floatingTodayButton.classes()).toContain("md:bottom-2");
+    expect(floatingTodayButton.classes()).toContain("md:bottom-5");
     expect(floatingTodayButton.classes())
       .not.toContain("ipad-portrait:bottom-[var(--sticky-card-tablet-bottom)]");
 
@@ -4767,7 +4770,7 @@ describe("MainCalendar all events count", () => {
     const unchangedEvent = makeStickyEvent("sent", 100);
     const wrapper = await mountCalendar(
       [],
-      { stickyCardEvent: unchangedEvent },
+      { stickyCardsEnabled: true, stickyCardEvent: unchangedEvent },
       { global: { stubs: { Teleport: true } } },
     );
     await wrapper.get("[data-test='mobile-join-card-menu-trigger']").trigger("click");
@@ -4831,7 +4834,43 @@ describe("MainCalendar all events count", () => {
     expect(wrapper.find("[data-test='mobile-join-card']").exists()).toBe(false);
   });
 
-  it("renders a confirmed sticky card on phones only", async () => {
+  it("does not render an eligible sticky card or reserve space when disabled", async () => {
+    setWindowWidth(390);
+    setWindowHeight(844);
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const wrapper = await mountCalendar(
+      [],
+      {
+        stickyCardEvent: {
+          title: "Disabled Sticky Booking",
+          canJoin: true,
+          joinUrl: "https://example.com/join/disabled",
+          sourceEvent: {
+            bookingId: "booking_disabled",
+            status: "confirmed",
+            start: "2026-04-23T10:00:00",
+            end: "2026-04-23T10:30:00",
+            raw: { userId: 1407, creatorId: 2615 },
+          },
+        },
+      },
+      { global: { stubs: { Teleport: true } } },
+    );
+
+    expect(wrapper.find("[data-test='tablet-sticky-card-list']").exists()).toBe(false);
+    expect(wrapper.find("[data-test='sticky-booking-card']").exists()).toBe(false);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(wrapper.emitted("join-call")).toBeUndefined();
+    expect(wrapper.emitted("menu-action")).toBeUndefined();
+    const todayButton = wrapper.findAll("[data-main-today]")
+      .find((button) => button.classes().includes("fixed"));
+    expect(todayButton.classes()).toContain("bottom-2");
+    expect(todayButton.classes()).toContain("md:bottom-5");
+    expect(todayButton.classes()).not.toContain("bottom-[7rem]");
+  });
+
+  it("renders a confirmed sticky card on phones only when explicitly enabled", async () => {
     const confirmed = {
       title: "Responsive Booking",
       canJoin: true,
@@ -4851,7 +4890,7 @@ describe("MainCalendar all events count", () => {
     setWindowHeight(844);
     const wrapper = await mountCalendar(
       [],
-      { stickyCardEvents: [confirmed], userRole: "creator" },
+      { stickyCardsEnabled: true, stickyCardEvents: [confirmed], userRole: "creator" },
       { global: { stubs: { Teleport: true } } },
     );
 
@@ -4973,6 +5012,7 @@ describe("MainCalendar all events count", () => {
       [],
       {
         userRole: "creator",
+        stickyCardsEnabled: true,
         stickyCardEvent: {
           title: "Group Workshop",
           canJoin: true,
