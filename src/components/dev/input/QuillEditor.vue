@@ -9,6 +9,11 @@
 import { ref, onMounted, watch } from 'vue';
 import Quill from 'quill';
 import 'quill/dist/quill.snow.css';
+import EditorIconB from '@/assets/images/icons/editor-icon-b.svg';
+import EditorIconI from '@/assets/images/icons/editor-icon-i.svg';
+import EditorIconCopy from '@/assets/images/icons/editor-icon-copy.svg';
+import EditorIconDots from '@/assets/images/icons/editor-icon-dots.svg';
+import EditorIconNum from '@/assets/images/icons/editor-icon-num.svg';
 
 const props = defineProps({
     modelValue: {
@@ -30,11 +35,11 @@ let isUpdating = false;
 onMounted(() => {
     // Quill Setup
     const icons = Quill.import('ui/icons');
-    icons['bold'] = '<img src="https://i.ibb.co/HLRRqmHp/bold-icon.webp" alt="bold" style="width:30px;">';
-    icons['italic'] = '<img src="https://i.ibb.co/QvdPyg67/italic-icon.webp" alt="italic" style="width:30px;">';
-    icons['link'] = '<img src="https://i.ibb.co/gZ7JLJ28/link-icon.webp" alt="link" style="width:30px;">';
-    icons['list']['ordered'] = '<img src="https://i.ibb.co/Q7WRxw9Y/list-ol-icon.webp" alt="ol" style="width:30px;">';
-    icons['list']['bullet'] = '<img src="https://i.ibb.co/rfH1rbT7/list-ul-icon.webp" alt="ul" style="width:30px;">';
+    icons['bold'] = `<img src="${EditorIconB}" alt="bold" style="width:30px;">`;
+    icons['italic'] = `<img src="${EditorIconI}" alt="italic" style="width:30px;">`;
+    icons['link'] = `<img src="${EditorIconCopy}" alt="link" style="width:30px;">`;
+    icons['list']['ordered'] = `<img src="${EditorIconNum}" alt="ol" style="width:30px;">`;
+    icons['list']['bullet'] = `<img src="${EditorIconDots}" alt="ul" style="width:30px;">`;
 
     quillInstance = new Quill(quillEditor.value, {
         modules: {

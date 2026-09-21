@@ -3,7 +3,7 @@
   <div class="self-stretch bg-white/5 backdrop-blur-[5px] inline-flex justify-between items-start">
     <div class="justify-start text-slate-700 text-base font-medium font-['Poppins'] leading-6">{{ title }}</div>
     <div class="relative">
-      <img src="https://i.ibb.co/G4Y3BB6c/Icon.png" alt="x-close" class="w-3 h-3 cursor-pointer" data-popup-close>
+      <img :src=CloseIcon alt="x-close" class="w-5 h-5 cursor-pointer" data-popup-close>
     </div>
   </div>
   <div class="self-stretch py-2 flex flex-col justify-center items-start gap-6">
@@ -154,6 +154,7 @@ import VerifiedTickIcon from "@/assets/images/icons/verified-blue-white.webp"
 import AiArtIcon from "@/assets/images/icons/ai-art.webp" 
 import ChevronDownFill from "@/assets/images/icons/chevron-down-fill.webp"
 import EditPencilIcon from "@/assets/images/icons/edit-pencil.webp"
+import CloseIcon from "@/assets/images/icons/x-close-grey-1.svg"
 import ThumbnailUploaderNay from "@/components/ui/global/media/uploader/HelperComponents/ThumbnailUploaderNay.vue"
 import ValidationInlineWarning from "@/components/ui/form/BookingForm/HelperComponents/ValidationInlineWarning.vue";
 import { useBookingTranslations } from "@/i18n/bookingTranslations.js";

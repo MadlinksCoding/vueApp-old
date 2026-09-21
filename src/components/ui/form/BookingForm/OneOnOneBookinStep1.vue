@@ -19,6 +19,12 @@
   import alignLeftIcon from '@/assets/images/icons/align-left.svg'
   import calendarIcon from '@/assets/images/icons/calendar-empty.svg'
   import trashIcon from '@/assets/images/icons/trash-01.svg'
+  import ClockFastForwardIcon from '@/assets/images/icons/clock-fast-forward.svg';
+  import ArrowDownIcon from '@/assets/images/icons/arrows-down.svg';
+  import CalendarCheckIcon from '@/assets/images/icons/calendar-check-02.svg';
+  import CalendarPlusIcon from '@/assets/images/icons/calendar-plus-02.svg';
+  import BankNoteIcon from '@/assets/images/icons/bank-note-03.svg';
+  import ArrowRightIcon from '@/assets/images/icons/arrow-narrow-right.svg';
   import OptionalLabel from "./HelperComponents/OptionalLabel.vue";
   import {
     collectChangedValidationFields,
@@ -2540,7 +2546,7 @@
         </div>
       </div>
 
-      <BookingSectionsWrapper v-if="!isGroupBooking" :title="t('booking_session_length')" :isRequired="true" leftIcon="https://i.ibb.co/cSjDYSdk/Icon.png">
+      <BookingSectionsWrapper v-if="!isGroupBooking" :title="t('booking_session_length')" :isRequired="true" :leftIcon="ClockFastForwardIcon">
         <div class='flex flex-col gap-5'>
           <div class="flex flex-col gap-1">
             <div class="flex items-center gap-2 mt-3 ">
@@ -2619,7 +2625,7 @@
         </div>
       </BookingSectionsWrapper>
       
-      <BookingSectionsWrapper :title="t('booking_booking_scheduling_setting')" leftIcon="https://i.ibb.co/nNmmvwnf/Icon-1.png"   :is-open="true">
+      <BookingSectionsWrapper :title="t('booking_booking_scheduling_setting')" :leftIcon=CalendarCheckIcon   :is-open="true">
         <div class="flex flex-col justify-start items-start gap-5 mt-5">
           <div class="self-stretch flex flex-col justify-center items-start gap-3">
             <div class="self-stretch flex flex-col justify-center items-start gap-1">
@@ -2771,8 +2777,8 @@
       <div class="w-full bg-[#D0D5DD] h-[0.063rem]"></div>
 
       <template v-for="section in step1SectionOrder" :key="section">
-      <BookingSectionsWrapper v-if="section === 'privatePricing'" :title="t('booking_pricing_discounts')" leftIcon="https://i.ibb.co/F47R5CqG/Icon-1.png"
-        leftIconClass="mt-[0.25rem]" accordionIcon="https://i.ibb.co/MD46QRZS/Frame-1410099649.png" :is-open="sectionsState.privatePricing"
+      <BookingSectionsWrapper v-if="section === 'privatePricing'" :title="t('booking_pricing_discounts')" :leftIcon=BankNoteIcon
+        leftIconClass="mt-[0.25rem]" :accordionIcon=ArrowDownIcon :is-open="sectionsState.privatePricing"
         @toggle="toggleSection('privatePricing')">
         <div v-show="sectionsState.privatePricing" class="flex-1 inline-flex flex-col justify-start items-start gap-5 mt-4">
           <div class="flex flex-col justify-start items-start gap-1.5">
@@ -3101,7 +3107,7 @@
       </BookingSectionsWrapper>
 
       <BookingSectionsWrapper class="border-t border-[#D0D5DD] pt-6" v-else-if="section === 'groupPricing'" :title="t('booking_pricing_settings')" leftIcon="https://i.ibb.co/F47R5CqG/Icon-1.png"
-        leftIconClass="mt-[4px]" accordionIcon="https://i.ibb.co/MD46QRZS/Frame-1410099649.png" :is-open="sectionsState.groupPricing"
+        leftIconClass="mt-[4px]" :accordionIcon=ArrowDownIcon :is-open="sectionsState.groupPricing"
         @toggle="toggleSection('groupPricing')">
         <div
           v-show="sectionsState.groupPricing"
@@ -3398,7 +3404,7 @@
         </div>
       </BookingSectionsWrapper>
 
-      <BookingSectionsWrapper class="border-t border-[#D0D5DD] pt-6" v-else-if="section === 'calendarAvailability'" :title="t(isGroupBooking ? 'booking_event_date_time' : 'booking_calendar_availability')" leftIcon="https://i.ibb.co/Ldw310vp/Icon.png" accordionIcon="https://i.ibb.co/MD46QRZS/Frame-1410099649.png" :is-open="sectionsState.calendarAvailability"
+      <BookingSectionsWrapper class="border-t border-[#D0D5DD] pt-6" v-else-if="section === 'calendarAvailability'" :title="t(isGroupBooking ? 'booking_event_date_time' : 'booking_calendar_availability')" :leftIcon=CalendarPlusIcon :accordionIcon=ArrowDownIcon :is-open="sectionsState.calendarAvailability"
         @toggle="toggleSection('calendarAvailability')">
         <div
           v-show="sectionsState.calendarAvailability"
@@ -3855,7 +3861,7 @@
         <div class="w-full bg-[#D0D5DD] h-[0.063rem]"></div>
 
         <BookingSectionsWrapper :title="t('booking_call_settings')" leftIcon="https://i.ibb.co/xq0ZdVmP/Icon.png"
-          accordionIcon="https://i.ibb.co/MD46QRZS/Frame-1410099649.png"   :is-open="sectionsState.callSettings" :visible="false"
+          :accordionIcon=ArrowDownIcon   :is-open="sectionsState.callSettings" :visible="false"
           @toggle="toggleSection('callSettings')">
           <div v-show="sectionsState.callSettings" class="flex flex-col justify-start items-start gap-5 mt-5">
             <div class="self-stretch flex flex-col justify-center items-start gap-3">
@@ -3930,7 +3936,7 @@
         :soft-disabled="nextButtonSoftDisabled"
         :tooltip-text="nextButtonTooltip"
         :tooltip-items="nextButtonTooltipItems"
-        :rightIcon="'https://i.ibb.co/hx8ztZFf/svgviewer-png-output-8.webp'" :rightIconClass="`
+        :rightIcon=ArrowRightIcon :rightIconClass="`
           w-6 h-6 transition duration-200
           filter brightness-0 invert-0   /* Default: black */
           group-hover:[filter:brightness(0)_saturate(100%)_invert(75%)_sepia(23%)_saturate(7280%)_hue-rotate(93deg)_brightness(109%)_contrast(95%)]

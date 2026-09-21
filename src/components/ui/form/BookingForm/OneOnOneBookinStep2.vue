@@ -18,6 +18,11 @@ import SoftDisabledBookingButton from "./HelperComponents/SoftDisabledBookingBut
 import ValidationInlineWarning from "./HelperComponents/ValidationInlineWarning.vue";
 import CopyIcon from "@/assets/images/icons/copy-to-clipboard.webp";
 import OrangeMinusIcon from "@/assets/images/icons/minus-square.webp";
+import ArrowDownIcon from '@/assets/images/icons/arrows-down.svg';
+import FaceWinkIcon from "@/assets/images/icons/face-wink.svg"
+import XIcon from "@/assets/images/icons/X.svg"
+import User3Icon from "@/assets/images/icons/users-03.svg"
+import SettingsIcon from "@/assets/images/icons/settings-02.svg"
 import { showToast } from "@/utils/toastBus.js";
 import {
   formatBookingValidationErrors,
@@ -1845,8 +1850,8 @@ const createEvent = async () => {
     </div>
 
 
-    <BookingSectionsWrapper v-if="!isGroupBooking" :title="t('booking_add_ons')" leftIcon="https://i.ibb.co/39kq5wcX/Icon-3.png"
-      accordionIcon="https://i.ibb.co/MD46QRZS/Frame-1410099649.png" :is-open="sectionsState.additionalRequest"
+    <BookingSectionsWrapper v-if="!isGroupBooking" :title="t('booking_add_ons')" :leftIcon=FaceWinkIcon
+      :accordionIcon=ArrowDownIcon :is-open="sectionsState.additionalRequest"
       @toggle="toggleSection('additionalRequest')">
       <div v-show="sectionsState.additionalRequest" class="inline-flex flex-col gap-5 w-full mt-5">
         <div
@@ -2034,8 +2039,8 @@ const createEvent = async () => {
 
     <div v-if="!isGroupBooking" class="w-full bg-[#D0D5DD] h-[1px]"></div>
 
-    <BookingSectionsWrapper :title="t('booking_audience_settings')" leftIcon="https://i.ibb.co/5hNw0yjJ/Icon.png"
-      accordionIcon="https://i.ibb.co/MD46QRZS/Frame-1410099649.png" :is-open="sectionsState.audienceSettings"
+    <BookingSectionsWrapper :title="t('booking_audience_settings')" :leftIcon=User3Icon
+      :accordionIcon=ArrowDownIcon :is-open="sectionsState.audienceSettings"
       @toggle="toggleSection('audienceSettings')">
       <div v-show="sectionsState.audienceSettings" class="flex flex-col gap-5 mt-5">
         <div class="flex flex-col gap-1.5">
@@ -2388,7 +2393,7 @@ const createEvent = async () => {
     <div class="hidden w-full bg-[#D0D5DD] h-[1px]"></div>
 
     <BookingSectionsWrapper :visible="false" :title="t('booking_co_performer')" leftIcon="https://i.ibb.co/cKdNTc43/Icon-1.png"
-      accordionIcon="https://i.ibb.co/MD46QRZS/Frame-1410099649.png" :is-open="sectionsState.coPerformer"
+      :accordionIcon=ArrowDownIcon :is-open="sectionsState.coPerformer"
       @toggle="toggleSection('coPerformer')">
       <div v-show="sectionsState.coPerformer" class="w-full mt-3">
         <InputComponentDashbaord id="input_b" :placeholder="t('common_search_by_username_email')"
@@ -2400,8 +2405,8 @@ const createEvent = async () => {
     <template v-if="isXRepostAllowed">
       <div class="w-full bg-[#D0D5DD] h-[1px]"></div>
 
-      <BookingSectionsWrapper :title="t('booking_x_repost_settings')" leftIcon="https://i.ibb.co/7t7vR7n8/Vector.png"
-        accordionIcon="https://i.ibb.co/MD46QRZS/Frame-1410099649.png" tooltipText="Link your X account in Dashboard > Settings to enable X reposts" :is-open="sectionsState.xRepost"
+      <BookingSectionsWrapper :title="t('booking_x_repost_settings')" :leftIcon=XIcon
+       :accordionIcon=ArrowDownIcon tooltipText="Link your X account in Dashboard > Settings to enable X reposts" :is-open="sectionsState.xRepost"
         @toggle="toggleSection('xRepost')">
         <div v-show="sectionsState.xRepost" class="flex flex-col gap-5 mt-5">
 
@@ -2420,7 +2425,7 @@ const createEvent = async () => {
                 defaultMessage: t('booking_x_post_live_default'),
               })"
             >
-              <img class="w-5 h-5 min-h-5 min-w-5" src="https://i.ibb.co/QFV4GNPF/Icon.png" alt="" />
+              <img class="w-5 h-5 min-h-5 min-w-5" :src="SettingsIcon" alt="" />
             </div>
           </div>
           <ValidationInlineWarning
@@ -2444,7 +2449,7 @@ const createEvent = async () => {
                 defaultMessage: t('booking_x_post_booked_default'),
               })"
             >
-              <img class="w-5 h-5 min-h-5 min-w-5" src="https://i.ibb.co/QFV4GNPF/Icon.png" alt="" />
+              <img class="w-5 h-5 min-h-5 min-w-5" :src="SettingsIcon" alt="" />
             </div>
           </div>
           <ValidationInlineWarning
@@ -2468,7 +2473,7 @@ const createEvent = async () => {
                 defaultMessage: t('booking_x_post_in_session_default'),
               })"
             >
-              <img class="w-5 h-5 min-h-5 min-w-5" src="https://i.ibb.co/QFV4GNPF/Icon.png" alt="" />
+              <img class="w-5 h-5 min-h-5 min-w-5" :src="SettingsIcon" alt="" />
             </div>
           </div>
           <ValidationInlineWarning
@@ -2492,7 +2497,7 @@ const createEvent = async () => {
                 defaultMessage: t('booking_x_post_tipped_default'),
               })"
             >
-              <img class="w-5 h-5 min-h-5 min-w-5" src="https://i.ibb.co/QFV4GNPF/Icon.png" alt="" />
+              <img class="w-5 h-5 min-h-5 min-w-5" :src="SettingsIcon" alt="" />
             </div>
           </div>
           <ValidationInlineWarning
@@ -2516,7 +2521,7 @@ const createEvent = async () => {
                 defaultMessage: t('booking_x_post_purchase_default'),
               })"
             >
-              <img class="w-5 h-5 min-h-5 min-w-5" src="https://i.ibb.co/QFV4GNPF/Icon.png" alt="" />
+              <img class="w-5 h-5 min-h-5 min-w-5" :src="SettingsIcon" alt="" />
             </div>
           </div>
           <ValidationInlineWarning

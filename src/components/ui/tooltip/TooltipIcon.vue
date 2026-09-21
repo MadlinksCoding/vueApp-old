@@ -1,5 +1,6 @@
 <script setup>
 import { ref, onMounted, onBeforeUnmount } from 'vue';
+import HelpCircle from '@/assets/images/icons/help-circle-1.svg';
 
 defineProps({
   text: {
@@ -16,7 +17,7 @@ defineProps({
   },
   iconSrc: {
     type: String,
-    default: "https://i.ibb.co/HD78k3Sf/Icon.png",
+    default: HelpCircle,
   },
   side: {
     type: String,
