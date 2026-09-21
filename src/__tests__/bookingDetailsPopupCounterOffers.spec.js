@@ -145,6 +145,7 @@ describe('BookingDetailsPopup counter offers', () => {
 
     const notice = wrapper.get('[data-test="booking-details-adjustment-waiting-notice"]');
     expect(notice.attributes('data-counteroffer-type')).toBe('adjust');
+    expect(notice.classes()).toContain('shrink-0');
     expect(notice.classes()).toContain('border-[#EAECF0]');
     expect(wrapper.get('[data-test="booking-details-counteroffer-rail"]').classes()).toContain('bg-[#98A2B3]');
     expect(wrapper.get('[data-test="booking-details-counteroffer-sent-icon"]').classes()).toContain('bg-[#FCE40D]');
@@ -160,6 +161,115 @@ describe('BookingDetailsPopup counter offers', () => {
     expect(wrapper.get('[data-test="booking-details-counteroffer-proposed-value"]').text()).toBe('1,335');
     expect(wrapper.find('[data-test="booking-details-counteroffer-original-token"]').exists()).toBe(true);
     expect(wrapper.find('[data-test="booking-details-counteroffer-proposed-token"]').exists()).toBe(true);
+    expect(wrapper.get('[data-test="booking-details-adjustment-waiting-heading"]').text())
+      .toBe('Price adjustment has been sent to @grapegatsby for review:');
+
+    wrapper.unmount();
+  });
+
+  it('renders an equal-price time-only adjustment for the fan and emits its resolved schedule', async () => {
+    const wrapper = mountPopup(booking({
+      meta: {
+        currentCounterOffer: 'adjust',
+        negotiation: {
+          type: 'adjust',
+          status: 'sent',
+          negotiationId: 'neg_time_adjust_1',
+          actor: 'creator',
+          original: {
+            totalTokens: 100,
+            startAtIso: FUTURE_START,
+            endAtIso: FUTURE_END,
+            durationMinutes: 30,
+          },
+          proposed: {
+            totalTokens: 100,
+            startAtIso: '2027-04-26T16:15:00Z',
+            durationMinutes: 45,
+            remarks: 'A better time.',
+          },
+        },
+      },
+    }), { userRole: 'fan' });
+
+    const card = wrapper.get('[data-test="event-details-fan-price-adjustment"]');
+    expect(card.attributes('data-adjustment-type')).toBe('time');
+    expect(card.text()).toContain('has adjusted the time of the session:');
+    expect(card.text()).toContain('ORIGINAL DATE');
+    expect(card.text()).toContain('NEW DATE');
+    expect(card.text()).toContain('April');
+    expect(card.findAll('[data-test="event-details-fan-adjustment-comparison"]')).toHaveLength(1);
+    expect(card.get('[data-test="event-details-fan-adjustment-comparison"]').attributes('data-comparison-type')).toBe('time');
+    expect(wrapper.find('[data-test="event-details-fan-session-cost-adjusted"]').exists()).toBe(false);
+    expect(wrapper.get('[data-test="event-details-fan-accept-adjustment"]').text()).toContain('Accept New Time');
+
+    await wrapper.get('[data-test="event-details-fan-accept-adjustment"]').trigger('click');
+    expect(wrapper.emitted('accept-adjustment')?.[0]?.[0]).toEqual(expect.objectContaining({
+      negotiationId: 'neg_time_adjust_1',
+      hasPriceChange: false,
+      hasTimeChange: true,
+      originalStartAtIso: '2027-04-25T14:15:00.000Z',
+      originalEndAtIso: '2027-04-25T14:45:00.000Z',
+      proposedStartAtIso: '2027-04-26T16:15:00.000Z',
+      proposedEndAtIso: '2027-04-26T17:00:00.000Z',
+      proposedDurationMinutes: 45,
+    }));
+
+    wrapper.unmount();
+  });
+
+  it('renders time before price for a combined adjustment with dynamic copy', () => {
+    const wrapper = mountPopup(booking({
+      meta: {
+        currentCounterOffer: 'adjust',
+        negotiation: {
+          type: 'adjust',
+          status: 'sent',
+          actor: 'creator',
+          original: {
+            totalTokens: 100,
+            startAtIso: FUTURE_START,
+            endAtIso: FUTURE_END,
+            durationMinutes: 30,
+          },
+          proposed: {
+            totalTokens: 125,
+            startAtIso: '2027-04-25T16:15:00Z',
+            durationMinutes: 30,
+          },
+        },
+      },
+    }), { userRole: 'fan' });
+
+    const card = wrapper.get('[data-test="event-details-fan-price-adjustment"]');
+    const comparisons = card.findAll('[data-test="event-details-fan-adjustment-comparison"]');
+    expect(card.attributes('data-adjustment-type')).toBe('price-and-time');
+    expect(card.text()).toContain('has adjusted the cost and time of the session:');
+    expect(comparisons.map((row) => row.attributes('data-comparison-type'))).toEqual(['time', 'price']);
+    expect(wrapper.get('[data-test="event-details-fan-accept-adjustment"]').text()).toContain('Accept New Adjustments');
+    expect(wrapper.get('[data-test="event-details-fan-decline-adjustment"]').text()).toContain('Decline & Cancel');
+
+    wrapper.unmount();
+  });
+
+  it('shows creator-facing time-only copy and a two-line schedule comparison', () => {
+    const wrapper = mountPopup(booking({
+      meta: {
+        currentCounterOffer: 'adjust',
+        negotiation: {
+          type: 'adjust',
+          status: 'sent',
+          actor: 'creator',
+          original: { totalTokens: 100, startAtIso: FUTURE_START, endAtIso: FUTURE_END, durationMinutes: 30 },
+          proposed: { totalTokens: 100, durationMinutes: 45 },
+        },
+      },
+    }), { userRole: 'creator' });
+
+    expect(wrapper.get('[data-test="booking-details-adjustment-waiting-heading"]').text())
+      .toBe('Time adjustment has been sent to @grapegatsby for review:');
+    expect(wrapper.get('[data-comparison-type="time"] [data-test="booking-details-counteroffer-original-value"]').findAll('span')).toHaveLength(2);
+    expect(wrapper.get('[data-comparison-type="time"] [data-test="booking-details-counteroffer-proposed-value"]').findAll('span')).toHaveLength(2);
 
     wrapper.unmount();
   });

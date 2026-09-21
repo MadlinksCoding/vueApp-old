@@ -2882,6 +2882,107 @@ describe("MainCalendar all events count", () => {
     });
   });
 
+  it("keeps short booking-form events readable while preserving exact availability geometry", async () => {
+    const wrapper = await mountCalendar(
+      [
+        makeEvent({
+          id: "short_booking_1",
+          eventId: "evt_booking_form_short",
+          title: "Short booking 1",
+          start: new Date(2026, 3, 23, 12, 0, 0),
+          end: new Date(2026, 3, 23, 12, 10, 0),
+          isAvailabilityBlock: false,
+        }),
+        makeEvent({
+          id: "short_booking_overlap",
+          eventId: "evt_booking_form_short",
+          title: "Short booking overlap",
+          start: new Date(2026, 3, 23, 12, 0, 0),
+          end: new Date(2026, 3, 23, 12, 10, 0),
+          isAvailabilityBlock: false,
+        }),
+        makeEvent({
+          id: "short_booking_2",
+          eventId: "evt_booking_form_short",
+          title: "Short booking 2",
+          start: new Date(2026, 3, 23, 12, 15, 0),
+          end: new Date(2026, 3, 23, 12, 25, 0),
+          isAvailabilityBlock: false,
+        }),
+        makeEvent({
+          id: "short_booking_3",
+          eventId: "evt_booking_form_short",
+          title: "Short booking 3",
+          start: new Date(2026, 3, 23, 12, 35, 0),
+          end: new Date(2026, 3, 23, 12, 45, 0),
+          isAvailabilityBlock: false,
+        }),
+        makeEvent({
+          id: "short_availability",
+          eventId: "evt_booking_form_short",
+          title: "Short availability",
+          start: new Date(2026, 3, 23, 14, 0, 0),
+          end: new Date(2026, 3, 23, 14, 10, 0),
+          slot: "availability",
+          isAvailabilityBlock: true,
+        }),
+      ],
+      {
+        variant: "theme2",
+        initialView: "week",
+        dayColumnMode: "events",
+        rowHeightPx: 120,
+        minEventHeightPx: 48,
+      },
+      {
+        slots: {
+          event: `
+            <template #event="{ event, style }">
+              <div data-test="booking-form-short-booking" :data-booking-id="event.id" :style="style">{{ event.title }}</div>
+            </template>
+          `,
+          "event-availability": `
+            <template #event-availability="{ event, style }">
+              <div data-test="booking-form-short-availability" :style="style">{{ event.title }}</div>
+            </template>
+          `,
+        },
+      },
+    );
+
+    const bookings = wrapper.findAll("[data-test='booking-form-short-booking']");
+    const bookingById = Object.fromEntries(bookings.map((booking) => [
+      booking.attributes("data-booking-id"),
+      booking,
+    ]));
+    const availability = wrapper.get("[data-test='booking-form-short-availability']");
+
+    expect(bookings).toHaveLength(4);
+    expect(bookings.map((booking) => stylePixels(booking, "height"))).toEqual([48, 48, 48, 48]);
+    expect(stylePixels(bookingById.short_booking_overlap, "top"))
+      .toBe(stylePixels(bookingById.short_booking_1, "top"));
+    expect(bookingById.short_booking_1.attributes("style")).toContain("width: calc(50% - 4px)");
+    expect(bookingById.short_booking_overlap.attributes("style")).toContain("width: calc(50% - 4px)");
+
+    const sequentialBookings = [
+      bookingById.short_booking_1,
+      bookingById.short_booking_2,
+      bookingById.short_booking_3,
+    ];
+    for (let index = 1; index < sequentialBookings.length; index += 1) {
+      const previous = sequentialBookings[index - 1];
+      const current = sequentialBookings[index];
+      expect(stylePixels(current, "top")).toBeGreaterThanOrEqual(
+        stylePixels(previous, "top") + stylePixels(previous, "height"),
+      );
+    }
+
+    expect(stylePixels(availability, "height")).toBe(20);
+    expect(availability.attributes("style")).toContain("left: 0px");
+    expect(availability.attributes("style")).toContain("right: 2px");
+    expect(availability.attributes("style")).not.toContain("width:");
+  });
+
   it("honors per-event minimum heights while preserving the configured fallback", async () => {
     const wrapper = await mountCalendar(
       [
@@ -4408,6 +4509,7 @@ describe("MainCalendar all events count", () => {
       [],
       {
         userRole: "creator",
+        stickyCardsEnabled: true,
         stickyCardEvent: {
           title: "Creator Office Hours",
           canJoin: true,
@@ -4467,6 +4569,7 @@ describe("MainCalendar all events count", () => {
       [],
       {
         userRole: "fan",
+        stickyCardsEnabled: true,
         stickyCardEvent: {
           title: "Fan Booking",
           canJoin: true,
@@ -4500,6 +4603,7 @@ describe("MainCalendar all events count", () => {
       [],
       {
         userRole: "creator",
+        stickyCardsEnabled: true,
         stickyCardEvent: {
           title: "Fallback Booking",
           canJoin: true,
@@ -4543,7 +4647,7 @@ describe("MainCalendar all events count", () => {
 
     const wrapper = await mountCalendar(
       [],
-      { userRole: "creator", stickyCardEvent: makeStickyEvent(1407) },
+      { userRole: "creator", stickyCardsEnabled: true, stickyCardEvent: makeStickyEvent(1407) },
       { global: { stubs: { Teleport: true } } },
     );
     await flushPromises();
@@ -4593,7 +4697,7 @@ describe("MainCalendar all events count", () => {
     };
     const wrapper = await mountCalendar(
       [],
-      { stickyCardEvent, userRole: "creator" },
+      { stickyCardsEnabled: true, stickyCardEvent, userRole: "creator" },
       {
         global: {
           stubs: { Teleport: true },
@@ -4620,7 +4724,7 @@ describe("MainCalendar all events count", () => {
     const floatingTodayButton = wrapper.findAll("[data-main-today]")
       .find((button) => button.classes().includes("bottom-[7rem]"));
     expect(floatingTodayButton).toBeTruthy();
-    expect(floatingTodayButton.classes()).toContain("md:bottom-2");
+    expect(floatingTodayButton.classes()).toContain("md:bottom-5");
     expect(floatingTodayButton.classes())
       .not.toContain("ipad-portrait:bottom-[var(--sticky-card-tablet-bottom)]");
 
@@ -4666,7 +4770,7 @@ describe("MainCalendar all events count", () => {
     const unchangedEvent = makeStickyEvent("sent", 100);
     const wrapper = await mountCalendar(
       [],
-      { stickyCardEvent: unchangedEvent },
+      { stickyCardsEnabled: true, stickyCardEvent: unchangedEvent },
       { global: { stubs: { Teleport: true } } },
     );
     await wrapper.get("[data-test='mobile-join-card-menu-trigger']").trigger("click");
@@ -4730,7 +4834,43 @@ describe("MainCalendar all events count", () => {
     expect(wrapper.find("[data-test='mobile-join-card']").exists()).toBe(false);
   });
 
-  it("renders a confirmed sticky card on phones only", async () => {
+  it("does not render an eligible sticky card or reserve space when disabled", async () => {
+    setWindowWidth(390);
+    setWindowHeight(844);
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const wrapper = await mountCalendar(
+      [],
+      {
+        stickyCardEvent: {
+          title: "Disabled Sticky Booking",
+          canJoin: true,
+          joinUrl: "https://example.com/join/disabled",
+          sourceEvent: {
+            bookingId: "booking_disabled",
+            status: "confirmed",
+            start: "2026-04-23T10:00:00",
+            end: "2026-04-23T10:30:00",
+            raw: { userId: 1407, creatorId: 2615 },
+          },
+        },
+      },
+      { global: { stubs: { Teleport: true } } },
+    );
+
+    expect(wrapper.find("[data-test='tablet-sticky-card-list']").exists()).toBe(false);
+    expect(wrapper.find("[data-test='sticky-booking-card']").exists()).toBe(false);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(wrapper.emitted("join-call")).toBeUndefined();
+    expect(wrapper.emitted("menu-action")).toBeUndefined();
+    const todayButton = wrapper.findAll("[data-main-today]")
+      .find((button) => button.classes().includes("fixed"));
+    expect(todayButton.classes()).toContain("bottom-2");
+    expect(todayButton.classes()).toContain("md:bottom-5");
+    expect(todayButton.classes()).not.toContain("bottom-[7rem]");
+  });
+
+  it("renders a confirmed sticky card on phones only when explicitly enabled", async () => {
     const confirmed = {
       title: "Responsive Booking",
       canJoin: true,
@@ -4750,7 +4890,7 @@ describe("MainCalendar all events count", () => {
     setWindowHeight(844);
     const wrapper = await mountCalendar(
       [],
-      { stickyCardEvents: [confirmed], userRole: "creator" },
+      { stickyCardsEnabled: true, stickyCardEvents: [confirmed], userRole: "creator" },
       { global: { stubs: { Teleport: true } } },
     );
 
@@ -4872,6 +5012,7 @@ describe("MainCalendar all events count", () => {
       [],
       {
         userRole: "creator",
+        stickyCardsEnabled: true,
         stickyCardEvent: {
           title: "Group Workshop",
           canJoin: true,

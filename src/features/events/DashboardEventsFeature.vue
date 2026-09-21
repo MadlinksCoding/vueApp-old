@@ -25,6 +25,7 @@
           embedded ? 'lg:overflow-y-auto' : 'overflow-y-auto'
         ]"
         variant="default"
+        :sticky-cards-enabled="stickyBookingCardsEnabled"
         :sticky-card-events="stickyCardEvents"
         :sticky-card-event="stickyCardEvent"
         :focus-date="state.focus"
@@ -570,7 +571,7 @@
         'fixed right-2 md:right-5 z-[95] transition-all duration-300',
         isStickyCardVisible ? 'bottom-[7rem]' : 'bottom-2',
         'md:bottom-5',
-      ]" :style="{ '--sticky-card-tablet-bottom': tabletStickyCardBottom }" ref="floatingPopupTrigger" data-test="dashboard-floating-create-event">
+      ]" :style="stickyBookingCardsEnabled ? { '--sticky-card-tablet-bottom': tabletStickyCardBottom } : undefined" ref="floatingPopupTrigger" data-test="dashboard-floating-create-event">
         <!-- For Tablet and Mobile-->
         <button
           class="bg-[#FB5BA2] p-3 rounded-full flex ipad-portrait:flex lg:hidden ipad-portrait-large:hidden items-center justify-center shadow-lg hover:scale-110 transition-transform h-14 w-14"
@@ -1249,6 +1250,7 @@ const theme1 = computed(() => ({
 const DEFAULT_EVENT_COLOR = "#5549FF";
 const AVAILABILITY_TITLE_BOOKING_START_WINDOW_MS = 15 * 60 * 1000;
 const STARTING_SOON_WINDOW_MS = 5 * 60 * 1000;
+const stickyBookingCardsEnabled = false;
 const BOOKING_MIN_HEIGHT_PX = 40;
 const JOINABLE_BOOKING_MIN_HEIGHT_PX = 64;
 const MAIN_CALENDAR_BOOKING_STATUSES = Object.freeze([
@@ -2589,10 +2591,19 @@ const priceAdjustmentDecision = useBookingAdjustmentDecision(priceAdjustmentBook
   fanId: () => normalizedFanId.value,
 });
 
-const onAcceptPriceAdjustment = (payload) => {
+const onAcceptPriceAdjustment = async (payload) => {
   const value = payload?.booking || payload?.event?.raw || null;
   if (!value) return;
   priceAdjustmentBooking.value = value;
+  if (payload?.hasTimeChange && !payload?.hasPriceChange) {
+    priceAdjustmentLoading.value = true;
+    try {
+      await applyPriceAdjustment(payload);
+    } finally {
+      priceAdjustmentLoading.value = false;
+    }
+    return;
+  }
   priceAdjustmentDecision.open("accept", payload);
 };
 
@@ -2646,7 +2657,9 @@ const applyPriceAdjustment = async (adjustment = {}, { reportFailure = true } = 
       return outcome;
     }
 
-    refreshFanTokenBalance("accept_adjustment", bookingId);
+    if (adjustment.hasPriceChange !== false) {
+      refreshFanTokenBalance("accept_adjustment", bookingId);
+    }
 
     await syncBookingToChat(item || booking, "accepted", "accept_adjustment");
     priceAdjustmentDecision.reset({ force: true });
@@ -3402,6 +3415,8 @@ const stickyCardCandidates = computed(() => {
 });
 
 const stickyCardEvents = computed(() => {
+  if (!stickyBookingCardsEnabled) return [];
+
   const nowMs = currentTime.value.getTime();
   const confirmedItems = [];
   const pendingItems = [];
@@ -3435,15 +3450,21 @@ const stickyCardEvents = computed(() => {
 const stickyCardEvent = computed(() => stickyCardEvents.value.find((item) => (
   resolveBookingStatus(item?.sourceEvent || item) === "confirmed"
 )) || null);
-const isStickyCardVisible = computed(() => Boolean(stickyCardEvent.value));
-const hasTabletStickyCards = computed(() => stickyCardEvents.value.length > 0);
+const isStickyCardVisible = computed(() => (
+  stickyBookingCardsEnabled && Boolean(stickyCardEvent.value)
+));
+const hasTabletStickyCards = computed(() => (
+  stickyBookingCardsEnabled && stickyCardEvents.value.length > 0
+));
 const isTabletPortraitViewport = computed(() => (
   dashboardViewportWidth.value >= 678
   && dashboardViewportWidth.value <= 1366
   && dashboardViewportHeight.value >= dashboardViewportWidth.value
 ));
 const hasVisibleTabletStickyCards = computed(() => (
-  isTabletPortraitViewport.value && hasTabletStickyCards.value
+  stickyBookingCardsEnabled
+  && isTabletPortraitViewport.value
+  && hasTabletStickyCards.value
 ));
 const tabletStickyCardBottom = computed(() => {
   const cardCount = hasVisibleTabletStickyCards.value

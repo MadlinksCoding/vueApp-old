@@ -130,3 +130,27 @@ describe("fan top-up from the details panel", () => {
     expect(failureBlock).not.toContain("showBookingPopup");
   });
 });
+
+describe("time-only adjustment acceptance from booking details", () => {
+  it("bypasses the price decision while preserving the shared apply flow", () => {
+    expect(chatWindow).toContain('@accept-adjustment="handleBookingDetailsAcceptAdjustment"');
+    const handler = chatWindow.slice(
+      chatWindow.indexOf("async function handleBookingDetailsAcceptAdjustment"),
+      chatWindow.indexOf("function closeBookingDecision"),
+    );
+    expect(handler).toContain("adjustment.hasTimeChange && !adjustment.hasPriceChange");
+    expect(handler).toContain("_doConfirmCounter(bookingId, message, { adjustment })");
+    expect(handler.indexOf("openBookingDecision('accept', adjustment)"))
+      .toBeLessThan(handler.indexOf("_doConfirmCounter(bookingId, message, { adjustment })"));
+  });
+
+  it("submits schedule fields and skips balance refresh for time-only proposals", () => {
+    const applyBlock = chatWindow.slice(
+      chatWindow.indexOf("async function _doConfirmCounter"),
+      chatWindow.indexOf("async function onConfirmCounter"),
+    );
+    expect(applyBlock).toContain("proposedStartAtIso: adjustment.proposedStartAtIso");
+    expect(applyBlock).toContain("proposedDurationMinutes: adjustment.proposedDurationMinutes");
+    expect(applyBlock).toContain("if (adjustment.hasPriceChange !== false)");
+  });
+});

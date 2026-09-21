@@ -8,6 +8,7 @@
   import 'quill/dist/quill.snow.css';
   import { showToast } from "@/utils/toastBus.js";
   import { formatBookingValidationErrors, useBookingTranslations } from "@/i18n/bookingTranslations.js";
+  import ArrowRightIcon from '@/assets/images/icons/arrow-narrow-right.svg';
 
   // Accept Engine
   const props = defineProps(['engine']);
@@ -369,7 +370,7 @@
       <div class="w-full bg-[#D0D5DD] h-[1px]"></div>
       <div class="flex justify-end">
         <ButtonComponent @click="goToNext" :text="t('common_next')" variant="polygonLeft"
-          :rightIcon="'https://i.ibb.co/hx8ztZFf/svgviewer-png-output-8.webp'" :rightIconClass="`
+          :rightIcon=ArrowRightIcon :rightIconClass="`
               w-6 h-6 transition duration-200
               filter brightness-0 invert-0   /* Default: black */
               group-hover:[filter:brightness(0)_saturate(100%)_invert(75%)_sepia(23%)_saturate(7280%)_hue-rotate(93deg)_brightness(109%)_contrast(95%)]

@@ -922,6 +922,127 @@ describe("FSBookingNoticeCoordinator", () => {
     expect(ready.items[0].person).toMatchObject({ userId: 1407, name: "Creator" });
   });
 
+  it("keeps Ready notices through the booking end and safely handles missing end times", async () => {
+    vi.setSystemTime(new Date("2026-09-14T10:05:00.000Z"));
+    const booking = (bookingId, status, startIso, endIso) => ({
+      bookingId,
+      status,
+      startIso,
+      ...(endIso === undefined ? {} : { endIso }),
+      booking_user_id: 1407,
+      userDisplayName: "Creator",
+    });
+    const readyFeed = {
+      ...feed,
+      activities: [],
+      bookings: [
+        booking("live-valid", "confirmed", "2026-09-14T10:00:00.000Z", "2026-09-14T10:10:00.000Z"),
+        booking("ending-now", "accepted", "2026-09-14T10:00:00.000Z", "2026-09-14T10:05:00.000Z"),
+        booking("already-ended", "confirmed", "2026-09-14T09:50:00.000Z", "2026-09-14T10:04:59.000Z"),
+        booking("missing-end-started", "confirmed", "2026-09-14T10:00:00.000Z"),
+        booking("invalid-end-started", "confirmed", "2026-09-14T10:00:00.000Z", "not-a-date"),
+        booking("missing-end-upcoming", "confirmed", "2026-09-14T10:08:00.000Z"),
+        booking("cancelled-live", "cancelled", "2026-09-14T10:00:00.000Z", "2026-09-14T10:10:00.000Z"),
+      ],
+    };
+    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, json: async () => readyFeed })));
+
+    window.eval(coordinatorSource);
+    await vi.advanceTimersByTimeAsync(50);
+    await vi.runAllTicks();
+
+    const notices = window.FSEventsEmbed.mountBookingNotices.mock.calls[0][0].notices;
+    const readyBookingIds = notices
+      .filter((notice) => notice.type === "ready-to-join")
+      .map((notice) => notice.items[0].bookingId);
+    expect(readyBookingIds).toEqual(["live-valid", "missing-end-upcoming"]);
+  });
+
+  it("keeps an ongoing Ready booking dismissed after reload without revealing related notices", async () => {
+    vi.setSystemTime(new Date("2026-09-14T10:05:00.000Z"));
+    const startIso = "2026-09-14T10:00:00.000Z";
+    const readyId = `ready|ongoing-dismissed|${startIso}|10`;
+    const confirmationId = "confirmation-ongoing-dismissed";
+    localStorage.setItem("fsBookingNoticeState:v1:10", JSON.stringify({
+      activityCursor: 1,
+      openActivityIds: [confirmationId],
+      openActivityTimestamps: { [confirmationId]: Date.now() },
+      dismissedActivityIds: { [readyId]: Date.now() },
+      supersededActivityIds: {},
+      pendingActivityDismissalIds: {},
+    }));
+    const ongoingFeed = {
+      ...feed,
+      activities: [{
+        id: confirmationId,
+        type: "booking-confirmed",
+        priority: "general-information",
+        recipientRole: "fan",
+        bookingId: "ongoing-dismissed",
+        occurredAt: "2026-09-14T09:30:00.000Z",
+        display: { title: "Ongoing booking", startIso },
+      }],
+      bookings: [{
+        bookingId: "ongoing-dismissed",
+        status: "confirmed",
+        startIso,
+        endIso: "2026-09-14T10:30:00.000Z",
+        booking_user_id: 1407,
+        userDisplayName: "Creator",
+      }],
+      nextCursor: 1,
+    };
+    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, json: async () => ongoingFeed })));
+
+    window.eval(coordinatorSource);
+    await vi.advanceTimersByTimeAsync(50);
+    await vi.runAllTicks();
+
+    expect(window.FSEventsEmbed.mountBookingNotices.mock.calls[0][0].notices).toEqual([]);
+  });
+
+  it("does not reclassify a dismissed Ready booking as Events today", async () => {
+    vi.setSystemTime(new Date("2026-09-14T09:57:00.000Z"));
+    window.FSScheduledCallOverlay = { open: vi.fn(() => ({ close() {} })) };
+    const readyFeed = {
+      ...feed,
+      activities: [],
+      bookings: [{
+        bookingId: "booking-ready-only",
+        status: "confirmed",
+        startIso: "2026-09-14T10:00:00.000Z",
+        endIso: "2026-09-14T10:30:00.000Z",
+        booking_user_id: 1407,
+        userDisplayName: "Creator",
+        joinUrl: "/scheduled-meeting/?booking_id=booking-ready-only",
+      }],
+    };
+    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, json: async () => readyFeed })));
+
+    window.eval(coordinatorSource);
+    await vi.advanceTimersByTimeAsync(50);
+    await vi.runAllTicks();
+
+    const mountOptions = window.FSEventsEmbed.mountBookingNotices.mock.calls[0][0];
+    const controller = window.FSEventsEmbed.mountBookingNotices.mock.results[0].value;
+    const ready = mountOptions.notices.find((notice) => notice.type === "ready-to-join");
+    expect(ready).toBeDefined();
+
+    mountOptions.onPrimaryAction({
+      noticeId: ready.id,
+      dismissedItemIds: [],
+      action: {
+        id: "join-call",
+        bookingId: "booking-ready-only",
+        url: "/scheduled-meeting/?booking_id=booking-ready-only",
+      },
+    });
+
+    const noticesAfterJoin = controller.update.mock.calls.at(-1)[0].notices;
+    expect(noticesAfterJoin).toEqual([]);
+    expect(noticesAfterJoin.some((notice) => notice.type === "events-today")).toBe(false);
+  });
+
   it("builds Events today from future local-day bookings, promotes Ready items, and represents matching confirmations", async () => {
     vi.setSystemTime(new Date(2026, 8, 14, 10, 0, 0));
     const postMessage = vi.fn();
@@ -1019,8 +1140,12 @@ describe("FSBookingNoticeCoordinator", () => {
     expect(savedAfterClose.dismissedActivityIds["confirm-today"]).toBeDefined();
     expect(savedAfterClose.dismissedActivityIds["confirm-today-hidden"]).toBeDefined();
     expect(savedAfterClose.dismissedActivityIds["confirm-tomorrow"]).toBeDefined();
-    expect(window.FSEventsEmbed.mountBookingNotices.mock.results[0].value.update.mock.calls.at(-1)[0].notices)
-      .toEqual([expect.objectContaining({ type: "ready-to-join" })]);
+    const remainingReadyNotices = window.FSEventsEmbed.mountBookingNotices.mock.results[0].value.update.mock.calls.at(-1)[0].notices;
+    expect(remainingReadyNotices).toHaveLength(2);
+    expect(remainingReadyNotices).toEqual(expect.arrayContaining([
+      expect.objectContaining({ type: "ready-to-join", items: [expect.objectContaining({ bookingId: "ready-booking" })] }),
+      expect.objectContaining({ type: "ready-to-join", items: [expect.objectContaining({ bookingId: "already-started" })] }),
+    ]));
 
     const dismissedBroadcast = postMessage.mock.calls
       .map(([message]) => message)

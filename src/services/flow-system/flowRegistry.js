@@ -53,6 +53,7 @@ import { getBlocksForUserFlow } from "@/services/block-users/flows/getBlocksForU
 import { reviewPendingBookingFlow } from "@/services/bookings/flows/reviewPendingBookingFlow.js";
 import { cancelBookingFlow } from "@/services/bookings/flows/cancelBookingFlow.js";
 import { fetchBookingFlow } from "@/services/bookings/flows/fetchBookingFlow.js";
+import { checkBookingAdjustmentAvailabilityFlow } from "@/services/bookings/flows/checkBookingAdjustmentAvailabilityFlow.js";
 import { updateBookingFlow } from "@/services/bookings/flows/updateBookingFlow.js";
 import { mapCreateTemporaryHoldToRequest } from "@/services/bookings/mappers/createTemporaryHoldMapper.js";
 import { mapReviewPendingBookingToRequest } from "@/services/bookings/mappers/reviewPendingBookingMapper.js";
@@ -777,6 +778,7 @@ export const flowRegistry = {
         BOOKING_UPDATE_INVALID_ACTION: "Booking update action is invalid.",
         BOOKING_UPDATE_FAILED: "Could not renegotiate booking.",
         HTTP_400: "This booking update is invalid in the current state.",
+        HTTP_409: "This time is no longer available. Please ask the creator to select a different time.",
         HTTP_402: "Could not update held payment for this booking.",
       },
     },
@@ -800,6 +802,7 @@ export const flowRegistry = {
         BOOKING_UPDATE_INVALID_ACTION: "Booking update action is invalid.",
         BOOKING_UPDATE_FAILED: "Could not reschedule booking.",
         HTTP_400: "This booking cannot be rescheduled with the selected time.",
+        HTTP_409: "This time is no longer available. Please ask the creator to select a different time.",
       },
     },
   },
@@ -827,6 +830,23 @@ export const flowRegistry = {
       timeouts: { requestMs: 10000, totalFlowMs: 15000 },
       retry: { enabled: true, maxAttempts: 2, baseDelayMs: 200 },
       concurrency: { policy: "latestWins", dedupe: true, keyByPayload: true },
+    },
+  },
+
+  "bookings.checkAdjustmentAvailability": {
+    flowKind: "read",
+    flow: checkBookingAdjustmentAvailabilityFlow,
+    pipeline: {
+      timeouts: { requestMs: 5000, totalFlowMs: 8000 },
+      retry: { enabled: true, maxAttempts: 2, baseDelayMs: 150 },
+      concurrency: { policy: "latestWins", dedupe: true, keyByPayload: true },
+      destinations: [],
+      uiErrorMap: {
+        BOOKING_AVAILABILITY_INVALID_REQUEST: "The selected booking time is invalid.",
+        BOOKING_AVAILABILITY_CHECK_FAILED: "We couldn’t verify this time. Please try again.",
+        BOOKING_AVAILABILITY_CHECK_UNEXPECTED: "We couldn’t verify this time. Please try again.",
+        HTTP_503: "We couldn’t verify this time. Please try again.",
+      },
     },
   },
 

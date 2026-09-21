@@ -1009,19 +1009,28 @@ async function onRejectCounter(input) {
   }
 }
 
-async function _doConfirmCounter(bookingId, message, { reportFailure = true } = {}) {
+async function _doConfirmCounter(bookingId, message, { reportFailure = true, adjustment = {} } = {}) {
   bookingActionLoading.value = true
 
   try {
-    // Read proposed values from booking meta (stored by AdjustBookingPopup via updateMeta)
     const cachedBooking = chatStore.getBookingById(bookingId)
     const adjustMeta    = cachedBooking?.meta?.adjust || {}
+    const negotiation   = cachedBooking?.meta?.negotiation || {}
     const outcome = await bookingActions.applyPriceAdjustment({
       bookingId,
-      proposedStartAtIso: adjustMeta.proposedSlotDate,
-      proposedTokens:     adjustMeta.proposedTokens,
-      remarks:            adjustMeta.proposedRemarks,
-      negotiationId:      cachedBooking?.meta?.negotiation?.negotiationId || null,
+      proposedStartAtIso: adjustment.proposedStartAtIso
+        || negotiation.proposed?.startAtIso
+        || adjustMeta.proposedSlotDate,
+      proposedDurationMinutes: adjustment.proposedDurationMinutes
+        ?? negotiation.proposed?.durationMinutes
+        ?? adjustMeta.adjustedDurationMinutes,
+      proposedTokens: adjustment.proposedTokens
+        ?? negotiation.proposed?.totalTokens
+        ?? adjustMeta.proposedTokens,
+      remarks: adjustment.remarks
+        || negotiation.proposed?.remarks
+        || adjustMeta.proposedRemarks,
+      negotiationId: adjustment.negotiationId || negotiation.negotiationId || null,
     })
     const { ok, item, error } = outcome
 
@@ -1030,7 +1039,9 @@ async function _doConfirmCounter(bookingId, message, { reportFailure = true } = 
       return outcome
     }
 
-    refreshFanTokenBalance('accept_adjustment', bookingId)
+    if (adjustment.hasPriceChange !== false) {
+      refreshFanTokenBalance('accept_adjustment', bookingId)
+    }
 
     // Keep cached booking fresh
     const updated = await refreshCachedBooking(bookingId, item)
@@ -1070,7 +1081,7 @@ async function onConfirmCounter(input) {
   if (!bookingId) return
 
   if (!input?.requiresTopup) {
-    await _doConfirmCounter(bookingId, message)
+    await _doConfirmCounter(bookingId, message, { adjustment: input })
     closeBookingDecision({ force: true })
     showBookingPopup.value = false
     return
@@ -1298,6 +1309,24 @@ function openBookingDecision(mode, payload) {
     if (merged[key] == null) merged[key] = fallback[key] ?? null
   }
   bookingDecision.open(mode, merged)
+}
+
+async function handleBookingDetailsAcceptAdjustment(adjustment = {}) {
+  if (bookingActionLoading.value) return
+  if (!(adjustment.hasTimeChange && !adjustment.hasPriceChange)) {
+    openBookingDecision('accept', adjustment)
+    return
+  }
+
+  const message = activeBookingMessage.value || resolveBookingMessage(adjustment)
+  const bookingId = adjustment.bookingId
+    || activeBookingData.value?.bookingId
+    || activeBookingData.value?.id
+    || message?.content?.booking_id
+  if (!bookingId) return
+
+  const outcome = await _doConfirmCounter(bookingId, message, { adjustment })
+  if (outcome?.ok) showBookingPopup.value = false
 }
 
 function closeBookingDecision({ force = false } = {}) {
@@ -3824,7 +3853,7 @@ onUnmounted(() => {
     @approve-booking="onDirectAccept"
     @reject-booking="onDirectDecline"
     @adjust-booking="openAdjustPopup"
-    @accept-adjustment="openBookingDecision('accept', $event)"
+    @accept-adjustment="handleBookingDetailsAcceptAdjustment"
     @decline-adjustment="openBookingDecision('decline', $event)"
     @cancel-booking="openBookingDecision('cancel', $event)"
     @accept-counter="onAcceptCounter"

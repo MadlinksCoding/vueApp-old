@@ -63,7 +63,7 @@
             :session-cost="paymentTotal"
             :cancellation-fee="activeCancellationFee"
             :booking-fee="activeBookingFee"
-            :pending-price-adjustment="pendingPriceAdjustment"
+            :pending-price-adjustment="hasPriceChange"
             :adjustment="adjustment"
             :reminder-text="reminderText"
             :can-open-chat="canOpenChat"
@@ -342,7 +342,7 @@
 
       <div
         v-else-if="creatorWaitingForAdjustment"
-        class="self-stretch min-h-16 border-b-[0.5px] border-[#EAECF0] inline-flex items-stretch"
+        class="self-stretch min-h-16 shrink-0 border-b-[0.5px] border-[#EAECF0] inline-flex items-stretch"
         :data-counteroffer-type="counterOfferType"
         data-test="booking-details-adjustment-waiting-notice"
       >
@@ -365,29 +365,39 @@
             </div>
             <div class="flex-1 min-w-0 self-stretch flex flex-col items-start justify-center">
               <div class="self-stretch pb-2 pr-1 pt-1 text-sm font-semibold leading-5 text-[#344054] break-words" data-test="booking-details-adjustment-waiting-heading">
-                {{ t('booking_details_counteroffer_sent_for_review', { fan: decisionFanUsername }) }}
+                {{ t(creatorAdjustmentHeadingKey, { fan: decisionFanUsername }) }}
               </div>
               <div class="self-stretch flex flex-col items-start gap-2.5">
                 <div v-if="counterOfferPresentation.remarks" class="self-stretch flex flex-col items-start gap-0.5 text-black [text-shadow:_0px_0px_10px_rgb(0_0_0_/_0.10)]" data-test="booking-details-counteroffer-remarks">
                   <div class="self-stretch text-xs font-normal leading-[18px]">{{ t('booking_details_counteroffer_your_remarks') }}</div>
                   <div class="self-stretch whitespace-pre-wrap break-words text-sm font-normal leading-5">“{{ counterOfferPresentation.remarks }}”</div>
                 </div>
-                <div v-if="counterOfferPresentation.hasComparison" class="self-stretch flex flex-wrap items-center gap-2" data-test="booking-details-counteroffer-comparison">
+                <div
+                  v-for="comparison in counterOfferPresentation.comparisons"
+                  :key="comparison.type"
+                  class="self-stretch flex flex-wrap items-center gap-2"
+                  :data-comparison-type="comparison.type"
+                  data-test="booking-details-counteroffer-comparison"
+                >
                   <div class="min-w-0 px-2 flex flex-col items-start justify-center gap-1">
-                    <div class="text-xs font-medium leading-[18px] text-[#97180C]" data-test="booking-details-counteroffer-original-label">{{ counterOfferPresentation.originalLabel }}</div>
+                    <div class="text-xs font-medium leading-[18px] text-[#97180C]" data-test="booking-details-counteroffer-original-label">{{ comparison.originalLabel }}</div>
                     <div class="min-w-0 flex items-center gap-1">
-                      <img v-if="counterOfferPresentation.usesTokens" :src="tokenIcon" alt="" class="size-5 shrink-0 grayscale" data-test="booking-details-counteroffer-original-token" />
-                      <div class="min-w-0 break-words text-sm font-medium leading-5 text-[#667085] line-through" data-test="booking-details-counteroffer-original-value">{{ counterOfferPresentation.originalValue }}</div>
+                      <img v-if="comparison.usesTokens" :src="tokenIcon" alt="" class="size-5 shrink-0 grayscale" data-test="booking-details-counteroffer-original-token" />
+                      <div class="min-w-0 break-words text-sm font-medium leading-5 text-[#667085] line-through" data-test="booking-details-counteroffer-original-value">
+                        <span v-for="line in comparison.originalLines" :key="line" class="block">{{ line }}</span>
+                      </div>
                     </div>
                   </div>
                   <div data-svg-wrapper class="relative size-6 shrink-0 overflow-hidden">
                     <img :src="priceArrowIcon" alt="" class="size-6" />
                   </div>
                   <div class="min-w-0 px-2 flex flex-col items-start justify-center gap-1">
-                    <div class="text-xs font-medium leading-[18px] text-[#FF4405]" data-test="booking-details-counteroffer-proposed-label">{{ counterOfferPresentation.proposedLabel }}</div>
+                    <div class="text-xs font-medium leading-[18px] text-[#FF4405]" data-test="booking-details-counteroffer-proposed-label">{{ comparison.proposedLabel }}</div>
                     <div class="min-w-0 flex items-center gap-1">
-                      <img v-if="counterOfferPresentation.usesTokens" :src="tokenIcon" alt="" class="size-5 shrink-0" data-test="booking-details-counteroffer-proposed-token" />
-                      <div class="min-w-0 break-words text-sm font-semibold leading-5 text-[#FF4405]" data-test="booking-details-counteroffer-proposed-value">{{ counterOfferPresentation.proposedValue }}</div>
+                      <img v-if="comparison.usesTokens" :src="tokenIcon" alt="" class="size-5 shrink-0" data-test="booking-details-counteroffer-proposed-token" />
+                      <div class="min-w-0 break-words text-sm font-semibold leading-5 text-[#FF4405]" data-test="booking-details-counteroffer-proposed-value">
+                        <span v-for="line in comparison.proposedLines" :key="line" class="block">{{ line }}</span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -445,7 +455,7 @@
         </div>
       </div>
 
-      <div v-else-if="fanPendingPriceAdjustment" class="self-stretch shadow-[0px_0px_8px_0px_rgba(0,0,0,0.25)] border-b-[0.50px] border-gray-200 inline-flex justify-start items-start" data-test="event-details-fan-price-adjustment">
+      <div v-else-if="fanPendingAdjustment" class="self-stretch shadow-[0px_0px_8px_0px_rgba(0,0,0,0.25)] border-b-[0.50px] border-gray-200 inline-flex justify-start items-start" :data-adjustment-type="adjustmentChangeType" data-test="event-details-fan-price-adjustment">
         <div class="w-1 self-stretch bg-orange-600" />
         <div class="flex-1 px-2 py-3 [background:linear-gradient(90deg,rgba(255,255,255,0)_0%,rgba(255,255,255,0.9)_100%),linear-gradient(0deg,rgba(255,68,5,0.1)_0%,rgba(255,68,5,0.1)_100%),rgba(255,255,255,0.9)] inline-flex flex-col justify-start items-start gap-4">
           <div class="self-stretch inline-flex justify-end items-start gap-4">
@@ -456,7 +466,7 @@
               <div class="self-stretch pb-2 flex flex-col justify-start items-start gap-2">
                 <div class="self-stretch inline-flex justify-between items-start">
                   <div class="flex-1 pr-1 pt-1 flex justify-center items-center gap-2.5">
-                    <div class="flex-1 justify-start"><span class="text-red-800 text-sm font-semibold leading-5">{{ creatorName || t('common_creator') }} </span> <span class="text-red-800 text-sm font-normal leading-5">{{ t('fan_event_details_adjusted_cost') }}</span></div>
+                    <div class="flex-1 justify-start"><span class="text-red-800 text-sm font-semibold leading-5">{{ creatorName || t('common_creator') }} </span> <span class="text-red-800 text-sm font-normal leading-5">{{ t(fanAdjustmentHeadingKey) }}</span></div>
                   </div>
                 </div>
               </div>
@@ -466,20 +476,30 @@
                     <div class="self-stretch justify-start text-black text-xs font-normal leading-4 [text-shadow:_0px_0px_10px_rgb(0_0_0_/_0.10)]">{{ t('fan_event_details_remarks') }}</div>
                     <div class="self-stretch justify-start text-black text-sm font-normal leading-5 [text-shadow:_0px_0px_10px_rgb(0_0_0_/_0.10)] whitespace-pre-wrap break-words">{{ adjustment.remarks }}</div>
                   </div>
-                  <div class="self-stretch inline-flex justify-start items-center gap-2">
+                  <div
+                    v-for="comparison in adjustmentComparisons"
+                    :key="comparison.type"
+                    class="self-stretch inline-flex flex-wrap justify-start items-center gap-2"
+                    :data-comparison-type="comparison.type"
+                    data-test="event-details-fan-adjustment-comparison"
+                  >
                     <div class="size- px-2 inline-flex flex-col justify-center items-start gap-1">
-                      <div class="text-center justify-start text-red-800 text-xs font-medium leading-4">{{ t('fan_event_details_original_price') }}</div>
-                      <div class="size- inline-flex justify-start items-center gap-1 grayscale">
-                        <div data-svg-wrapper class="relative"><img :src="TokenIcon" alt="" /></div>
-                        <div class="text-center justify-start text-gray-500 text-sm font-medium line-through leading-5">{{ formatTokenAmount(adjustment.originalTokens) }}</div>
+                      <div class="text-center justify-start text-red-800 text-xs font-medium leading-4">{{ comparison.originalLabel }}</div>
+                      <div class="size- inline-flex justify-start items-center gap-1" :class="{ grayscale: comparison.usesTokens }">
+                        <div v-if="comparison.usesTokens" data-svg-wrapper class="relative"><img :src="TokenIcon" alt="" /></div>
+                        <div class="text-left justify-start text-gray-500 text-sm font-medium line-through leading-5">
+                          <span v-for="line in comparison.originalLines" :key="line" class="block">{{ line }}</span>
+                        </div>
                       </div>
                     </div>
                     <div data-svg-wrapper class="relative"><img :src="ArrowBrownIcon" alt="" /></div>
                     <div class="size- px-2 inline-flex flex-col justify-center items-start gap-1">
-                      <div class="text-center justify-start text-orange-600 text-xs font-medium leading-4">{{ t('fan_event_details_new_price') }}</div>
+                      <div class="text-center justify-start text-orange-600 text-xs font-medium leading-4">{{ comparison.proposedLabel }}</div>
                       <div class="size- inline-flex justify-start items-center gap-1">
-                        <div data-svg-wrapper class="relative"><img :src="TokenIcon" alt="" /></div>
-                        <div class="text-center justify-start text-orange-600 text-sm font-semibold leading-5">{{ formatTokenAmount(adjustment.proposedTokens) }}</div>
+                        <div v-if="comparison.usesTokens" data-svg-wrapper class="relative"><img :src="TokenIcon" alt="" /></div>
+                        <div class="text-left justify-start text-orange-600 text-sm font-semibold leading-5">
+                          <span v-for="line in comparison.proposedLines" :key="line" class="block">{{ line }}</span>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -488,7 +508,7 @@
                   <div class="flex-1 flex justify-start flex-col sm:flex-row items-center gap-2">
                     <button type="button" class="flex-1 self-stretch min-w-20 p-2 bg-[#07F468] flex justify-center items-center gap-2.5 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60" :disabled="actionLoading" data-test="event-details-fan-accept-adjustment" @click="emit('accept-adjustment', adjustment)">
                       <div data-svg-wrapper class="relative"><img :src="CheckBlackIcon" alt="" /></div>
-                      <div class="text-center justify-start text-[#0C111D] text-sm font-medium capitalize leading-6 tracking-tight">{{ actionLoading ? t('common_loading') : t('booking_details_accept_and_pay') }}</div>
+                      <div class="text-center justify-start text-[#0C111D] text-sm font-medium capitalize leading-6 tracking-tight">{{ actionLoading ? t('common_loading') : t(acceptAdjustmentLabelKey) }}</div>
                     </button>
                     <button type="button" class="flex-1 self-stretch sm:flex-none sm:self-auto min-w-20 p-2 bg-[#FF4405] flex justify-center items-center gap-2.5 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60" :disabled="actionLoading" data-test="event-details-fan-decline-adjustment" @click="emit('decline-adjustment', adjustment)">
                       <div data-svg-wrapper class="relative"><img :src="CloseIcon" alt="" /></div>
@@ -554,7 +574,7 @@
             :session-cost="paymentTotal"
             :cancellation-fee="activeCancellationFee"
             :booking-fee="activeBookingFee"
-            :pending-price-adjustment="pendingPriceAdjustment"
+            :pending-price-adjustment="hasPriceChange"
             :adjustment="adjustment"
             :reminder-text="reminderText"
             @open-chat="handleOpenChat"
@@ -841,24 +861,130 @@ const statusColor = computed(() => ['confirmed', 'completed'].includes(displaySt
 // back to booking/event props so review and waiting states use one data source.
 const counterOffer = computed(() => getPendingCounterOffer([raw.value, props.booking, props.event]));
 const counterOfferType = computed(() => counterOffer.value.type);
-const pendingPriceAdjustment = computed(() => counterOfferType.value === 'adjust');
-const pendingTimeOffer = computed(() => counterOfferType.value === 'moretime' || counterOfferType.value === 'reschedule');
-const fanPendingPriceAdjustment = computed(() => viewerRole.value === 'fan' && pendingPriceAdjustment.value);
-const fanPendingTimeOffer = computed(() => viewerRole.value === 'fan' && pendingTimeOffer.value && !isExpired.value);
-const creatorWaitingForAdjustment = computed(() => viewerRole.value === 'creator' && Boolean(counterOfferType.value));
-const eventColor = computed(() => fanPendingPriceAdjustment.value ? '#FACC15' : storedEventColor.value);
 const adjustment = computed(() => {
-  const negotiation = raw.value?.meta?.negotiation || {};
-  const legacy = raw.value?.meta?.adjust || {};
+  const meta = raw.value?.meta || {};
+  const negotiation = meta.negotiation && typeof meta.negotiation === 'object' ? meta.negotiation : {};
+  const original = negotiation.original && typeof negotiation.original === 'object' ? negotiation.original : {};
+  const proposed = negotiation.proposed && typeof negotiation.proposed === 'object' ? negotiation.proposed : {};
+  const legacy = meta.adjust && typeof meta.adjust === 'object' ? meta.adjust : {};
+
+  const originalStart = parseDate(firstText(original.startAtIso, raw.value?.startAtIso, raw.value?.startIso, props.event?.start));
+  const originalExplicitEnd = parseDate(firstText(original.endAtIso, raw.value?.endAtIso, raw.value?.endIso, props.event?.end));
+  const originalDurationMinutes = finiteNumber(original.durationMinutes)
+    ?? durationBetweenMinutes(originalStart, originalExplicitEnd);
+  const originalEnd = endFromDuration(originalStart, originalExplicitEnd, originalDurationMinutes);
+
+  const proposedStartInput = firstText(proposed.startAtIso, legacy.proposedSlotDate);
+  const proposedStart = parseDate(proposedStartInput) || originalStart;
+  const proposedExplicitEnd = parseDate(firstText(proposed.endAtIso, legacy.proposedEndAtIso, legacy.proposedEndIso));
+  const proposedDurationMinutes = finiteNumber(proposed.durationMinutes)
+    ?? finiteNumber(legacy.adjustedDurationMinutes)
+    ?? durationBetweenMinutes(proposedStart, proposedExplicitEnd)
+    ?? originalDurationMinutes;
+  const proposedEnd = endFromDuration(proposedStart, proposedExplicitEnd, proposedDurationMinutes);
+
+  const originalTokens = finiteNumber(original.totalTokens) ?? finiteNumber(legacy.prevTotalTokens);
+  const proposedTokens = finiteNumber(proposed.totalTokens) ?? finiteNumber(legacy.proposedTokens);
+  const hasPriceChange = originalTokens != null
+    && proposedTokens != null
+    && originalTokens !== proposedTokens;
+  const hasStartChange = Boolean(proposedStartInput)
+    && Boolean(originalStart)
+    && Boolean(proposedStart)
+    && originalStart.getTime() !== proposedStart.getTime();
+  const hasDurationChange = originalDurationMinutes != null
+    && proposedDurationMinutes != null
+    && originalDurationMinutes !== proposedDurationMinutes;
+  const hasTimeChange = hasStartChange || hasDurationChange;
+
   return {
     negotiationId: negotiation.negotiationId || null,
-    originalTokens: finiteNumber(negotiation.original?.totalTokens) ?? finiteNumber(legacy.prevTotalTokens),
-    proposedTokens: finiteNumber(negotiation.proposed?.totalTokens) ?? finiteNumber(legacy.proposedTokens),
-    proposedStartAtIso: firstText(negotiation.proposed?.startAtIso, legacy.proposedSlotDate),
-    proposedDurationMinutes: finiteNumber(negotiation.proposed?.durationMinutes) ?? finiteNumber(legacy.adjustedDurationMinutes),
-    remarks: firstText(negotiation.proposed?.remarks, legacy.proposedRemarks),
+    originalTokens,
+    proposedTokens,
+    originalStartAtIso: originalStart?.toISOString() || '',
+    originalEndAtIso: originalEnd?.toISOString() || '',
+    originalDurationMinutes,
+    proposedStartAtIso: proposedStart?.toISOString() || '',
+    proposedEndAtIso: proposedEnd?.toISOString() || '',
+    proposedDurationMinutes,
+    hasPriceChange,
+    hasTimeChange,
+    remarks: firstText(proposed.remarks, legacy.proposedRemarks),
   };
 });
+const pendingAdjustment = computed(() => counterOfferType.value === 'adjust'
+  && (adjustment.value.hasPriceChange || adjustment.value.hasTimeChange));
+const hasPriceChange = computed(() => pendingAdjustment.value && adjustment.value.hasPriceChange);
+const pendingTimeOffer = computed(() => counterOfferType.value === 'moretime' || counterOfferType.value === 'reschedule');
+const fanPendingAdjustment = computed(() => viewerRole.value === 'fan' && pendingAdjustment.value);
+const fanPendingTimeOffer = computed(() => viewerRole.value === 'fan' && pendingTimeOffer.value && !isExpired.value);
+const creatorWaitingForAdjustment = computed(() => viewerRole.value === 'creator'
+  && (pendingAdjustment.value || pendingTimeOffer.value));
+const eventColor = computed(() => fanPendingAdjustment.value ? '#FACC15' : storedEventColor.value);
+function formatAdjustmentDate(value) {
+  const date = parseDate(value);
+  return date
+    ? new Intl.DateTimeFormat(locale.value, { year: 'numeric', month: 'long', day: 'numeric' }).format(date)
+    : '';
+}
+function formatAdjustmentTimeRange(startValue, endValue) {
+  const start = parseDate(startValue);
+  const end = parseDate(endValue);
+  if (!start || !end) return '';
+  const formatter = new Intl.DateTimeFormat(locale.value, { hour: 'numeric', minute: '2-digit' });
+  return `${formatter.format(start)} - ${formatter.format(end)}`;
+}
+const adjustmentComparisons = computed(() => {
+  const comparisons = [];
+  if (adjustment.value.hasTimeChange) {
+    const originalDate = formatAdjustmentDate(adjustment.value.originalStartAtIso);
+    const originalTime = formatAdjustmentTimeRange(adjustment.value.originalStartAtIso, adjustment.value.originalEndAtIso);
+    const proposedDate = formatAdjustmentDate(adjustment.value.proposedStartAtIso);
+    const proposedTime = formatAdjustmentTimeRange(adjustment.value.proposedStartAtIso, adjustment.value.proposedEndAtIso);
+    if (originalDate && originalTime && proposedDate && proposedTime) {
+      comparisons.push({
+        type: 'time',
+        originalLabel: t('booking_details_original_date'),
+        proposedLabel: t('booking_details_new_date'),
+        originalLines: [originalDate, originalTime],
+        proposedLines: [proposedDate, proposedTime],
+        usesTokens: false,
+      });
+    }
+  }
+  if (adjustment.value.hasPriceChange) {
+    comparisons.push({
+      type: 'price',
+      originalLabel: t('booking_adjustment_original_price'),
+      proposedLabel: t('booking_adjustment_new_price'),
+      originalLines: [formatTokenAmount(adjustment.value.originalTokens)],
+      proposedLines: [formatTokenAmount(adjustment.value.proposedTokens)],
+      usesTokens: true,
+    });
+  }
+  return comparisons;
+});
+const adjustmentChangeType = computed(() => adjustment.value.hasPriceChange && adjustment.value.hasTimeChange
+  ? 'price-and-time'
+  : adjustment.value.hasTimeChange ? 'time' : 'price');
+const fanAdjustmentHeadingKey = computed(() => ({
+  price: 'fan_event_details_adjusted_cost',
+  time: 'fan_event_details_adjusted_time',
+  'price-and-time': 'fan_event_details_adjusted_cost_and_time',
+})[adjustmentChangeType.value]);
+const creatorAdjustmentHeadingKey = computed(() => {
+  if (counterOfferType.value !== 'adjust') return 'booking_details_counteroffer_sent_for_review';
+  return ({
+    price: 'booking_details_price_adjustment_sent_for_review',
+    time: 'booking_details_time_adjustment_sent_for_review',
+    'price-and-time': 'booking_details_price_time_adjustment_sent_for_review',
+  })[adjustmentChangeType.value];
+});
+const acceptAdjustmentLabelKey = computed(() => ({
+  price: 'booking_details_accept_new_price',
+  time: 'booking_details_accept_new_time',
+  'price-and-time': 'booking_details_accept_new_adjustments',
+})[adjustmentChangeType.value]);
 const counterOfferPresentation = computed(() => {
   const meta = raw.value?.meta || {};
   const negotiation = meta.negotiation && typeof meta.negotiation === 'object' ? meta.negotiation : {};
@@ -868,61 +994,45 @@ const counterOfferPresentation = computed(() => {
   const legacyCandidate = meta[rawType] || meta[counterOfferType.value];
   const legacy = legacyCandidate && typeof legacyCandidate === 'object' ? legacyCandidate : {};
   const remarks = firstText(proposed.remarks, legacy.proposedRemarks, counterOffer.value.proposed.proposedRemarks);
-
-  let originalLabel = '';
-  let proposedLabel = '';
-  let originalValue = '';
-  let proposedValue = '';
-  let usesTokens = false;
-
   if (counterOfferType.value === 'adjust') {
-    const originalTokens = finiteNumber(original.totalTokens)
-      ?? finiteNumber(legacy.prevTotalTokens)
-      ?? finiteNumber(counterOffer.value.proposed.prevTotalTokens);
-    const proposedTokens = finiteNumber(proposed.totalTokens)
-      ?? finiteNumber(legacy.proposedTokens)
-      ?? finiteNumber(counterOffer.value.proposed.proposedTokens);
-    originalLabel = t('booking_adjustment_original_price');
-    proposedLabel = t('booking_adjustment_new_price');
-    originalValue = originalTokens == null ? '' : formatTokenAmount(originalTokens);
-    proposedValue = proposedTokens == null ? '' : formatTokenAmount(proposedTokens);
-    usesTokens = true;
-  } else {
-    const originalStart = firstText(original.startAtIso, raw.value?.startAtIso, raw.value?.startIso, props.event?.start);
-    const originalEnd = firstText(original.endAtIso, raw.value?.endAtIso, raw.value?.endIso, props.event?.end);
-    const proposedStart = firstText(proposed.startAtIso, legacy.proposedSlotDate, counterOffer.value.proposed.proposedSlotDate);
-    const proposedExplicitEnd = firstText(proposed.endAtIso, legacy.proposedEndAtIso, legacy.proposedEndIso);
-    const originalDuration = finiteNumber(original.durationMinutes)
-      ?? durationBetweenMinutes(originalStart, originalEnd);
-    const proposedDuration = finiteNumber(proposed.durationMinutes)
-      ?? finiteNumber(legacy.adjustedDurationMinutes)
-      ?? finiteNumber(counterOffer.value.proposed.adjustedDurationMinutes)
-      ?? durationBetweenMinutes(proposedStart, proposedExplicitEnd)
-      ?? originalDuration;
-
-    if (counterOfferType.value === 'reschedule') {
-      const proposedEnd = endFromDuration(proposedStart, proposedExplicitEnd, proposedDuration);
-      originalLabel = t('booking_details_counteroffer_original_schedule');
-      proposedLabel = t('booking_details_counteroffer_new_schedule');
-      originalValue = formatCounterOfferRange(originalStart, originalEnd);
-      proposedValue = formatCounterOfferRange(proposedStart, proposedEnd);
-    } else if (counterOfferType.value === 'moretime') {
-      originalLabel = t('booking_details_counteroffer_original_duration');
-      proposedLabel = t('booking_details_counteroffer_new_duration');
-      originalValue = formatCounterOfferDuration(originalDuration);
-      proposedValue = formatCounterOfferDuration(proposedDuration);
-    }
+    return { remarks, comparisons: adjustmentComparisons.value };
   }
 
-  return {
-    remarks,
-    originalLabel,
-    proposedLabel,
-    originalValue,
-    proposedValue,
-    usesTokens,
-    hasComparison: Boolean(originalValue && proposedValue),
-  };
+  let comparison = null;
+  const originalStart = firstText(original.startAtIso, raw.value?.startAtIso, raw.value?.startIso, props.event?.start);
+  const originalEnd = firstText(original.endAtIso, raw.value?.endAtIso, raw.value?.endIso, props.event?.end);
+  const proposedStart = firstText(proposed.startAtIso, legacy.proposedSlotDate, counterOffer.value.proposed.proposedSlotDate);
+  const proposedExplicitEnd = firstText(proposed.endAtIso, legacy.proposedEndAtIso, legacy.proposedEndIso);
+  const originalDuration = finiteNumber(original.durationMinutes) ?? durationBetweenMinutes(originalStart, originalEnd);
+  const proposedDuration = finiteNumber(proposed.durationMinutes)
+    ?? finiteNumber(legacy.adjustedDurationMinutes)
+    ?? finiteNumber(counterOffer.value.proposed.adjustedDurationMinutes)
+    ?? durationBetweenMinutes(proposedStart, proposedExplicitEnd)
+    ?? originalDuration;
+
+  if (counterOfferType.value === 'reschedule') {
+    const proposedEnd = endFromDuration(proposedStart, proposedExplicitEnd, proposedDuration);
+    comparison = {
+      type: 'schedule',
+      originalLabel: t('booking_details_counteroffer_original_schedule'),
+      proposedLabel: t('booking_details_counteroffer_new_schedule'),
+      originalLines: [formatCounterOfferRange(originalStart, originalEnd)],
+      proposedLines: [formatCounterOfferRange(proposedStart, proposedEnd)],
+      usesTokens: false,
+    };
+  } else if (counterOfferType.value === 'moretime') {
+    comparison = {
+      type: 'duration',
+      originalLabel: t('booking_details_counteroffer_original_duration'),
+      proposedLabel: t('booking_details_counteroffer_new_duration'),
+      originalLines: [formatCounterOfferDuration(originalDuration)],
+      proposedLines: [formatCounterOfferDuration(proposedDuration)],
+      usesTokens: false,
+    };
+  }
+
+  const hasComparison = comparison?.originalLines.every(Boolean) && comparison?.proposedLines.every(Boolean);
+  return { remarks, comparisons: hasComparison ? [comparison] : [] };
 });
 function formatTokenAmount(amount) { const value = finiteNumber(amount); return value == null ? t('calendar_event_not_set') : new Intl.NumberFormat(locale.value).format(value); }
 const paymentTotal = computed(() => {
@@ -1002,10 +1112,10 @@ const showMenu = computed(() => Boolean(bookingId.value) && shouldShowBookingOpt
   viewerRole: viewerRole.value,
   status: normalizedStatus.value,
   isPassed: Boolean(isEnded.value) || pendingStartElapsed.value,
-  hasPendingPriceAdjustment: pendingPriceAdjustment.value,
+  hasPendingPriceAdjustment: pendingAdjustment.value,
 }));
 const approvalState = computed(() => getCalendarEventApprovalState(props.event, { now: now.value }));
-const isWaitingForResponse = computed(() => viewerRole.value === 'creator' && Boolean(raw.value?.meta?.currentCounterOffer));
+const isWaitingForResponse = computed(() => viewerRole.value === 'creator' && Boolean(counterOfferType.value));
 const canReviewBooking = computed(() => viewerRole.value === 'creator' && props.canReviewPending && approvalState.value.canReview && !isWaitingForResponse.value);
 const canAdjustBooking = computed(() => Boolean(raw.value?.meta?.bookingMessageId && raw.value?.meta?.chatId));
 

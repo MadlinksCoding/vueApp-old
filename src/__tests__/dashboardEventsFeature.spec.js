@@ -75,7 +75,7 @@ vi.mock("@/utils/bookingJoinUtils.js", async (importOriginal) => ({
 vi.mock("@/components/calendar/MainCalendar.vue", () => ({
   default: {
     name: "MainCalendar",
-    props: ["focusDate", "selectedDate", "initialView", "events", "eventsData", "bookedSlotsCount", "bookingScheduleEvents", "bookingScheduleBookedSlotsIndex", "showBookingScheduleList", "theme", "dayColumnMode", "fitDayEventColumns", "minWeekEventColumnWidth", "tabletWeekEventLaneMinWidthPx", "responsiveViewportWidth", "showCurrentTimeAcrossDates", "joinComparisonTime", "minEventHeightPx", "stickyCardEvents", "stickyCardEvent"],
+    props: ["focusDate", "selectedDate", "initialView", "events", "eventsData", "bookedSlotsCount", "bookingScheduleEvents", "bookingScheduleBookedSlotsIndex", "showBookingScheduleList", "theme", "dayColumnMode", "fitDayEventColumns", "minWeekEventColumnWidth", "tabletWeekEventLaneMinWidthPx", "responsiveViewportWidth", "showCurrentTimeAcrossDates", "joinComparisonTime", "minEventHeightPx", "stickyCardsEnabled", "stickyCardEvents", "stickyCardEvent"],
     emits: ["date-selected", "update:focus-date", "view-changed", "create-event", "month-event-click", "join-call", "approve-booking", "reject-booking", "accept-adjustment", "decline-adjustment", "accept-counter", "reject-counter", "cancel-booking", "widget-accept-details", "edit-schedule-event", "delete-schedule-event", "view-schedule-card"],
     data() {
       return {
@@ -3664,7 +3664,7 @@ describe("DashboardEventsFeature", () => {
     }));
   });
 
-  it("passes the earliest-starting currently joinable confirmed booking to the mobile sticky card", async () => {
+  it("disables sticky booking cards and their floating-control offsets", async () => {
     setWindowWidth(768);
     setWindowHeight(1024);
     const laterStartIso = isoTodayAt(9, 4);
@@ -3733,25 +3733,19 @@ describe("DashboardEventsFeature", () => {
     });
 
     const wrapper = await mountDashboardEventsFeature({ creatorId: 77, userRole: "creator" });
-    const stickyEvent = wrapper.getComponent({ name: "MainCalendar" }).props("stickyCardEvent");
+    const mainCalendar = wrapper.getComponent({ name: "MainCalendar" });
 
-    expect(stickyEvent).toEqual(expect.objectContaining({
-      title: "Earlier Joinable Call",
-      canJoin: true,
-      joinUrl: "https://example.com/join/booking_earlier",
-      profile: {
-        name: "Ava",
-        avatar: "https://example.com/ava.png",
-      },
-    }));
+    expect(mainCalendar.props("stickyCardsEnabled")).toBe(false);
+    expect(mainCalendar.props("stickyCardEvents")).toEqual([]);
+    expect(mainCalendar.props("stickyCardEvent")).toBeNull();
     const floatingCreateControl = wrapper.get("[data-test='dashboard-floating-create-event']");
-    expect(floatingCreateControl.classes()).toContain("bottom-[7rem]");
+    expect(floatingCreateControl.classes()).toContain("bottom-2");
     expect(floatingCreateControl.classes()).toContain("md:bottom-5");
-    expect(floatingCreateControl.classes()).toContain("ipad-portrait:bottom-[var(--sticky-card-tablet-bottom)]");
-    expect(floatingCreateControl.attributes("style")).toContain("--sticky-card-tablet-bottom: 22.25rem");
+    expect(floatingCreateControl.classes()).not.toContain("bottom-[7rem]");
+    expect(floatingCreateControl.attributes("style")).toBeUndefined();
   });
 
-  it("prioritizes starting-soon and live confirmed bookings ahead of pending tablet cards", async () => {
+  it("keeps sticky-card inputs empty for live, starting-soon, and pending bookings", async () => {
     callFlow.mockResolvedValueOnce({
       ok: true,
       data: {
@@ -3812,17 +3806,12 @@ describe("DashboardEventsFeature", () => {
     const mainCalendar = wrapper.getComponent({ name: "MainCalendar" });
     const stickyEvents = mainCalendar.props("stickyCardEvents");
 
-    expect(stickyEvents).toHaveLength(3);
-    expect(stickyEvents.map((item) => item.title)).toEqual([
-      "Live Call",
-      "Starts In Five",
-      "Pending Request",
-    ]);
-    expect(stickyEvents[2].showReply).toBe(true);
-    expect(mainCalendar.props("stickyCardEvent")?.title).toBe("Live Call");
+    expect(mainCalendar.props("stickyCardsEnabled")).toBe(false);
+    expect(stickyEvents).toEqual([]);
+    expect(mainCalendar.props("stickyCardEvent")).toBeNull();
   });
 
-  it("keeps tablet-only pending cards from moving phone controls and activates the offset in tablet portrait", async () => {
+  it("keeps pending sticky cards and their offsets disabled across responsive resize", async () => {
     setWindowWidth(390);
     setWindowHeight(844);
     callFlow.mockResolvedValueOnce({
@@ -3845,25 +3834,25 @@ describe("DashboardEventsFeature", () => {
     const mainCalendar = wrapper.getComponent({ name: "MainCalendar" });
     const floatingCreateControl = wrapper.get("[data-test='dashboard-floating-create-event']");
 
-    expect(mainCalendar.props("stickyCardEvents")).toHaveLength(1);
+    expect(mainCalendar.props("stickyCardsEnabled")).toBe(false);
+    expect(mainCalendar.props("stickyCardEvents")).toEqual([]);
     expect(mainCalendar.props("stickyCardEvent")).toBeNull();
-    expect(floatingCreateControl.classes())
-      .not.toContain("ipad-portrait:bottom-[var(--sticky-card-tablet-bottom)]");
-    expect(floatingCreateControl.attributes("style"))
-      .toContain("--sticky-card-tablet-bottom: 0.5rem");
+    expect(floatingCreateControl.classes()).toContain("bottom-2");
+    expect(floatingCreateControl.classes()).not.toContain("bottom-[7rem]");
+    expect(floatingCreateControl.attributes("style")).toBeUndefined();
 
     setWindowWidth(768);
     setWindowHeight(1024);
     window.dispatchEvent(new Event("resize"));
     await wrapper.vm.$nextTick();
 
-    expect(floatingCreateControl.classes())
-      .toContain("ipad-portrait:bottom-[var(--sticky-card-tablet-bottom)]");
-    expect(floatingCreateControl.attributes("style"))
-      .toContain("--sticky-card-tablet-bottom: 8.25rem");
+    expect(mainCalendar.props("stickyCardEvents")).toEqual([]);
+    expect(floatingCreateControl.classes()).toContain("bottom-2");
+    expect(floatingCreateControl.classes()).not.toContain("bottom-[7rem]");
+    expect(floatingCreateControl.attributes("style")).toBeUndefined();
   });
 
-  it("excludes pending cards for fans and confirmed bookings outside five minutes", async () => {
+  it("keeps sticky-card inputs empty for fan bookings", async () => {
     callFlow.mockResolvedValueOnce({
       ok: true,
       data: {
@@ -3896,11 +3885,12 @@ describe("DashboardEventsFeature", () => {
     const wrapper = await mountDashboardEventsFeature({ fanId: 88, userRole: "fan" });
     const mainCalendar = wrapper.getComponent({ name: "MainCalendar" });
 
+    expect(mainCalendar.props("stickyCardsEnabled")).toBe(false);
     expect(mainCalendar.props("stickyCardEvents")).toEqual([]);
     expect(mainCalendar.props("stickyCardEvent")).toBeNull();
   });
 
-  it("clears the mobile sticky card after an extended booking's effective end", async () => {
+  it("keeps extended joinable bookings out of disabled sticky-card inputs", async () => {
     const extendedEndIso = isoTodayAt(9, 1);
     callFlow.mockResolvedValueOnce({
       ok: true,
@@ -3923,14 +3913,16 @@ describe("DashboardEventsFeature", () => {
     const wrapper = await mountDashboardEventsFeature({ creatorId: 77, userRole: "creator" });
     const mainCalendar = wrapper.getComponent({ name: "MainCalendar" });
 
-    expect(mainCalendar.props("stickyCardEvent")?.sourceEvent?.end).toBe(extendedEndIso);
+    expect(mainCalendar.props("stickyCardsEnabled")).toBe(false);
+    expect(mainCalendar.props("stickyCardEvents")).toEqual([]);
+    expect(mainCalendar.props("stickyCardEvent")).toBeNull();
 
     await vi.advanceTimersByTimeAsync(2 * 60 * 1000);
     await flushPromises();
 
     expect(mainCalendar.props("stickyCardEvent")).toBeNull();
     expect(wrapper.get("[data-test='dashboard-floating-create-event']").attributes("style"))
-      .toContain("--sticky-card-tablet-bottom: 0.5rem");
+      .toBeUndefined();
   });
 
   it("does not pass a sticky card event when no confirmed booking has an active join URL", async () => {
@@ -3959,8 +3951,7 @@ describe("DashboardEventsFeature", () => {
     expect(floatingCreateControl.classes()).toContain("bottom-2");
     expect(floatingCreateControl.classes()).toContain("md:bottom-5");
     expect(floatingCreateControl.classes()).not.toContain("ipad-portrait:bottom-[7rem]");
-    expect(floatingCreateControl.attributes("style"))
-      .toContain("--sticky-card-tablet-bottom: 0.5rem");
+    expect(floatingCreateControl.attributes("style")).toBeUndefined();
   });
 
   it("shows confirmed widget status as minutes remaining in the event color skin inside five minutes", async () => {
@@ -5525,11 +5516,7 @@ describe("DashboardEventsFeature", () => {
       "Hold At Boundary",
       "Future Pending",
     ]);
-    expect(stickyTitles()).toEqual([
-      "Pending At Boundary",
-      "Hold At Boundary",
-      "Future Pending",
-    ]);
+    expect(stickyTitles()).toEqual([]);
     expect(miniTitles()).toEqual([
       "Pending At Boundary",
       "Hold At Boundary",
@@ -5550,7 +5537,7 @@ describe("DashboardEventsFeature", () => {
     await flushPromises();
 
     expect(actionableTitles()).toEqual(["Future Pending"]);
-    expect(stickyTitles()).toEqual(["Future Pending"]);
+    expect(stickyTitles()).toEqual([]);
     expect(miniTitles()).toEqual(["Future Pending"]);
     expect(wrapper.find("[data-test='dashboard-month-expanded']").text())
       .not.toContain("Expanded Pending Event");
@@ -5608,6 +5595,60 @@ describe("DashboardEventsFeature", () => {
       title: "Approval Window Closed",
       message: expect.not.stringContaining("approval_window_closed"),
     }));
+  });
+
+  it("applies a time-only adjustment directly without opening the wallet decision", async () => {
+    callFlow.mockResolvedValue({ ok: true, data: { events: [], bookedSlots: [], bookedSlotsIndex: {} } });
+    const { default: FlowHandler } = await import("@/services/flow-system/FlowHandler.js");
+    const bookingFlowRun = vi.spyOn(FlowHandler, "run").mockImplementation(async (flowName, payload) => {
+      if (flowName === "bookings.renegotiateBooking") {
+        return {
+          ok: true,
+          data: {
+            item: {
+              bookingId: payload.bookingId,
+              status: "pending",
+              startAtIso: payload.startAtIso,
+              endAtIso: "2026-03-24T11:30:00Z",
+              payment: { total: 100 },
+            },
+          },
+        };
+      }
+      if (flowName === "bookings.reviewPendingBooking") {
+        return { ok: true, data: { item: { bookingId: payload.bookingId, status: "confirmed" } } };
+      }
+      return { ok: true, data: {} };
+    });
+    const wrapper = await mountDashboardEventsFeature({ fanId: 2615, userRole: "fan" });
+    const mainCalendar = wrapper.getComponent({ name: "MainCalendar" });
+
+    mainCalendar.vm.$emit("accept-adjustment", {
+      booking: { bookingId: "booking_time_only", payment: { total: 100 } },
+      hasPriceChange: false,
+      hasTimeChange: true,
+      originalTokens: 100,
+      proposedTokens: 100,
+      proposedStartAtIso: "2026-03-24T11:00:00Z",
+      proposedDurationMinutes: 30,
+      negotiationId: "neg_time_only",
+    });
+    await flushPromises();
+
+    expect(wrapper.getComponent({ name: "BookingAdjustmentDecisionPopup" }).props("modelValue")).toBe(false);
+    expect(bookingFlowRun).toHaveBeenCalledWith("bookings.renegotiateBooking", expect.objectContaining({
+      bookingId: "booking_time_only",
+      startAtIso: "2026-03-24T11:00:00Z",
+      durationMinutes: 30,
+      costTokens: 100,
+    }), expect.any(Object));
+    expect(bookingFlowRun).toHaveBeenCalledWith("bookings.reviewPendingBooking", expect.objectContaining({
+      bookingId: "booking_time_only",
+      decision: "approve",
+      actor: "fan",
+    }), expect.any(Object));
+    expect(requestFanTokenBalanceRefresh).not.toHaveBeenCalled();
+    bookingFlowRun.mockRestore();
   });
 
   it("turns an approval_window_closed backend race into friendly copy and refreshes context", async () => {

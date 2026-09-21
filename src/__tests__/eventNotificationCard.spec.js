@@ -400,6 +400,12 @@ describe("EventNotificationCard", () => {
     expect(wrapper.get("h3").text()).toBe("Event is live now:");
     expect(wrapper.get(".booking-notice-countdown").text()).toContain("live now");
     expect(wrapper.emitted("close")).toBeUndefined();
+
+    await vi.advanceTimersByTimeAsync(2 * 60_000);
+    await wrapper.vm.$nextTick();
+    expect(wrapper.get("h3").text()).toBe("Event is live now:");
+    expect(wrapper.get(".booking-notice-countdown").text()).toContain("live now");
+    expect(wrapper.emitted("close")).toBeUndefined();
   });
 
   it("falls back to the configured lead time and recalculates when a start time arrives or changes", async () => {
