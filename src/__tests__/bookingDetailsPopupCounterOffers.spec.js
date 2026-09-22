@@ -167,7 +167,7 @@ describe('BookingDetailsPopup counter offers', () => {
     wrapper.unmount();
   });
 
-  it('renders an equal-price time-only adjustment for the fan and emits its resolved schedule', async () => {
+  it('renders an equal-price date-only adjustment for the fan and emits its resolved schedule', async () => {
     const wrapper = mountPopup(booking({
       meta: {
         currentCounterOffer: 'adjust',
@@ -184,8 +184,8 @@ describe('BookingDetailsPopup counter offers', () => {
           },
           proposed: {
             totalTokens: 100,
-            startAtIso: '2027-04-26T16:15:00Z',
-            durationMinutes: 45,
+            startAtIso: '2027-04-26T14:15:00Z',
+            durationMinutes: 30,
             remarks: 'A better time.',
           },
         },
@@ -210,10 +210,42 @@ describe('BookingDetailsPopup counter offers', () => {
       hasTimeChange: true,
       originalStartAtIso: '2027-04-25T14:15:00.000Z',
       originalEndAtIso: '2027-04-25T14:45:00.000Z',
-      proposedStartAtIso: '2027-04-26T16:15:00.000Z',
-      proposedEndAtIso: '2027-04-26T17:00:00.000Z',
-      proposedDurationMinutes: 45,
+      proposedStartAtIso: '2027-04-26T14:15:00.000Z',
+      proposedEndAtIso: '2027-04-26T14:45:00.000Z',
+      proposedDurationMinutes: 30,
     }));
+
+    wrapper.unmount();
+  });
+
+  it('renders an equal-price time-only adjustment for the fan', () => {
+    const wrapper = mountPopup(booking({
+      meta: {
+        currentCounterOffer: 'adjust',
+        negotiation: {
+          type: 'adjust',
+          status: 'sent',
+          actor: 'creator',
+          original: {
+            totalTokens: 100,
+            startAtIso: FUTURE_START,
+            endAtIso: FUTURE_END,
+            durationMinutes: 30,
+          },
+          proposed: {
+            totalTokens: 100,
+            startAtIso: '2027-04-25T16:15:00Z',
+            durationMinutes: 30,
+          },
+        },
+      },
+    }), { userRole: 'fan' });
+
+    const card = wrapper.get('[data-test="event-details-fan-price-adjustment"]');
+    expect(card.attributes('data-adjustment-type')).toBe('time');
+    expect(card.findAll('[data-test="event-details-fan-adjustment-comparison"]')).toHaveLength(1);
+    expect(card.get('[data-test="event-details-fan-adjustment-comparison"]').attributes('data-comparison-type')).toBe('time');
+    expect(wrapper.get('[data-test="event-details-fan-accept-adjustment"]').text()).toContain('Accept New Time');
 
     wrapper.unmount();
   });

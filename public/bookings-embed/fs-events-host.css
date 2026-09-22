@@ -57,6 +57,13 @@
   z-index: 100100;
 }
 
+/* The legacy instant-call popup uses z-index 9999. Once the host script has
+   removed the notice Popover top-layer state, keep notices immediately below
+   that popup while retaining their DOM and presentation state. */
+.fs-booking-notices-host--below-chime-call {
+  z-index: 9998;
+}
+
 .fs-booking-pending-menu-link {
   position: relative;
   overflow: visible !important;

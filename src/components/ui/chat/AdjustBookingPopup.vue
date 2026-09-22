@@ -64,9 +64,18 @@
 
           <!-- New event date / time (optional) -->
           <EventSlotDateTimePicker v-model="slotPickerValue" :event="event" :duration-ms="originalDurationMs"
-            :original-event-date="originalEventDate" :original-start-time="originalStartTime" :optional="true" />
+            :original-event-date="originalEventDate" :original-start-time="originalStartTime"
+            :original-date-value="originalDateValue" :optional="true" />
           <p
-            v-if="availabilityStatus === 'conflict'"
+            v-if="inheritedTimeUnavailable"
+            class="text-amber-500 text-xs"
+            role="alert"
+            data-testid="booking-inherited-time-unavailable"
+          >
+            The original time is unavailable on this date. Please select another time.
+          </p>
+          <p
+            v-else-if="availabilityStatus === 'conflict'"
             class="text-amber-500 text-xs"
             role="alert"
             data-testid="booking-availability-conflict"
@@ -201,6 +210,7 @@ import ButtonComponent         from '@/components/dev/button/ButtonComponent.vue
 import EventSlotDateTimePicker from '@/components/ui/chat/EventSlotDateTimePicker.vue'
 import { showToast }           from '@/utils/toastBus.js'
 import { localDateTimeToHkt, hktDateTimeToLocalDate, toLocalISOString }  from "@/services/events/eventsApiUtils.js";
+import { buildCandidateSlotsForEventDate } from '@/services/bookings/utils/bookingSlotUtils.js'
 import TooltipIcon from "@/components/ui/tooltip/TooltipIcon.vue";
 
 const props = defineProps({
@@ -282,9 +292,6 @@ onMounted(async () => {
     event.value = eventRes.data.item
   }
 
-  form.newDate = formatDateInputValue(parseOriginalStartMs())
-  form.newStartTime = ''
-
 })
 
 const raw = computed(() => booking.value || {})
@@ -316,6 +323,26 @@ const originalStartTime = computed(() => {
   if (!ms) return null
   return new Date(ms).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }).toLowerCase()
 })
+
+function formatTimeInputValue(ms) {
+  if (!Number.isFinite(ms)) return ''
+  const date = new Date(ms)
+  if (Number.isNaN(date.getTime())) return ''
+  const pad = value => String(value).padStart(2, '0')
+  return `${pad(date.getHours())}:${pad(date.getMinutes())}`
+}
+
+const originalDateValue = computed(() => formatDateInputValue(parseOriginalStartMs()))
+const originalTimeValue = computed(() => formatTimeInputValue(parseOriginalStartMs()))
+const effectiveDate = computed(() => form.newDate || originalDateValue.value)
+const effectiveStartTime = computed(() => form.newStartTime || originalTimeValue.value)
+const hasDateChange = computed(() => Boolean(
+  form.newDate && originalDateValue.value && form.newDate !== originalDateValue.value,
+))
+const hasTimeChange = computed(() => Boolean(
+  form.newStartTime && originalTimeValue.value && form.newStartTime !== originalTimeValue.value,
+))
+const hasScheduleChange = computed(() => hasDateChange.value || hasTimeChange.value)
 
 const originalDurationMs = computed(() => {
   const endIso = raw.value.endIso || raw.value.endAtIso
@@ -439,31 +466,56 @@ function handleAdjustmentClick(direction, event) {
   changeAdjustmentTokens(direction)
 }
 
+const configuredEventSlots = computed(() => {
+  const source = event.value?.raw ?? event.value
+  if (Array.isArray(source?.slots) && source.slots.length) return source.slots
+  if (Array.isArray(source?.dates) && source.dates.length) return source.dates
+  return []
+})
+
+const effectiveSlotCandidates = computed(() => {
+  if (!event.value || !effectiveDate.value || !configuredEventSlots.value.length) return []
+  const rawBase = event.value.raw ?? event.value
+  const sessionMinutes = Number(form.durationMinutes)
+  return buildCandidateSlotsForEventDate({
+    ...event.value,
+    raw: {
+      ...rawBase,
+      ...(Number.isInteger(sessionMinutes) && sessionMinutes > 0
+        ? { sessionDurationMinutes: sessionMinutes }
+        : {}),
+    },
+  }, effectiveDate.value, {})
+})
+
+const effectiveTimeMatchesEventSlot = computed(() => (
+  !configuredEventSlots.value.length
+  || effectiveSlotCandidates.value.some(slot => slot.startHm === effectiveStartTime.value)
+))
+
+const inheritedTimeUnavailable = computed(() => (
+  hasDateChange.value
+  && !form.newStartTime
+  && Boolean(effectiveStartTime.value)
+  && !effectiveTimeMatchesEventSlot.value
+))
+
 const isDateTimeValid = computed(() => {
-  const hasDate = !!form.newDate
-  const hasTime = !!form.newStartTime
-  if (!hasTime) return true
-  if (hasTime && !hasDate) return false
-  if (hasDate && event.value?.slots?.length) {
-    const DAY_NAMES = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
-    const [y, m, d] = form.newDate.split('-').map(Number)
-    const dayName = DAY_NAMES[new Date(y, m - 1, d).getDay()]
-    const allowed = new Set(event.value.slots.map(s => String(s?.day || '').toLowerCase()).filter(Boolean))
-    if (allowed.size > 0 && !allowed.has(dayName)) return false
-  }
-  return true
+  if (!hasScheduleChange.value) return true
+  if (!effectiveDate.value || !effectiveStartTime.value) return false
+  return effectiveTimeMatchesEventSlot.value
 })
 
 function resolveProposedStartAtIso() {
-  if (!form.newDate || !form.newStartTime) return null
+  if (!hasScheduleChange.value || !effectiveDate.value || !effectiveStartTime.value) return null
 
-  const [year, month, day] = form.newDate.split('-').map(Number)
-  const [hour, minute] = form.newStartTime.split(':').map(Number)
+  const [year, month, day] = effectiveDate.value.split('-').map(Number)
+  const [hour, minute] = effectiveStartTime.value.split(':').map(Number)
   if (![year, month, day, hour, minute].every(Number.isFinite)) return null
 
   const localDate = new Date(year, month - 1, day, hour, minute, 0, 0)
   if (Number.isNaN(localDate.getTime())) return null
-  return localDateTimeToHkt(toLocalISOString(localDate), form.newStartTime).iso || null
+  return localDateTimeToHkt(toLocalISOString(localDate), effectiveStartTime.value).iso || null
 }
 
 const currentAvailabilityFingerprint = computed(() => {
@@ -472,8 +524,6 @@ const currentAvailabilityFingerprint = computed(() => {
   if (!startAtIso || !Number.isInteger(durationMinutes) || durationMinutes <= 0) return ''
   return `${startAtIso}|${durationMinutes}`
 })
-
-const hasCompleteDateTimeSelection = computed(() => Boolean(form.newDate && form.newStartTime))
 
 const hasVerifiedCurrentAvailability = computed(() => (
   availabilityStatus.value === 'available'
@@ -521,7 +571,7 @@ function scheduleAvailabilityCheck({ immediate = false } = {}) {
   const requestId = ++availabilityRequestId
   checkedAvailabilityFingerprint.value = ''
 
-  if (!hasCompleteDateTimeSelection.value || !isDateTimeValid.value || !currentAvailabilityFingerprint.value) {
+  if (!hasScheduleChange.value || !isDateTimeValid.value || !currentAvailabilityFingerprint.value) {
     availabilityStatus.value = 'idle'
     return
   }
@@ -550,8 +600,8 @@ watch(
 const isSubmitDisabled = computed(() =>
   submitting.value ||
   !isDateTimeValid.value ||
-  (hasCompleteDateTimeSelection.value && !hasVerifiedCurrentAvailability.value) ||
-  (!hasCompleteDateTimeSelection.value && Number(form.adjustmentTokens) === 0)
+  (hasScheduleChange.value && !hasVerifiedCurrentAvailability.value) ||
+  (!hasScheduleChange.value && Number(form.adjustmentTokens) === 0)
 )
 
 async function handleSubmit() {
