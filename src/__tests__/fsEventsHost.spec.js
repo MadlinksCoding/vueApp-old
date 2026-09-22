@@ -13,6 +13,7 @@ describe("fs-events-host openFanBookingPopup", () => {
     delete window.FSScheduledCallOverlay;
     delete window.tokenManager;
     delete window.openTipPopup;
+    delete window.showing_call_popup;
     delete window.__fsTokenBalanceUiRefreshState;
     vi.stubGlobal("fetch", vi.fn(() => Promise.resolve({
       ok: false,
@@ -536,6 +537,115 @@ describe("fs-events-host openFanBookingPopup", () => {
     expect(host.getAttribute("popover")).toBe("manual");
     expect(host.hasAttribute("inert")).toBe(false);
     expect(host.hasAttribute("aria-hidden")).toBe(false);
+    controller.destroy();
+  });
+
+  it("demotes notices immediately for the Chime popup and restores them after it closes", () => {
+    const popup = document.createElement("div");
+    popup.id = "chime-call-popup";
+    popup.dataset.popupType = "chime-call-popup";
+    popup.className = "dn";
+    document.body.appendChild(popup);
+    const controller = window.FSEventsEmbed.mountBookingNotices({
+      src: "/bookings-embed/notices.html",
+      notices: [{ id: "ready", type: "ready-to-join" }],
+    });
+    const host = document.querySelector(".fs-booking-notices-host");
+
+    document.dispatchEvent(new CustomEvent("popupOpened", {
+      detail: { target: '[data-popup-type="chime-call-popup"]', popupElement: popup },
+    }));
+
+    expect(popup.classList.contains("opened")).toBe(false);
+    expect(host.classList.contains("fs-booking-notices-host--below-chime-call")).toBe(true);
+    expect(host.getAttribute("popover")).toBeNull();
+    expect(host.style.zIndex).toBe("9998");
+    expect(host.hasAttribute("inert")).toBe(true);
+    expect(host.getAttribute("aria-hidden")).toBe("true");
+
+    popup.classList.add("flex", "opened");
+    window.showing_call_popup = true;
+    window.showing_call_popup = false;
+    popup.classList.remove("flex", "opened");
+    document.dispatchEvent(new CustomEvent("popupClosed", {
+      detail: { target: "chime-call-popup", popupElement: popup },
+    }));
+
+    expect(host.classList.contains("fs-booking-notices-host--below-chime-call")).toBe(false);
+    expect(host.getAttribute("popover")).toBe("manual");
+    expect(host.style.zIndex).toBe("");
+    expect(host.hasAttribute("inert")).toBe(false);
+    expect(host.hasAttribute("aria-hidden")).toBe(false);
+    controller.destroy();
+  });
+
+  it("mounts notices below an already-open Chime popup and observes direct visibility changes", async () => {
+    const popup = document.createElement("div");
+    popup.id = "chime-call-popup";
+    popup.dataset.popupType = "chime-call-popup";
+    popup.className = "flex opened";
+    document.body.appendChild(popup);
+    const controller = window.FSEventsEmbed.mountBookingNotices({
+      src: "/bookings-embed/notices.html",
+      notices: [{ id: "ready", type: "ready-to-join" }],
+    });
+    const host = document.querySelector(".fs-booking-notices-host");
+
+    expect(host.classList.contains("fs-booking-notices-host--below-chime-call")).toBe(true);
+    expect(host.hasAttribute("inert")).toBe(true);
+
+    popup.classList.remove("flex", "opened");
+    await vi.waitFor(() => {
+      expect(host.classList.contains("fs-booking-notices-host--below-chime-call")).toBe(false);
+    });
+
+    popup.classList.add("opened");
+    await vi.waitFor(() => {
+      expect(host.classList.contains("fs-booking-notices-host--below-chime-call")).toBe(true);
+    });
+
+    popup.classList.remove("opened");
+    await vi.waitFor(() => {
+      expect(host.classList.contains("fs-booking-notices-host--below-chime-call")).toBe(false);
+    });
+    popup.style.display = "flex";
+    await vi.waitFor(() => {
+      expect(host.classList.contains("fs-booking-notices-host--below-chime-call")).toBe(true);
+    });
+    controller.destroy();
+  });
+
+  it("does not restore notices when Chime closes over another blocking surface", () => {
+    const popup = document.createElement("div");
+    popup.id = "chime-call-popup";
+    popup.dataset.popupType = "chime-call-popup";
+    document.body.appendChild(popup);
+    const controller = window.FSEventsEmbed.mountBookingNotices({
+      src: "/bookings-embed/notices.html",
+      notices: [{ id: "ready", type: "ready-to-join" }],
+    });
+    const host = document.querySelector(".fs-booking-notices-host");
+
+    document.dispatchEvent(new CustomEvent("popupOpened", {
+      detail: { popupElement: popup },
+    }));
+    controller.setBookingDetailsActive(true);
+    document.dispatchEvent(new CustomEvent("popupClosed", {
+      detail: { popupElement: popup },
+    }));
+
+    expect(host.classList.contains("fs-booking-notices-host--below-chime-call")).toBe(false);
+    expect(host.classList.contains("fs-booking-notices-host--below-booking-details")).toBe(true);
+    expect(host.hasAttribute("inert")).toBe(true);
+
+    controller.setBookingDetailsActive(false);
+    expect(host.classList.contains("fs-booking-notices-host--below-booking-details")).toBe(false);
+    expect(host.hasAttribute("inert")).toBe(false);
+
+    document.dispatchEvent(new CustomEvent("popupOpened", {
+      detail: { target: "#unrelated-popup", popupElement: document.createElement("div") },
+    }));
+    expect(host.hasAttribute("inert")).toBe(false);
     controller.destroy();
   });
 

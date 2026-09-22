@@ -713,6 +713,18 @@ const showApprovalNeeded = computed(() => {
   return !instant;
 });
 
+const personalRequestEnabled = computed(() => toBoolean(
+  selectedEvent.value?.allowPersonalRequestRequired
+    ?? selectedEvent.value?.raw?.allowPersonalRequestRequired,
+  false,
+));
+
+function clearPersonalRequestState(reason = 'step2-personal-request-disabled') {
+  otherRequest.value = '';
+  props.engine.setState('bookingDetails.otherRequest', '', { reason, silent: true });
+  props.engine.setState('fanBooking.selection.personalRequestText', '', { reason, silent: true });
+}
+
 const isPreviewReadOnly = computed(() => (
   Boolean(props.engine.getState('fanBooking.ui.previewReadOnly'))
 ));
@@ -1810,18 +1822,21 @@ function hydrateFromState() {
     selectedDurationObj.value = null;
   }
 
-  otherRequest.value = isGroupEvent.value
+  otherRequest.value = !personalRequestEnabled.value
     ? ''
     : (existing.otherRequest
       ?? props.engine.getState('fanBooking.selection.personalRequestText')
       ?? '');
+  if (!personalRequestEnabled.value) {
+    clearPersonalRequestState(
+      isGroupEvent.value
+        ? 'step2-group-personal-request-disabled'
+        : 'step2-personal-request-disabled',
+    );
+  }
   if (isGroupEvent.value) {
     props.engine.setState('fanBooking.selection.selectedAddOns', [], {
       reason: 'step2-group-addons-disabled',
-      silent: true,
-    });
-    props.engine.setState('fanBooking.selection.personalRequestText', '', {
-      reason: 'step2-group-personal-request-disabled',
       silent: true,
     });
   }
@@ -1975,7 +1990,7 @@ const goToNextStep = async () => {
     selectedTime: selectedTime.value,
     selectedDuration: selectedDurationObj.value,
     addons: isGroupEvent.value ? [] : selectedAddons.value,
-    otherRequest: isGroupEvent.value ? '' : otherRequest.value,
+    otherRequest: personalRequestEnabled.value ? otherRequest.value : '',
     formattedTimeRange: formattedTimeRange.value,
     selectedDateDisplay: selectedDateDisplay.value,
     headerDateDisplay: headerDateDisplay.value,
@@ -1998,7 +2013,7 @@ const goToNextStep = async () => {
   props.engine.setState('fanBooking.selection.selectedDurationMinutes', selectedDurationObj.value.value, { reason: 'step2-selection', silent: true });
   props.engine.setState('fanBooking.selection.contributionTokens', isEventGoalGroupEvent.value ? normalizedContributionTokens.value : null, { reason: 'step2-selection', silent: true });
   props.engine.setState('fanBooking.selection.selectedAddOns', isGroupEvent.value ? [] : selectedAddons.value, { reason: 'step2-selection', silent: true });
-  props.engine.setState('fanBooking.selection.personalRequestText', isGroupEvent.value ? '' : otherRequest.value, { reason: 'step2-selection', silent: true });
+  props.engine.setState('fanBooking.selection.personalRequestText', personalRequestEnabled.value ? otherRequest.value : '', { reason: 'step2-selection', silent: true });
   props.engine.setState('fanBooking.selection.displayTimezoneOffsetMinutes', displayTimezoneOffsetMinutes.value, { reason: 'step2-selection', silent: true });
   props.engine.setState('fanBooking.temporaryHold', {
     temporaryHoldId: null,
@@ -2015,11 +2030,12 @@ const goToNextStep = async () => {
 watch(
   () => otherRequest.value,
   (next) => {
-    if (isGroupEvent.value) {
-      props.engine.setState('fanBooking.selection.personalRequestText', '', {
-        reason: 'step2-group-personal-request-disabled',
-        silent: true,
-      });
+    if (!personalRequestEnabled.value) {
+      clearPersonalRequestState(
+        isGroupEvent.value
+          ? 'step2-group-personal-request-disabled'
+          : 'step2-personal-request-disabled',
+      );
       return;
     }
 
@@ -2028,6 +2044,14 @@ watch(
       silent: true,
     });
   },
+);
+
+watch(
+  () => personalRequestEnabled.value,
+  (enabled) => {
+    if (!enabled) clearPersonalRequestState();
+  },
+  { immediate: true },
 );
 
 watch(
@@ -2637,7 +2661,11 @@ onBeforeUnmount(() => {
                 </div>
               </div>
 
-              <div v-if="!isGroupEvent" class="flex flex-col gap-2 md:mt-0 mt-5 px-3 md:px-5">
+              <div
+                v-if="!isGroupEvent && personalRequestEnabled"
+                class="flex flex-col gap-2 md:mt-0 mt-5 px-3 md:px-5"
+                data-testid="booking-flow-personal-request"
+              >
                 <div class="flex items-center justify-between">
                   <div class="flex gap-1 items-center">
                     <h3 class="text-sm font-semibold leading-5 text-[#22CCEE]">{{ t("fan_booking_other_request") }}</h3>

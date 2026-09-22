@@ -155,6 +155,30 @@ describe("create booking mapper", () => {
     expect(mapped.temporaryHoldId).toBe("temphold_private_123");
   });
 
+  it("preserves personal request text only when the event enables it", () => {
+    const enabledState = baseBookingState();
+    enabledState.fanBooking.context.selectedEvent.raw.allowPersonalRequestRequired = true;
+    enabledState.bookingDetails.otherRequest = "Please wear the blue costume";
+
+    expect(mapCreateBookingToRequest(enabledState).personalRequestText).toBe("Please wear the blue costume");
+
+    const disabledState = baseBookingState();
+    disabledState.fanBooking.context.selectedEvent.raw.allowPersonalRequestRequired = false;
+    disabledState.bookingDetails.otherRequest = "stale request";
+    disabledState.fanBooking.selection.personalRequestText = "another stale request";
+
+    expect(mapCreateBookingToRequest(disabledState).personalRequestText).toBe("");
+  });
+
+  it("uses the top-level personal request setting before the raw event value", () => {
+    const state = baseBookingState();
+    state.fanBooking.context.selectedEvent.allowPersonalRequestRequired = false;
+    state.fanBooking.context.selectedEvent.raw.allowPersonalRequestRequired = true;
+    state.bookingDetails.otherRequest = "stale request";
+
+    expect(mapCreateBookingToRequest(state).personalRequestText).toBe("");
+  });
+
   it("maps group bookings to the selected slot end and derived duration", () => {
     const state = {
       fanBooking: {

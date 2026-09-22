@@ -62,6 +62,7 @@
   var BOOKING_DETAILS_POPUP_LOADING_CLASS = "fs-booking-details-popup__loading";
   var BOOKING_DETAILS_POPUP_LOADING_HIDDEN_CLASS = "fs-booking-details-popup__loading--hidden";
   var BOOKING_NOTICES_HOST_BELOW_DETAILS_CLASS = "fs-booking-notices-host--below-booking-details";
+  var BOOKING_NOTICES_HOST_BELOW_CHIME_CALL_CLASS = "fs-booking-notices-host--below-chime-call";
   var FAN_BOOKING_SKELETON_TEMPLATE_PATH = "fan-booking-loading-skeleton.html";
   var FAN_BOOKING_LOADING_FALLBACK_DELAY_MS = 180;
   var EVENTS_FORM_UNSAVED_CHANGES_MESSAGE = "You will lose all your changes if you leave.";
@@ -1523,6 +1524,7 @@
     var popupObserver = null;
     var bookingDetailsActive = hasActiveBookingDetailsSurface();
     var scheduledCallActive = global.__FSScheduledCallOverlayActive === true;
+    var chimeCallActive = isChimeCallPopupVisible();
     var summaryVisibility = { noticeId: "", isOpen: false, known: false, allItemIds: new Set(), visibleItemIds: new Set() };
     var desktopPositions = ["top-left", "top-center", "top-right", "center-left", "center-center", "center-right", "bottom-left", "bottom-center", "bottom-right"];
     var mobilePositions = ["top", "center", "bottom"];
@@ -1571,24 +1573,60 @@
       ], supported, fallback);
     }
 
-    function keepBelowBookingDetails(host) {
+    function getChimeCallPopup() {
+      return document.getElementById("chime-call-popup")
+        || document.querySelector('[data-popup-type="chime-call-popup"]');
+    }
+
+    function isChimeCallPopupReference(value) {
+      if (!value) return false;
+      if (value.nodeType === 1) {
+        return value.id === "chime-call-popup"
+          || value.getAttribute("data-popup-type") === "chime-call-popup"
+          || value === getChimeCallPopup();
+      }
+      var target = String(value).trim();
+      return target === "#chime-call-popup"
+        || target === "chime-call-popup"
+        || target === '[data-popup-type="chime-call-popup"]'
+        || target === "[data-popup-type='chime-call-popup']";
+    }
+
+    function isChimeCallPopupVisible() {
+      if (global.showing_call_popup === true) return true;
+      var popup = getChimeCallPopup();
+      if (!popup || popup.hidden || popup.getAttribute("aria-hidden") === "true") return false;
+      if (popup.classList.contains("opened") || popup.classList.contains("flex")) return true;
+      return Boolean(
+        popup.style
+        && popup.style.display
+        && popup.style.display !== "none"
+        && popup.style.visibility !== "hidden"
+      );
+    }
+
+    function keepBelowBlockingSurface(host) {
       if (!host || !host.isConnected) return;
       try {
         if (typeof host.hidePopover === "function" && host.matches(":popover-open")) host.hidePopover();
       } catch (_error) {}
       host.removeAttribute("popover");
       host.classList.add(BOOKING_NOTICES_HOST_BELOW_DETAILS_CLASS);
+      host.classList.toggle(BOOKING_NOTICES_HOST_BELOW_CHIME_CALL_CLASS, chimeCallActive);
+      host.style.zIndex = chimeCallActive ? "9998" : "";
       host.setAttribute("inert", "");
       host.setAttribute("aria-hidden", "true");
     }
 
     function promote(host) {
       if (!host || !host.isConnected) return;
-      if (bookingDetailsActive || scheduledCallActive || document.querySelector("[data-fs-booking-details-popup]")) {
-        keepBelowBookingDetails(host);
+      if (bookingDetailsActive || scheduledCallActive || chimeCallActive || document.querySelector("[data-fs-booking-details-popup]")) {
+        keepBelowBlockingSurface(host);
         return;
       }
       host.classList.remove(BOOKING_NOTICES_HOST_BELOW_DETAILS_CLASS);
+      host.classList.remove(BOOKING_NOTICES_HOST_BELOW_CHIME_CALL_CLASS);
+      host.style.zIndex = "";
       host.removeAttribute("inert");
       host.removeAttribute("aria-hidden");
       host.setAttribute("popover", "manual");
@@ -1884,18 +1922,63 @@
       scheduledCallActive = Boolean(event && event.detail && event.detail.active === true);
       groups.forEach(function (group) { promote(group.host); });
     }
+
+    function setChimeCallActive(active) {
+      chimeCallActive = active === true;
+      groups.forEach(function (group) { promote(group.host); });
+    }
+
+    function onPopupOpened(event) {
+      var detail = event && event.detail || {};
+      if (!isChimeCallPopupReference(detail.popupElement) && !isChimeCallPopupReference(detail.target)) return;
+      // popupOpened is dispatched before the popup's opening classes are
+      // applied, so demote notices immediately to avoid a layering flash.
+      setChimeCallActive(true);
+    }
+
+    function onPopupClosed(event) {
+      var detail = event && event.detail || {};
+      if (!isChimeCallPopupReference(detail.popupElement) && !isChimeCallPopupReference(detail.target)) return;
+      setChimeCallActive(isChimeCallPopupVisible());
+    }
+
     global.addEventListener("fs:scheduled-call-overlay:state", onScheduledCallState);
+    document.addEventListener("popupOpened", onPopupOpened);
+    document.addEventListener("popupClosed", onPopupClosed);
 
     if (global.MutationObserver && document.body) {
       popupObserver = new MutationObserver(function (mutations) {
-        var popupChanged = mutations.some(function (mutation) {
+        var chimePopupChanged = mutations.some(function (mutation) {
+          if (mutation.type === "attributes") return isChimeCallPopupReference(mutation.target);
           return Array.from(mutation.addedNodes || []).concat(Array.from(mutation.removedNodes || [])).some(function (node) {
-            return node.nodeType === 1 && (node.matches("dialog,[role='dialog'],[class*='popup'],[class*='modal']") || node.querySelector("dialog,[role='dialog'],[class*='popup'],[class*='modal']"));
+            return node.nodeType === 1 && (
+              isChimeCallPopupReference(node)
+              || Boolean(node.querySelector && node.querySelector('#chime-call-popup,[data-popup-type="chime-call-popup"]'))
+            );
           });
         });
-        if (popupChanged) groups.forEach(function (group) { promote(group.host); });
+        if (chimePopupChanged) {
+          var currentPopup = getChimeCallPopup();
+          if (currentPopup) {
+            popupObserver.observe(currentPopup, {
+              attributes: true,
+              attributeFilter: ["class", "style", "hidden", "aria-hidden"],
+            });
+          }
+          setChimeCallActive(isChimeCallPopupVisible());
+        }
       });
-      popupObserver.observe(document.body, { childList: true, subtree: true });
+      popupObserver.observe(document.body, {
+        childList: true,
+        subtree: true,
+      });
+      var initialChimePopup = getChimeCallPopup();
+      if (initialChimePopup) {
+        popupObserver.observe(initialChimePopup, {
+          attributes: true,
+          attributeFilter: ["class", "style", "hidden", "aria-hidden"],
+        });
+      }
     }
 
     var controller = {
@@ -1920,6 +2003,8 @@
         destroyed = true;
         popupObserver && popupObserver.disconnect();
         global.removeEventListener("fs:scheduled-call-overlay:state", onScheduledCallState);
+        document.removeEventListener("popupOpened", onPopupOpened);
+        document.removeEventListener("popupClosed", onPopupClosed);
         if (media) {
           if (typeof media.removeEventListener === "function") media.removeEventListener("change", onMediaChange);
           else if (typeof media.removeListener === "function") media.removeListener(onMediaChange);

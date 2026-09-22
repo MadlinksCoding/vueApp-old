@@ -68,7 +68,6 @@
       <span v-if="originalStartTime" class="text-gray-400 text-xs mt-0.5">
         Original start time: {{ originalStartTime }}
       </span>
-      <span class="text-xs text-[#F06]">You have an existing booking at this time Please select a differnt time.</span>
       <span v-if="!dateReadonly && localDate && !isValidDay" class="text-gray-400 text-xs">
         Select a valid date to see available times.
       </span>
@@ -88,6 +87,7 @@ const props = defineProps({
   durationMs:        { type: Number,  default: null },
   originalEventDate: { type: String,  default: null },
   originalStartTime: { type: String,  default: null },
+  originalDateValue: { type: String,  default: '' },
   dateReadonly:      { type: Boolean, default: false },
   compact:           { type: Boolean, default: false },
   optional:          { type: Boolean, default: false },
@@ -167,8 +167,10 @@ const dateRangeLabel = computed(() => {
 })
 
 // ── rebuildAvailabilityPreview — delegates to bookingSlotUtils for all rules ──
+const effectiveSlotDate = computed(() => localDate.value || props.originalDateValue || '')
+
 const rebuildAvailabilityPreview = computed(() => {
-  if (!localDate.value || !props.event) return []
+  if (!effectiveSlotDate.value || !props.event) return []
   const rawBase = props.event?.raw ?? props.event
   const sessionMinutes = props.durationMs ? Math.max(1, Math.ceil(props.durationMs / 60000)) : undefined
   const eventArg = {
@@ -178,11 +180,11 @@ const rebuildAvailabilityPreview = computed(() => {
       ...(sessionMinutes !== undefined ? { sessionDurationMinutes: sessionMinutes } : {}),
     },
   }
-  return buildCandidateSlotsForEventDate(eventArg, localDate.value, {})
+  return buildCandidateSlotsForEventDate(eventArg, effectiveSlotDate.value, {})
 })
 
 const isValidDay = computed(() => {
-  if (!localDate.value) return true
+  if (!effectiveSlotDate.value) return true
   return rebuildAvailabilityPreview.value.length > 0
 })
 
@@ -205,7 +207,7 @@ const invalidDayWarning = computed(() => {
 // ── Time slot options (from rebuildAvailabilityPreview) ───────────────────────
 const timeSlotOptions = computed(() => {
   const slots = rebuildAvailabilityPreview.value
-  if (localDate.value === fmtYMD(today)) {
+  if (effectiveSlotDate.value === fmtYMD(today)) {
     const now = new Date()
     const currentHm = `${pad(now.getHours())}:${pad(now.getMinutes())}`
     return slots
