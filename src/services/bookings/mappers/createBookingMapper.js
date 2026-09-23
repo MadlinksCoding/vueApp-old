@@ -218,6 +218,14 @@ function toBoolean(value, fallback = false) {
   return fallback;
 }
 
+function isPersonalRequestEnabled(event = {}) {
+  const raw = event?.raw || {};
+  return !isGroupEvent(event) && toBoolean(
+    event?.allowPersonalRequestRequired ?? raw?.allowPersonalRequestRequired,
+    false,
+  );
+}
+
 function computeSessionSubtotal({ basePriceTokens, baseSessionMinutes, durationMinutes }) {
   const basePrice = safeNumber(basePriceTokens, 0);
   const baseMinutes = safeNumber(baseSessionMinutes, 0);
@@ -599,7 +607,7 @@ export function mapCreateBookingToRequest(state = {}, context = {}) {
     ...(computed.contributionTokens != null ? { contributionTokens: computed.contributionTokens } : {}),
     requestedAddOns: computed.requestedAddOns,
     additionalRequests: computed.additionalRequests,
-    personalRequestText: resolvePersonalRequestText(state),
+    personalRequestText: isPersonalRequestEnabled(event) ? resolvePersonalRequestText(state) : "",
     payment: computed.payment,
     temporaryHoldId: groupEvent ? null : (state?.fanBooking?.temporaryHold?.temporaryHoldId || null),
     idempotencyKey: state?.fanBooking?.booking?.idempotencyKey || buildIdempotencyKey("fan_booking"),

@@ -98,6 +98,7 @@ function createPrivateEvent(dateIso = "2030-01-15") {
       sessionDurationMinutes: 30,
       allowLongerSessions: true,
       maxSessionMinutes: 2,
+      allowPersonalRequestRequired: true,
       addOns: [
         {
           id: "addon_private_recording",
@@ -360,8 +361,70 @@ describe("BookingFlowStep2", () => {
     expect(wrapper.text()).toContain("CALL START TIME");
     expect(wrapper.text()).toContain("SELECT LENGTH");
     expect(wrapper.text()).toContain("ADD-ON SERVICE");
-    expect(wrapper.text()).toContain("OTHER REQUEST");
+    expect(wrapper.find("[data-testid='booking-flow-personal-request']").exists()).toBe(true);
     expect(wrapper.text()).not.toContain("SELECT EVENT TIME");
+  });
+
+  it.each([false, "false", 0, "0", ""])(
+    "hides and clears personal requests when the event setting is %j",
+    async (setting) => {
+      const selectedEvent = createPrivateEvent();
+      selectedEvent.raw.allowPersonalRequestRequired = setting;
+      const { engine, wrapperPromise } = createMountedStep({
+        selectedEvent,
+        bookingDetails: { otherRequest: "stale booking request" },
+        selection: { personalRequestText: "stale selection request" },
+      });
+      const wrapper = await wrapperPromise;
+      await flushStep2();
+
+      expect(wrapper.find("[data-testid='booking-flow-personal-request']").exists()).toBe(false);
+      expect(engine.state.bookingDetails.otherRequest).toBe("");
+      expect(engine.state.fanBooking.selection.personalRequestText).toBe("");
+      wrapper.unmount();
+    },
+  );
+
+  it("treats a missing personal-request setting as disabled", async () => {
+    const selectedEvent = createPrivateEvent();
+    delete selectedEvent.raw.allowPersonalRequestRequired;
+    const { engine, wrapperPromise } = createMountedStep({
+      selectedEvent,
+      bookingDetails: { otherRequest: "stale booking request" },
+      selection: { personalRequestText: "stale selection request" },
+    });
+    const wrapper = await wrapperPromise;
+    await flushStep2();
+
+    expect(wrapper.find("[data-testid='booking-flow-personal-request']").exists()).toBe(false);
+    expect(engine.state.bookingDetails.otherRequest).toBe("");
+    expect(engine.state.fanBooking.selection.personalRequestText).toBe("");
+  });
+
+  it("clears a personal request when an event refresh disables the setting", async () => {
+    const selectedEvent = createPrivateEvent();
+    const { engine, wrapperPromise } = createMountedStep({
+      selectedEvent,
+      bookingDetails: { otherRequest: "keep until disabled" },
+      selection: { personalRequestText: "keep until disabled" },
+    });
+    const wrapper = await wrapperPromise;
+    await flushStep2();
+    expect(wrapper.find("[data-testid='booking-flow-personal-request']").exists()).toBe(true);
+
+    engine.state.fanBooking.context.selectedEvent = {
+      ...selectedEvent,
+      raw: {
+        ...selectedEvent.raw,
+        allowPersonalRequestRequired: false,
+      },
+    };
+    await wrapper.setProps({ engine: { ...engine } });
+    await flushStep2();
+
+    expect(wrapper.find("[data-testid='booking-flow-personal-request']").exists()).toBe(false);
+    expect(engine.state.bookingDetails.otherRequest).toBe("");
+    expect(engine.state.fanBooking.selection.personalRequestText).toBe("");
   });
 
   it("translates optional labels and derives approval copy from instant booking", async () => {

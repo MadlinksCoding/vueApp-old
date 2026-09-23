@@ -3,7 +3,9 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import AdjustBookingPopup from '@/components/ui/chat/AdjustBookingPopup.vue'
 import ButtonComponent from '@/components/dev/button/ButtonComponent.vue'
+import EventSlotDateTimePicker from '@/components/ui/chat/EventSlotDateTimePicker.vue'
 import { checkBookingAdjustmentAvailabilityFlow } from '@/services/bookings/flows/checkBookingAdjustmentAvailabilityFlow.js'
+import { localDateTimeToHkt, toLocalISOString } from '@/services/events/eventsApiUtils.js'
 
 const runMock = vi.hoisted(() => vi.fn())
 
@@ -15,11 +17,13 @@ vi.mock('@/utils/toastBus.js', () => ({ showToast: vi.fn() }))
 
 const PickerStub = defineComponent({
   name: 'EventSlotDateTimePicker',
-  props: ['modelValue'],
+  props: ['modelValue', 'originalDateValue'],
   emits: ['update:modelValue'],
   template: `
     <div>
       <button data-testid="select-booking-time" @click="$emit('update:modelValue', { date: modelValue.date, startTime: '10:00' })">booking time</button>
+      <button data-testid="select-date-only" @click="$emit('update:modelValue', { date: '2026-09-20', startTime: '' })">date only</button>
+      <button data-testid="select-original-date" @click="$emit('update:modelValue', { date: originalDateValue, startTime: '' })">original date</button>
       <button data-testid="select-first-time" @click="$emit('update:modelValue', { date: '2026-09-20', startTime: '10:00' })">first</button>
       <button data-testid="select-second-time" @click="$emit('update:modelValue', { date: '2026-09-27', startTime: '11:00' })">second</button>
     </div>
@@ -48,9 +52,21 @@ function localDateIso(value) {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
 }
 
+function localTime(value) {
+  const date = new Date(value)
+  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+}
+
+function expectedProposedStart(dateIso, time) {
+  const [year, month, day] = dateIso.split('-').map(Number)
+  const [hour, minute] = time.split(':').map(Number)
+  const localDate = new Date(year, month - 1, day, hour, minute, 0, 0)
+  return localDateTimeToHkt(toLocalISOString(localDate), time).iso
+}
+
 function mountPopup(
   availabilityHandler = async () => ({ ok: true, data: { available: true } }),
-  { bookingItem = defaultBooking, messageContent = {} } = {},
+  { bookingItem = defaultBooking, messageContent = {}, eventItem = null } = {},
 ) {
   runMock.mockImplementation((flowId, payload) => {
     if (flowId === 'bookings.fetchBooking') {
@@ -62,7 +78,7 @@ function mountPopup(
     if (flowId === 'events.fetchEvent') {
       return Promise.resolve({
         ok: true,
-        data: { item: { eventId: 'event_1', slots: [
+        data: { item: eventItem || { eventId: 'event_1', slots: [
           { day: 'saturday', startTime: '09:00', endTime: '17:00' },
           { day: 'sunday', startTime: '09:00', endTime: '17:00' },
         ] } },
@@ -84,6 +100,7 @@ function mountPopup(
       stubs: {
         Teleport: true,
         EventSlotDateTimePicker: PickerStub,
+        TooltipIcon: true,
       },
     },
   })
@@ -99,15 +116,14 @@ describe('AdjustBookingPopup availability checks', () => {
     vi.useRealTimers()
   })
 
-  it('prefills only the booking date without checking availability or enabling a no-op submit', async () => {
+  it('opens with blank overrides while exposing the original date to the picker', async () => {
     const wrapper = mountPopup()
     await flushPromises()
 
-    expect(wrapper.getComponent(PickerStub).props('modelValue')).toEqual({
-      date: localDateIso(defaultBooking.startAtIso),
-      startTime: '',
-    })
+    expect(wrapper.getComponent(PickerStub).props('modelValue')).toEqual({ date: '', startTime: '' })
+    expect(wrapper.getComponent(PickerStub).props('originalDateValue')).toBe(localDateIso(defaultBooking.startAtIso))
     expect(runMock).not.toHaveBeenCalledWith('bookings.checkAdjustmentAvailability', expect.anything())
+    expect(wrapper.find('[data-testid="booking-availability-conflict"]').exists()).toBe(false)
     expect(wrapper.get('[data-testid="adjust-booking-submit"]').get('button').attributes('disabled')).toBeDefined()
     wrapper.unmount()
   })
@@ -116,17 +132,15 @@ describe('AdjustBookingPopup availability checks', () => {
     ['startIso', { startIso: '2026-10-03T12:00:00Z', startAtIso: '2026-10-04T12:00:00Z' }, {}, '2026-10-03T12:00:00Z'],
     ['startAtIso', { startAtIso: '2026-10-04T12:00:00Z' }, {}, '2026-10-04T12:00:00Z'],
     ['message slot_date', {}, { slot_date: '2026-10-05T12:00:00Z' }, '2026-10-05T12:00:00Z'],
-  ])('prefills the local booking date from %s', async (_source, startFields, messageContent, expectedIso) => {
+  ])('provides the local original date from %s without filling the override', async (_source, startFields, messageContent, expectedIso) => {
     const wrapper = mountPopup(undefined, {
       bookingItem: { ...defaultBooking, startAtIso: undefined, ...startFields },
       messageContent,
     })
     await flushPromises()
 
-    expect(wrapper.getComponent(PickerStub).props('modelValue')).toEqual({
-      date: localDateIso(expectedIso),
-      startTime: '',
-    })
+    expect(wrapper.getComponent(PickerStub).props('modelValue')).toEqual({ date: '', startTime: '' })
+    expect(wrapper.getComponent(PickerStub).props('originalDateValue')).toBe(localDateIso(expectedIso))
     wrapper.unmount()
   })
 
@@ -140,7 +154,7 @@ describe('AdjustBookingPopup availability checks', () => {
     wrapper.unmount()
   })
 
-  it('checks availability after selecting a time for the prefilled booking date', async () => {
+  it('checks availability after selecting only a time and inherits the original date', async () => {
     const wrapper = mountPopup()
     await flushPromises()
 
@@ -151,9 +165,75 @@ describe('AdjustBookingPopup availability checks', () => {
 
     expect(runMock).toHaveBeenCalledWith(
       'bookings.checkAdjustmentAvailability',
-      expect.objectContaining({ bookingId: 'booking_1', durationMinutes: 30 }),
+      expect.objectContaining({
+        bookingId: 'booking_1',
+        durationMinutes: 30,
+        startAtIso: expectedProposedStart(localDateIso(defaultBooking.startAtIso), '10:00'),
+      }),
     )
     expect(wrapper.get('[data-testid="adjust-booking-submit"]').get('button').attributes('disabled')).toBeUndefined()
+    wrapper.unmount()
+  })
+
+  it('checks and submits a date-only change using the original time', async () => {
+    const wrapper = mountPopup()
+    await flushPromises()
+
+    await wrapper.get('[data-testid="select-date-only"]').trigger('click')
+    await vi.advanceTimersByTimeAsync(200)
+    await flushPromises()
+
+    const proposedStart = expectedProposedStart('2026-09-20', localTime(defaultBooking.startAtIso))
+    expect(runMock).toHaveBeenCalledWith(
+      'bookings.checkAdjustmentAvailability',
+      expect.objectContaining({ startAtIso: proposedStart }),
+    )
+
+    await wrapper.get('[data-testid="adjust-booking-submit"]').get('button').trigger('click')
+    await flushPromises()
+    expect(runMock).toHaveBeenCalledWith(
+      'bookings.updateMeta',
+      expect.objectContaining({
+        args: expect.objectContaining({
+          negotiation: expect.objectContaining({
+            proposal: expect.objectContaining({ startAtIso: proposedStart }),
+          }),
+        }),
+      }),
+    )
+    wrapper.unmount()
+  })
+
+  it('treats selecting the original date as no schedule change', async () => {
+    const wrapper = mountPopup()
+    await flushPromises()
+
+    await wrapper.get('[data-testid="select-original-date"]').trigger('click')
+    await vi.advanceTimersByTimeAsync(200)
+
+    expect(runMock).not.toHaveBeenCalledWith('bookings.checkAdjustmentAvailability', expect.anything())
+    expect(wrapper.find('[data-testid="booking-availability-conflict"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="adjust-booking-submit"]').get('button').attributes('disabled')).toBeDefined()
+    wrapper.unmount()
+  })
+
+  it('blocks a date-only change when the inherited time is not offered on that date', async () => {
+    const wrapper = mountPopup(undefined, {
+      eventItem: {
+        eventId: 'event_1',
+        slots: [{ day: 'sunday', startTime: '12:00', endTime: '13:00' }],
+      },
+    })
+    await flushPromises()
+
+    await wrapper.get('[data-testid="select-date-only"]').trigger('click')
+    await vi.advanceTimersByTimeAsync(200)
+
+    expect(wrapper.get('[data-testid="booking-inherited-time-unavailable"]').text()).toBe(
+      'The original time is unavailable on this date. Please select another time.',
+    )
+    expect(runMock).not.toHaveBeenCalledWith('bookings.checkAdjustmentAvailability', expect.anything())
+    expect(wrapper.get('[data-testid="adjust-booking-submit"]').get('button').attributes('disabled')).toBeDefined()
     wrapper.unmount()
   })
 
@@ -177,6 +257,7 @@ describe('AdjustBookingPopup availability checks', () => {
     expect(settledSubmit.element.disabled).toBe(false)
     expect(settledSubmit.attributes('aria-busy')).toBeUndefined()
     expect(settledSubmit.get('span').classes()).not.toContain('invisible')
+    expect(wrapper.find('[data-testid="booking-availability-conflict"]').exists()).toBe(false)
     wrapper.unmount()
   })
 
@@ -275,6 +356,64 @@ describe('AdjustBookingPopup availability checks', () => {
       }),
     )
     expect(wrapper.emitted('submitted')).toHaveLength(1)
+    wrapper.unmount()
+  })
+
+  it('submits price and schedule changes together using the effective date and time', async () => {
+    const wrapper = mountPopup()
+    await flushPromises()
+
+    await wrapper.get('[data-testid="adjustment-token-stepper"] input').setValue('5')
+    await wrapper.get('[data-testid="select-first-time"]').trigger('click')
+    await vi.advanceTimersByTimeAsync(200)
+    await flushPromises()
+
+    const proposedStart = expectedProposedStart('2026-09-20', '10:00')
+    await wrapper.get('[data-testid="adjust-booking-submit"]').get('button').trigger('click')
+    await flushPromises()
+
+    expect(runMock).toHaveBeenCalledWith(
+      'bookings.updateMeta',
+      expect.objectContaining({
+        meta: expect.objectContaining({
+          adjust: expect.objectContaining({
+            proposedSlotDate: proposedStart,
+            proposedTokens: 25,
+          }),
+        }),
+        args: expect.objectContaining({
+          negotiation: expect.objectContaining({
+            proposal: expect.objectContaining({
+              startAtIso: proposedStart,
+              totalTokens: 25,
+            }),
+          }),
+        }),
+      }),
+    )
+    wrapper.unmount()
+  })
+})
+
+describe('EventSlotDateTimePicker inherited-date options', () => {
+  it('keeps both overrides blank while building time options from the original date', async () => {
+    const wrapper = mount(EventSlotDateTimePicker, {
+      props: {
+        modelValue: { date: '', startTime: '' },
+        originalDateValue: '2026-09-19',
+        durationMs: 30 * 60 * 1000,
+        event: {
+          eventId: 'event_1',
+          slots: [{ day: 'saturday', startTime: '09:00', endTime: '11:00' }],
+        },
+      },
+    })
+    await nextTick()
+
+    expect(wrapper.get('input[type="date"]').element.value).toBe('')
+    expect(wrapper.getComponent({ name: 'CustomDropdown' }).props('modelValue')).toBe('')
+    expect(wrapper.getComponent({ name: 'CustomDropdown' }).props('options').length).toBeGreaterThan(0)
+    expect(wrapper.text()).not.toContain('You have an existing booking at this time')
     wrapper.unmount()
   })
 })
