@@ -203,7 +203,7 @@ const topMessage = computed(() => (
 ));
 
 const policyTitle = computed(() => (
-  isGroupEvent.value ? t('fan_booking_group_event_policy_title') : t('fan_booking_booking_policy')
+  isGroupEvent.value ? t('fan_booking_group_event_policy_title_new') : t('fan_booking_booking_policy_1on1')
 ));
 const policyItems = computed(() => {
   if (isGroupEvent.value) {
@@ -217,10 +217,12 @@ const policyItems = computed(() => {
   }
 
   return [
-    t('fan_booking_policy_hold_fee'),
-    t('fan_booking_policy_creator_late_partial', { creator: creatorLabel.value }),
-    t('fan_booking_policy_creator_late_full', { creator: creatorLabel.value }),
-    t('fan_booking_policy_fan_late'),
+    t('fan_booking_booking_policy_1on1_point_1'),
+    t('fan_booking_booking_policy_1on1_point_2', { creator: creatorLabel.value }),
+    t('fan_booking_booking_policy_1on1_point_3', { creator: creatorLabel.value }),
+    t('fan_booking_booking_policy_1on1_point_4'),
+    t('fan_booking_booking_policy_1on1_point_5'),
+    t('fan_booking_booking_policy_1on1_point_6'),
   ];
 });
 
@@ -251,7 +253,7 @@ onMounted(() => {
       <div class="md:rounded-[24px] flex flex-col h-dvh md:max-h-[620px] relative" :style="successBackgroundStyle">
         <div class="absolute inset-0 bg-black/50 md:rounded-[24px] md:hidden"></div>
 
-          <div class="w-full md:rounded-[24px] flex-1 bg-[#0C111D]/20 md:bg-[#0C111D]/75 backdrop-blur-[5px] flex justify-center items-stretch">
+          <div class="w-full h-full md:rounded-[24px] flex-1 bg-[#0C111D]/20 md:bg-[#0C111D]/75 backdrop-blur-[5px] flex justify-center items-stretch">
             <!-- Left part -->
             <div class="p-3 md:justify-center md:px-6 md:pb-6 md:pt-12 md:rounded-tl-[24px] md:rounded-bl-[24px] flex flex-col gap-10 md:max-w-[25.5rem] flex-1 bg-transparent md:bg-[linear-gradient(0deg,rgba(34,204,238,0.2)_0%,rgba(34,204,238,0.2)_100%)]">
               <div class="flex flex-col justify-center items-center gap-6" data-testid="step4-status">
@@ -329,7 +331,7 @@ onMounted(() => {
             <!-- /Left part -->
 
             <!-- Right part -->
-            <div class="flex-1 hidden md:flex flex-col p-6 rounded-r-[1.5rem] bg-[rgba(12,17,29,0.75)] h-auto items-start gap-6" data-testid="step4-summary-desktop">
+            <div class="flex-1 hidden md:flex flex-col p-6 rounded-r-[1.5rem] bg-[rgba(12,17,29,0.75)] h-full overflow-auto items-start gap-6" data-testid="step4-summary-desktop">
               <!-- Info -->
               <div class="flex flex-col items-start gap-2 self-stretch">
                 <div class="flex items-center gap-2">
@@ -430,6 +432,64 @@ onMounted(() => {
                 </div>
               </div>
               <!-- /Booking policy -->
+              <!-- Booking Policy Disputes -->
+              <div class="flex flex-col w-full gap-1 md:gap-3 px-3 pb-2 md:p-0 lg:p-0" data-testid="step4-policy">
+                <div class="flex gap-1 md:gap-2 items-center justify-between">
+                  <h3 class="text-sm font-medium text-[#2CE] leading-5">{{t("fan_booking_booking_policy_dispute" )}}</h3>
+                </div>
+                <div
+                  class="flex-col gap-1 md:gap-3"
+                >
+                  <ul class="text-sm font-normal pl-1 text-[#98A2B3] w-full list-outside wrap leading-5">
+                    <li class="flex items-start gap-2" data-testid="step4-policy-item">
+                      <span class="flex-none w-1 h-1 bg-[#98A2B3] rounded-full mt-2"></span>
+                      <span>{{t("fan_booking_booking_policy_dispute_point_1") }}</span>
+                    </li>
+                    <li class="flex items-start gap-2" data-testid="step4-policy-item">
+                      <span class="flex-none w-1 h-1 bg-[#98A2B3] rounded-full mt-2"></span>
+                      <span>{{t("fan_booking_booking_policy_dispute_point_2") }}</span>
+                    </li>
+                    <li class="flex items-start gap-2" data-testid="step4-policy-item">
+                      <span class="flex-none w-1 h-1 bg-[#98A2B3] rounded-full mt-2"></span>
+                      <span>{{t("fan_booking_booking_policy_dispute_point_3") }}</span>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+              <!-- /Booking Disputes -->
+              <!-- Booking Policy insurance -->
+              <div class="flex flex-col w-full gap-1 md:gap-3 px-3 pb-2 md:p-0 lg:p-0" data-testid="step4-policy">
+                <div class="flex gap-1 md:gap-2 items-center justify-between">
+                  <h3 class="text-sm font-medium text-[#2CE] leading-5">{{t("fan_booking_booking_policy_platform_lnsurance" )}}</h3>
+                </div>
+                <div
+                  class="flex-col gap-1 md:gap-3"
+                >
+                  <ul class="text-sm font-normal pl-1 text-[#98A2B3] w-full list-outside wrap leading-5">
+                    <li class="flex items-start gap-2" data-testid="step4-policy-item">
+                      <span class="flex-none w-1 h-1 bg-[#98A2B3] rounded-full mt-2"></span>
+                      <span>{{t("fan_booking_booking_policy_platform_lnsurance_point_1") }}</span>
+                    </li>
+                    <li class="flex items-start gap-2" data-testid="step4-policy-item">
+                      <span class="flex-none w-1 h-1 bg-[#98A2B3] rounded-full mt-2"></span>
+                      <span>{{t("fan_booking_booking_policy_platform_lnsurance_point_2") }}</span>
+                    </li>
+                    <li class="flex items-start gap-2" data-testid="step4-policy-item">
+                      <span class="flex-none w-1 h-1 bg-[#98A2B3] rounded-full mt-2"></span>
+                      <span>{{t("fan_booking_booking_policy_platform_lnsurance_point_3") }}</span>
+                    </li>
+                    <li class="flex items-start gap-2" data-testid="step4-policy-item">
+                      <span class="flex-none w-1 h-1 bg-[#98A2B3] rounded-full mt-2"></span>
+                      <span>{{t("fan_booking_booking_policy_platform_lnsurance_point_4") }}</span>
+                    </li>
+                    <li class="flex items-start gap-2" data-testid="step4-policy-item">
+                      <span class="flex-none w-1 h-1 bg-[#98A2B3] rounded-full mt-2"></span>
+                      <span>{{t("fan_booking_booking_policy_platform_lnsurance_point_5") }}</span>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+              <!-- /Booking Disputes insurance -->
             </div>
             <!-- /Right part -->
           </div>
