@@ -14,6 +14,10 @@ import {
 const showAllPolicy = ref(false);
 const showSessionCostDetails = ref(false);
 const showBookingPolicyDetails = ref(false);
+const showDisputeDetails = ref(false);
+const showAllDispute = ref(false);
+const showPlatformLiabilityDetails = ref(false);
+const showAllPlatformLiability = ref(false);
 const { t, locale } = useBookingTranslations();
 
 const props = defineProps({
@@ -600,7 +604,7 @@ const groupPolicyItems = computed(() => {
 
         <div class="flex flex-col w-full gap-1 md:gap-3 px-3 pb-2 md:p-0 lg:p-0">
             <div class="flex gap-1 md:gap-2 items-center justify-between">
-              <h3 class="text-sm font-medium text-[#2CE] leading-5">{{ t("fan_booking_booking_policy") }}</h3>
+              <h3 class="text-sm font-medium text-[#2CE] leading-5">{{ t("fan_booking_booking_policy_1on1") }}</h3>
               <span
                 class="flex cursor-pointer"
                 :class="props.isPreviewMode ? 'lg:hidden' : 'md:hidden'"
@@ -626,26 +630,138 @@ const groupPolicyItems = computed(() => {
               <ul class="text-sm font-normal pl-1 text-[#EAECF0] w-full list-outside wrap leading-5">
                 <li class="flex items-start gap-2">
                   <span class="flex-none w-1 h-1 bg-[#EAECF0] rounded-full mt-2"></span>
-                  {{ t("fan_booking_policy_hold_fee") }}
+                  {{ t("fan_booking_booking_policy_1on1_point_1") }}
                 </li>
                 <li class="flex items-start gap-2">
                   <span class="flex-none w-1 h-1 bg-[#EAECF0] rounded-full mt-2"></span>
-                  {{ t("fan_booking_policy_creator_late_partial", { creator: props.creatorName }) }}
+                  {{ t("fan_booking_booking_policy_1on1_point_2", { creator: props.creatorName }) }}
                 </li>
                 <li class="items-start gap-2" :class="[!showAllPolicy ? 'hidden md:flex' : 'flex']">
                   <span class="flex-none w-1 h-1 bg-[#EAECF0] rounded-full mt-2"></span>
-                  {{ t("fan_booking_policy_creator_late_full", { creator: props.creatorName }) }}
+                  {{ t("fan_booking_booking_policy_1on1_point_3", { creator: props.creatorName }) }}
                 </li>
                 <li class="items-start gap-2" :class="[!showAllPolicy ? 'hidden md:flex' : 'flex']">
                   <span class="flex-none w-1 h-1 bg-[#EAECF0] rounded-full mt-2"></span>
-                  {{ t("fan_booking_policy_fan_late") }}
+                  {{ t("fan_booking_booking_policy_1on1_point_4") }}
+                </li>
+                <li class="items-start gap-2" :class="[!showAllPolicy ? 'hidden md:flex' : 'flex']">
+                  <span class="flex-none w-1 h-1 bg-[#EAECF0] rounded-full mt-2"></span>
+                  {{ t("fan_booking_booking_policy_1on1_point_5") }}
+                </li>
+                <li class="items-start gap-2" :class="[!showAllPolicy ? 'hidden md:flex' : 'flex']">
+                  <span class="flex-none w-1 h-1 bg-[#EAECF0] rounded-full mt-2"></span>
+                  {{ t("fan_booking_booking_policy_1on1_point_6") }}
                 </li>
               </ul>
-              <span
+             <span
                 class="text-[#2CE] text-xs leading-[18px] md:hidden pl-4 md:pl-5 cursor-pointer select-none"
                 @click="showAllPolicy = !showAllPolicy"
               >
                 {{ showAllPolicy ? t('fan_booking_show_less') : t('fan_booking_show_more') }}
+              </span>
+            </div>
+          </div>
+
+          <div class="flex flex-col w-full gap-1 md:gap-3 px-3 pb-2 md:p-0 lg:p-0 mt-4 md:mt-0 lg:mt-0">
+            <div class="flex gap-1 md:gap-2 items-center justify-between mt-0 md:mt-4">
+              <h3 class="text-sm font-medium text-[#2CE] leading-5">{{ t("fan_booking_booking_policy_dispute") }}</h3>
+              <span
+                class="flex cursor-pointer"
+                :class="props.isPreviewMode ? 'lg:hidden' : 'md:hidden'"
+                @click="showDisputeDetails = !showDisputeDetails"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="20"
+                  height="20"
+                  viewBox="0 0 20 20"
+                  fill="none"
+                  class="transition-transform duration-200"
+                  :class="{ 'rotate-180': showDisputeDetails }"
+                >
+                  <path d="M5.83325 10.8333L9.99992 15L14.1666 10.8333M5.83325 5L9.99992 9.16667L14.1666 5" stroke="#22CCEE" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </span>
+            </div>
+            <div
+              class="flex-col gap-1 md:gap-3"
+              :class="[showDisputeDetails ? 'flex' : (props.isPreviewMode ? 'hidden lg:flex' : 'hidden md:flex')]"
+            >
+              <ul class="text-sm font-normal pl-1 text-[#EAECF0] w-full list-outside wrap leading-5">
+                <li class="flex items-start gap-2">
+                  <span class="flex-none w-1 h-1 bg-[#EAECF0] rounded-full mt-2"></span>
+                  {{ t("fan_booking_booking_policy_dispute_point_1") }}
+                </li>
+                <li class="flex items-start gap-2">
+                  <span class="flex-none w-1 h-1 bg-[#EAECF0] rounded-full mt-2"></span>
+                  {{ t("fan_booking_booking_policy_dispute_point_2") }}
+                </li>
+                <li class="items-start gap-2" :class="[!showAllDispute ? 'hidden md:flex' : 'flex']">
+                  <span class="flex-none w-1 h-1 bg-[#EAECF0] rounded-full mt-2"></span>
+                  {{ t("fan_booking_booking_policy_dispute_point_3") }}
+                </li>
+              </ul>
+              <span
+                class="text-[#2CE] text-xs leading-[18px] md:hidden pl-4 md:pl-5 cursor-pointer select-none"
+                @click="showAllDispute = !showAllDispute"
+              >
+                {{ showAllDispute ? t('fan_booking_show_less') : t('fan_booking_show_more') }}
+              </span>
+            </div>
+          </div>
+
+          <div class="flex flex-col w-full gap-1 md:gap-3 px-3 pb-2 md:p-0 lg:p-0 mt-4 md:mt-0 lg:mt-0 lg:pb-4">
+            <div class="flex gap-1 md:gap-2 items-center justify-between mt-0 md:mt-4">
+              <h3 class="text-sm font-medium text-[#2CE] leading-5">Platform Liability & Insurance</h3>
+              <span
+                class="flex cursor-pointer"
+                :class="props.isPreviewMode ? 'lg:hidden' : 'md:hidden'"
+                @click="showPlatformLiabilityDetails = !showPlatformLiabilityDetails"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="20"
+                  height="20"
+                  viewBox="0 0 20 20"
+                  fill="none"
+                  class="transition-transform duration-200"
+                  :class="{ 'rotate-180': showPlatformLiabilityDetails }"
+                >
+                  <path d="M5.83325 10.8333L9.99992 15L14.1666 10.8333M5.83325 5L9.99992 9.16667L14.1666 5" stroke="#22CCEE" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </span>
+            </div>
+            <div
+              class="flex-col gap-1 md:gap-3"
+              :class="[showPlatformLiabilityDetails ? 'flex' : (props.isPreviewMode ? 'hidden lg:flex' : 'hidden md:flex')]"
+            >
+              <ul class="text-sm font-normal pl-1 text-[#EAECF0] w-full list-outside wrap leading-5">
+                <li class="flex items-start gap-2">
+                  <span class="flex-none w-1 h-1 bg-[#EAECF0] rounded-full mt-2"></span>
+                  {{ t("fan_booking_booking_policy_platform_lnsurance_point_1") }}
+                </li>
+                <li class="flex items-start gap-2">
+                  <span class="flex-none w-1 h-1 bg-[#EAECF0] rounded-full mt-2"></span>
+                  {{ t("fan_booking_booking_policy_platform_lnsurance_point_2") }}
+                </li>
+                <li class="items-start gap-2" :class="[!showAllPlatformLiability ? 'hidden md:flex' : 'flex']">
+                  <span class="flex-none w-1 h-1 bg-[#EAECF0] rounded-full mt-2"></span>
+                  {{ t("fan_booking_booking_policy_platform_lnsurance_point_3") }}
+                </li>
+                <li class="items-start gap-2" :class="[!showAllPlatformLiability ? 'hidden md:flex' : 'flex']">
+                  <span class="flex-none w-1 h-1 bg-[#EAECF0] rounded-full mt-2"></span>
+                  {{ t("fan_booking_booking_policy_platform_lnsurance_point_4") }}
+                </li>
+                <li class="items-start gap-2" :class="[!showAllPlatformLiability ? 'hidden md:flex' : 'flex']">
+                  <span class="flex-none w-1 h-1 bg-[#EAECF0] rounded-full mt-2"></span>
+                  {{ t("fan_booking_booking_policy_platform_lnsurance_point_5") }}
+                </li>
+              </ul>
+              <span
+                class="text-[#2CE] text-xs leading-[18px] md:hidden pl-4 md:pl-5 cursor-pointer select-none"
+                @click="showAllPlatformLiability = !showAllPlatformLiability"
+              >
+                {{ showAllPlatformLiability ? t('fan_booking_show_less') : t('fan_booking_show_more') }}
               </span>
             </div>
           </div>
