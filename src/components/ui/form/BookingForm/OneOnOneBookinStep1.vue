@@ -3301,7 +3301,7 @@
                 checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.35rem] checked:[&::after]:top-[0.2rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[0.125rem] checked:[&::after]:border-b-[0.125rem] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
                 labelClass="text-slate-700 text-base mt-[0.063rem] leading-normal"
                 wrapperClass="flex items-center gap-2" />
-              <TooltipIcon v-if="!isPricingLocked" :text="t('booking_cancellation_fee_tooltip')" />
+              <TooltipIcon v-if="!isPricingLocked" :text="t(formData.priceSetting === 'fixedPricePerUser' ? 'booking_cancellation_fee_tooltip' : 'booking_group_refund_before_event_start_tooltip')" />
             </div>
             <div :class="['inline-flex justify-start items-center gap-2', !formData.enableCancellationFee ? 'opacity-50' : 'opacity-100']">
               <div class="w-6 h-6" />
