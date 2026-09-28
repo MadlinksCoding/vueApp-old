@@ -78,7 +78,7 @@
   overflow: visible;
 }
 
-.fs-booking-pending-menu-anchor--active::before {
+/* .fs-booking-pending-menu-anchor--active::before {
   position: absolute;
   z-index: 0;
   inset: -5px;
@@ -87,7 +87,7 @@
   content: "";
   pointer-events: none;
   animation: fs-booking-pending-menu-pulse 1.5s ease-out infinite;
-}
+} */
 
 .fs-booking-pending-menu-anchor > [data-sidebar-menu-icon] {
   position: relative;
