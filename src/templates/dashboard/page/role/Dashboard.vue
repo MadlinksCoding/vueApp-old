@@ -1,5 +1,13 @@
 <template>
   <DashboardWrapperTwoColContainer>
+    <MediaDetailsPopup
+      v-model="mediaDetailsPopupOpen"
+      :media="media"
+    />
+    <ButtonComponent text="Profle media details popup" variant="mediaBtn"
+      @click="mediaDetailsPopupOpen = true" />
+
+    <br />
 
     <ButtonComponent text="Event Details Fan Popup" variant="mediaBtn" @click="eventDetailsFanOpen = true" />
 
@@ -392,6 +400,7 @@ import {
 
 import ReadAndUnderstandPopup from "@/components/ui/popup/ReadAndUnderstandPopup.vue";
 import ConfirmAndPublishSchedule from "@/components/ui/popup/ConfirmAndPublishSchedule.vue";
+import MediaDetailsPopup from "@/components/ui/popup/MediaDetailsPopup.vue";
 const demoUserId = ref(localStorage.getItem("userId") || "");
 const demoIsCreator = ref(localStorage.getItem("isCreator") === "true");
 const isReadPopupOpen = ref(false);
@@ -409,6 +418,7 @@ function saveToLocalStorage() {
 
 const isViewAllPopupOpen = ref(false);
 const profileMediaDetailsPopupOpen = ref(false);
+const mediaDetailsPopupOpen = ref(false);
 const avatarPopupOpen = ref(false);
 const imageCropPopupOpen = ref(false);
 const cancelUploadPopupOpen = ref(false);
