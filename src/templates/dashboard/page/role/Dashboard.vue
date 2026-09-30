@@ -1,5 +1,6 @@
 <template>
   <DashboardWrapperTwoColContainer>
+    <BSVSection/>
 
     <ButtonComponent text="Event Details Fan Popup" variant="mediaBtn" @click="eventDetailsFanOpen = true" />
 
@@ -392,6 +393,7 @@ import {
 
 import ReadAndUnderstandPopup from "@/components/ui/popup/ReadAndUnderstandPopup.vue";
 import ConfirmAndPublishSchedule from "@/components/ui/popup/ConfirmAndPublishSchedule.vue";
+import BSVSection from "../fan/BSVSection.vue";
 const demoUserId = ref(localStorage.getItem("userId") || "");
 const demoIsCreator = ref(localStorage.getItem("isCreator") === "true");
 const isReadPopupOpen = ref(false);
