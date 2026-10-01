@@ -462,7 +462,7 @@
             </div>
 
             <!-- LOAD MORE BUTTON SECTION -->
-            <div class="flex flex-col items-center gap-4 mt-8 mb-4">
+            <div class="flex flex-col items-center gap-4 mt-10 mb-4">
               <button
                 @click="loadMore"
                 :disabled="isLoading"
@@ -480,29 +480,124 @@
             </div>
           </template>
 
-          <!-- MERCH TAB CONTENT (Placeholder) -->
+          <!-- MERCH TAB CONTENT -->
           <template v-else-if="activeMainTab === 'merch'">
-            <div class="flex flex-col items-center justify-center py-24 px-4 text-center min-h-[400px]">
-              <div class="w-20 h-20 rounded-2xl bg-[#182230] border border-slate-700/60 flex items-center justify-center mb-6 text-[#07F468] shadow-lg">
-                <svg class="w-10 h-10 stroke-current" fill="none" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-                </svg>
+            <!-- Filter & Display Control Toolbar -->
+            <div class="flex flex-wrap items-center justify-between gap-4 mb-6 pb-4 border-b border-slate-800/60">
+              <!-- Merch Tier Filters -->
+              <div class="flex flex-wrap items-center gap-2">
+                <span class="text-xs uppercase font-medium text-slate-400 tracking-wider">Tier Filter:</span>
+                <div class="flex flex-wrap items-center gap-1.5 bg-[#182230] p-1 rounded-lg border border-slate-700/50 text-xs">
+                  <button
+                    v-for="filter in [
+                      { key: 'all', label: 'All Merch' },
+                      { key: 'tier1', label: 'Tier 1' },
+                      { key: 'tier2', label: 'Tier 2' },
+                      { key: 'free', label: 'Free Tier' }
+                    ]"
+                    :key="filter.key"
+                    @click="merchTierFilter = filter.key"
+                    type="button"
+                    class="px-2.5 py-1 rounded font-medium transition-all capitalize cursor-pointer"
+                    :class="merchTierFilter === filter.key ? 'bg-[#0762FF] text-white shadow' : 'text-slate-300 hover:text-white'"
+                  >
+                    {{ filter.label }}
+                  </button>
+                </div>
               </div>
-              <h3 class="text-2xl font-bold text-white tracking-wide uppercase mb-3">MERCH THUMBNAILS</h3>
-              <p class="text-sm text-slate-400 max-w-md leading-relaxed">
-                Merch thumbnail layouts and state controls will be created here later.
-              </p>
+
+              <!-- Display Mode Toggle (Live Grid vs Skeleton View) -->
+              <div class="flex items-center gap-2">
+                <span class="text-xs uppercase font-medium text-slate-400 tracking-wider">Display Mode:</span>
+                <div class="flex items-center gap-1.5 bg-[#182230] p-1 rounded-lg border border-slate-700/50 text-xs">
+                  <button
+                    @click="isMerchLoading = false"
+                    type="button"
+                    class="px-3 py-1 rounded font-medium transition-all cursor-pointer"
+                    :class="!isMerchLoading ? 'bg-[#0762FF] text-white shadow' : 'text-slate-300 hover:text-white'"
+                  >
+                    Live Grid
+                  </button>
+                  <button
+                    @click="isMerchLoading = true"
+                    type="button"
+                    class="px-3 py-1 rounded font-medium transition-all cursor-pointer flex items-center gap-1.5"
+                    :class="isMerchLoading ? 'bg-[#0762FF] text-white shadow' : 'text-slate-300 hover:text-white'"
+                  >
+                    <span class="w-2 h-2 rounded-full bg-[#07F468] animate-pulse"></span>
+                    Skeleton View
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- MEMBER EXCLUSIVE SECTION -->
+            <div class="w-full mb-10">
+              <header class="flex justify-between gap-3.5 md:justify-start w-full items-center border-l border-[#E9E5D3] mb-6 pl-4">
+                <div class="flex items-center gap-2">
+                  <h2 class="text-xl text-[#E9E5D3] font-medium tracking-wide uppercase">MEMBER EXCLUSIVE</h2>
+                </div>
+                <div class="flex items-start gap-1">
+                  <a href="#" class="text-base text-[#07F468] italic font-normal hover:underline">View All</a>
+                  <span class="text-xs text-[#07F468] italic font-medium">428</span>
+                </div>
+              </header>
+
+              <!-- Skeleton Loader Grid (5 Columns matching design) -->
+              <div
+                v-if="isMerchLoading"
+                class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 lg:gap-4 w-full"
+              >
+                <MerchCard
+                  v-for="n in 10"
+                  :key="'merch-skeleton-' + n"
+                  skeleton
+                />
+              </div>
+
+              <!-- Live Merch Grid (5 Columns matching design) -->
+              <div v-else class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 lg:gap-4 w-full">
+                <MerchCard
+                  v-for="item in filteredMerchItems"
+                  :key="item.id"
+                  :item="item"
+                  @select="openMerchDetail"
+                />
+              </div>
+
+              <!-- LOAD MORE BUTTON SECTION -->
+              <div class="flex flex-col items-center gap-4 mt-8 mb-4">
+                <button
+                  @click="loadMoreMerch"
+                  :disabled="isMerchLoading"
+                  type="button"
+                  class="h-10 pl-6 pr-2 py-2 border-[1.5px] border-white bg-[#182230] text-white text-base font-medium tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer hover:bg-[#202d3f]"
+                  :class="{ 'opacity-80 cursor-not-allowed': isMerchLoading }"
+                >
+                  <span>{{ isMerchLoading ? 'Loading...' : 'LOAD MORE' }}</span>
+                  <span v-if="!isMerchLoading" class="flex items-center gap-1">
+                    <span class="w-1.5 h-1.5 rounded-full bg-white"></span>
+                    <span class="w-1.5 h-1.5 rounded-full bg-white"></span>
+                    <span class="w-1.5 h-1.5 rounded-full bg-white"></span>
+                  </span>
+                </button>
+              </div>
             </div>
           </template>
         </main>
         </div>
       </div>
     </Transition>
+
+    <!-- Merch Detail Popup Modal -->
+    <MerchDetailPopup v-model="isMerchDetailOpen" :item="selectedMerchItem" />
   </Teleport>
 </template>
 
 <script setup>
 import { ref, computed } from 'vue';
+import MerchCard from './MerchCard.vue';
+import MerchDetailPopup from './MerchDetailPopup.vue';
 
 const props = defineProps({
   modelValue: {
@@ -519,9 +614,197 @@ const close = () => {
 };
 
 const isLoading = ref(false);
+const isMerchLoading = ref(false);
+const isMerchDetailOpen = ref(false);
+const selectedMerchItem = ref(null);
+
+const openMerchDetail = (item) => {
+  selectedMerchItem.value = item;
+  isMerchDetailOpen.value = true;
+};
 const activeMainTab = ref('media');
 const activeFilter = ref('all');
 const subStateFilter = ref('all');
+const merchTierFilter = ref('all');
+
+const merchItems = ref([
+  {
+    id: 1,
+    title: 'monthly stinky socks',
+    price: 'FREE',
+    oldPrice: null,
+    discount: null,
+    badgePreorder: false,
+    badgeLeft: null,
+    tier: "Tier 1 - 'Close Circle' Exclusive",
+    tierType: 'tier-1',
+    isNew: false,
+    image: 'https://images.unsplash.com/photo-1543163521-1bf539c55dd2?auto=format&fit=crop&w=600&q=80'
+  },
+  {
+    id: 2,
+    title: "My top (washed) Get Jenny's f...",
+    price: 'USD $400',
+    oldPrice: '450',
+    discount: '10% off',
+    badgePreorder: true,
+    badgeLeft: 'Only 1 left!',
+    tier: "Tier 1 - 'Close Circle' Exclusive",
+    tierType: 'tier-1',
+    isNew: false,
+    image: 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=600&q=80'
+  },
+  {
+    id: 3,
+    title: "[Peach] from my farm-Peach from my farm (Autumn harvest)",
+    price: 'USD $25',
+    oldPrice: '50',
+    discount: '50% off',
+    badgePreorder: false,
+    badgeLeft: null,
+    tier: "Free Tier - 'Stay in the Loop' Exclusive",
+    tierType: 'free',
+    isNew: false,
+    image: 'https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=600&q=80'
+  },
+  {
+    id: 4,
+    title: 'Lingerie set',
+    price: 'USD $400',
+    oldPrice: null,
+    discount: null,
+    badgePreorder: false,
+    badgeLeft: 'Only 1 left!',
+    tier: "Tier 2 - 'Inner Circle' Exclusive",
+    tierType: 'tier-2',
+    isNew: true,
+    image: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=600&q=80'
+  },
+  {
+    id: 5,
+    title: 'monthly Worn stockings',
+    price: 'USD $400',
+    oldPrice: '450',
+    discount: '10% off',
+    badgePreorder: false,
+    badgeLeft: null,
+    tier: "Tier 2 - 'Inner Circle' Exclusive",
+    tierType: 'tier-2',
+    isNew: false,
+    image: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=600&q=80'
+  },
+  {
+    id: 6,
+    title: 'monthly Worn stockings',
+    price: 'USD $400',
+    oldPrice: '450',
+    discount: null,
+    badgePreorder: false,
+    badgeLeft: null,
+    tier: "Tier 2 - 'Inner Circle' Exclusive",
+    tierType: 'tier-2',
+    isNew: false,
+    image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=600&q=80'
+  },
+  {
+    id: 7,
+    title: "My top (washed) Get Jenny's f...",
+    price: 'USD $25',
+    oldPrice: '50',
+    discount: null,
+    badgePreorder: false,
+    badgeLeft: null,
+    tier: "Free Tier - 'Stay in the Loop' Exclusive",
+    tierType: 'free',
+    isNew: false,
+    image: 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=600&q=80'
+  },
+  {
+    id: 8,
+    title: 'Lingerie set',
+    price: 'USD $400',
+    oldPrice: null,
+    discount: null,
+    badgePreorder: false,
+    badgeLeft: 'Only 1 left!',
+    tier: "Tier 2 - 'Inner Circle' Exclusive",
+    tierType: 'tier-2',
+    isNew: false,
+    image: 'https://images.unsplash.com/photo-1516280440614-37939bbacd81?auto=format&fit=crop&w=600&q=80'
+  },
+  {
+    id: 9,
+    title: "My top (washed) Get Jenny's f...",
+    price: 'USD $400',
+    oldPrice: '450',
+    discount: '10% off',
+    badgePreorder: true,
+    badgeLeft: 'Only 1 left!',
+    tier: "Tier 1 - 'Close Circle' Exclusive",
+    tierType: 'tier-1',
+    isNew: false,
+    image: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80'
+  },
+  {
+    id: 10,
+    title: 'monthly stinky socks',
+    price: 'FREE',
+    oldPrice: null,
+    discount: null,
+    badgePreorder: false,
+    badgeLeft: null,
+    tier: "Tier 1 - 'Close Circle' Exclusive",
+    tierType: 'tier-1',
+    isNew: false,
+    image: 'https://images.unsplash.com/photo-1543163521-1bf539c55dd2?auto=format&fit=crop&w=600&q=80'
+  }
+]);
+
+const filteredMerchItems = computed(() => {
+  return merchItems.value.filter(item => {
+    if (merchTierFilter.value === 'tier1') return item.tier.includes('Tier 1');
+    if (merchTierFilter.value === 'tier2') return item.tier.includes('Tier 2');
+    if (merchTierFilter.value === 'free') return item.tier.includes('Free');
+    return true;
+  });
+});
+
+const loadMoreMerch = () => {
+  if (isMerchLoading.value) return;
+  isMerchLoading.value = true;
+  setTimeout(() => {
+    const newItems = [
+      {
+        id: merchItems.value.length + 1,
+        title: 'Custom Signed Poster',
+        price: 'USD $150',
+        oldPrice: '200',
+        discount: '25% off',
+        badgePreorder: false,
+        badgeLeft: 'Only 2 left!',
+        tier: "Tier 1 - 'Close Circle' Exclusive",
+        tierType: 'tier-1',
+        isNew: false,
+        image: 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=600&q=80'
+      },
+      {
+        id: merchItems.value.length + 2,
+        title: 'Exclusive Voice Note Keychain',
+        price: 'FREE',
+        oldPrice: null,
+        discount: null,
+        badgePreorder: true,
+        badgeLeft: null,
+        tier: "Free Tier - 'Stay in the Loop' Exclusive",
+        tierType: 'free',
+        isNew: false,
+        image: 'https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=600&q=80'
+      }
+    ];
+    merchItems.value.push(...newItems);
+    isMerchLoading.value = false;
+  }, 1200);
+};
 
 const mediaItems = ref([
   {

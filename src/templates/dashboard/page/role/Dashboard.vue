@@ -168,6 +168,11 @@
 
     <br />
 
+    <ButtonComponent text="Merch Detail Popup (Responsive)" variant="mediaBtn"
+      @click="isMerchDetailPopupOpen = true" />
+
+    <br />
+
     <ButtonComponent text="Avatar upload popup" variant="mediaBtn" @click="avatarPopupOpen = true" />
 
     <br />
@@ -332,6 +337,7 @@
     <BookingDetailsPopup v-model="eventDetailsFanOpen" user-role="fan" />
     <AcceptNewPrice v-model="acceptNewPriceOpen" />
     <MediaMerchThumbPopup v-model="isMediaMerchPopupOpen" />
+    <MerchDetailPopup v-model="isMerchDetailPopupOpen" />
 
     <PremiumOrdersPage/>
   </DashboardWrapperTwoColContainer>
@@ -348,6 +354,7 @@ import OrderReceived from "@/components/ui/table/dashboard/OrderReceived.vue";
 import ProfileViewAllPopup from "@/components/ui/popup/ProfileViewAllPopup.vue";
 import ProfileMediaDetailsPopup from "@/components/ui/popup/ProfileMediaDetailsPopup.vue";
 import MediaMerchThumbPopup from "@/components/mediaMarchThumb/MediaMerchThumbPopup.vue";
+import MerchDetailPopup from "@/components/mediaMarchThumb/MerchDetailPopup.vue";
 import AvatarUploadPopup from "@/components/ui/popup/AvatarUploadPopup.vue";
 import { onMounted, ref } from "vue";
 import ImageCropperModal from "@/components/editProfilePageComponents/ImageCropperModal.vue";
@@ -416,6 +423,7 @@ function saveToLocalStorage() {
 
 const isViewAllPopupOpen = ref(false);
 const isMediaMerchPopupOpen = ref(false);
+const isMerchDetailPopupOpen = ref(false);
 const profileMediaDetailsPopupOpen = ref(false);
 const avatarPopupOpen = ref(false);
 const imageCropPopupOpen = ref(false);
