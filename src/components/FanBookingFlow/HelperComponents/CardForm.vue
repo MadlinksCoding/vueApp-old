@@ -85,6 +85,7 @@ function _setupCardListeners() {
 const savedCards       = ref([]);
 const selectedTokenId  = ref(null);
 const paymentMethod    = ref('new_card'); // 'new_card' | 'token'
+const choseNewCard     = ref(false);
 const isDeletingCardId = ref(null);
 const showCardList     = ref(false);
 
@@ -93,22 +94,27 @@ const selectedCard = computed(() =>
 );
 
 function syncSavedCards() {
+  window.custom_checkout_params ||= {};
   const details = window?.custom_checkout_params?.payment_details;
   if (!Array.isArray(details) || details.length === 0) {
     savedCards.value = [];
     selectedTokenId.value = null;
     paymentMethod.value = 'new_card';
+    window.custom_checkout_params.payment_method = 'new_card';
 
     return;
   }
 
   savedCards.value = details;
   const def = window.custom_checkout_params.payment_detail;
-  if (def?.id && !selectedTokenId.value) {
-    selectedTokenId.value = def.id;
-    paymentMethod.value   = 'token';
-    window.custom_checkout_params.payment_method = 'token';
+  // A re-render may reset the checkout global to new_card. Keep a still-valid
+  // selection, but never retain a card that is no longer in this account's list.
+  if (!details.some(card => card.id == selectedTokenId.value)) {
+    selectedTokenId.value = !choseNewCard.value && details.some(card => card.id == def?.id)
+      ? def.id : null;
   }
+  paymentMethod.value = selectedTokenId.value ? 'token' : 'new_card';
+  window.custom_checkout_params.payment_method = paymentMethod.value;
 }
 
 function resetCardValidity() {
@@ -117,6 +123,7 @@ function resetCardValidity() {
 }
 
 function handleSelectCard(tokenId) {
+  choseNewCard.value    = false;
   selectedTokenId.value = tokenId;
   paymentMethod.value   = 'token';
   showCardList.value    = false;
@@ -125,6 +132,7 @@ function handleSelectCard(tokenId) {
 }
 
 async function handleUseNewCard() {
+  choseNewCard.value    = true;
   showCardList.value    = false;
   paymentMethod.value   = 'new_card';
   selectedTokenId.value = null;
@@ -207,7 +215,7 @@ defineExpose({
   getPaymentExtraFields() {
     return paymentMethod.value === 'token'
       ? { payment_method: 'token', token_id: selectedTokenId.value }
-      : {};
+      : { payment_method: 'new_card', token_id: '' };
   },
   syncSavedCards,
   resetCardValidity,

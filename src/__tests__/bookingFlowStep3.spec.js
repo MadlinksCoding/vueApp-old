@@ -184,15 +184,20 @@ vi.mock("@/composables/useChatSocket", () => ({
   useChatSocket: () => ({ sendChatMessage }),
 }));
 
-vi.mock("@/utils/backendJwt.js", () => ({
-  getBackendJwtToken: () => backendJwtToken,
-  setBackendJwtToken: vi.fn((token) => {
-    backendJwtToken = token;
-    return token;
-  }),
-}));
+vi.mock("@/utils/backendJwt.js", async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
+    getBackendJwtToken: () => backendJwtToken,
+    setBackendJwtToken: vi.fn((token) => {
+      backendJwtToken = token;
+      return token;
+    }),
+  };
+});
 
-vi.mock("@/services/bookings/mappers/createBookingMapper.js", () => ({
+vi.mock("@/services/bookings/mappers/createBookingMapper.js", async () => ({
+  ...await vi.importActual("@/services/bookings/mappers/createBookingMapper.js"),
   mapCreateBookingToRequest: (state = {}) => {
     const selectedEvent = state?.fanBooking?.context?.selectedEvent || {};
     const raw = selectedEvent.raw || {};
@@ -292,7 +297,7 @@ vi.mock("@/components/FanBookingFlow/HelperComponents/TopUpForm.vue", () => ({
   __isTeleport: false,
   default: {
     name: "TopUpForm",
-    props: ["beforeSubmit"],
+    props: ["beforeSubmit", "afterPrerequisitePayment", "afterAuthUpdate", "prerequisite", "eventId", "topUpAmount"],
     template: "<div data-test='top-up-form' />",
   },
 }));
@@ -403,6 +408,353 @@ describe("BookingFlowStep3", () => {
 
     return wrapper;
   }
+
+  it.each([false, true].flatMap(groupReview => [
+    { groupReview, international: false, cost: 0, destination: 'Ships to Taiwan only', costLabel: 'Free shipping' },
+    { groupReview, international: true, cost: 9.99, destination: 'Ships internationally', costLabel: '+USD$ 9.99 shipping' },
+    { groupReview, international: true, cost: 0, destination: 'Ships internationally', costLabel: 'Free shipping' },
+  ]))('renders dynamic merch shipping in the summary (group=$groupReview, international=$international, cost=$cost)', async ({ groupReview, international, cost, destination, costLabel }) => {
+    tokenGet.mockResolvedValue({ data: { balance: 1900 } });
+    const prerequisite = {
+      eligible: false, type: 'product', action: 'buy',
+      product: { id: 93, title: 'Merch', price: 20 },
+      shipping: { required: true, is_merch: true, international, country: 'Taiwan', cost },
+    };
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, json: async () => ({ prerequisite }) })));
+    const engine = createEngine();
+    if (groupReview) configureEventGoalGroup(engine);
+    Object.assign(engine.state.fanBooking.context.selectedEvent, {
+      spendingRequirement: 'mustOwnProducts', requiredProducts: [{ id: 93, type: 'product' }],
+    });
+    const { default: Step3 } = await import('@/components/FanBookingFlow/OneOnOneBookingFlow/BookingFlowStep3.vue');
+    const wrapper = mount(Step3, { props: { engine, embedded: true, groupReview } });
+    await flushAsync();
+    expect(wrapper.get('[data-testid="booking-merch-shipping-destination"]').text().replace(/\s+/g, ' ')).toBe(destination);
+    expect(wrapper.get('[data-testid="booking-merch-shipping-cost"]').text()).toBe(costLabel);
+    expect(wrapper.get('[data-testid="booking-amount-due-today"]').text()).toContain(`USD$${(20 + cost).toFixed(2)}`);
+    wrapper.unmount();
+  });
+
+  it("uses the subscription variation title in the mandatory purchase summary", async () => {
+    tokenGet.mockResolvedValue({ data: { balance: 1900 } });
+    const prerequisite = {
+      eligible: false,
+      action: "buy",
+      type: "media",
+      id: 13413,
+      product: {
+        id: 13413,
+        title: "Variable Subscription Product - Tier 3",
+        variation_title: "Crave – All Access",
+        is_subscription_variation: true,
+        price: 25,
+        image_url: "/tier.jpg",
+      },
+      checkout: {
+        url: "https://fansocial.local/checkout/?add-to-cart=13400&variation_id=13413",
+        product_id: 13400,
+        variation_id: 13413,
+      },
+      shipping: { required: false },
+    };
+    vi.stubGlobal("fetch", vi.fn(async (url) => {
+      if (String(url).includes("/wp-json/api/bookings/validate")) {
+        return { ok: true, json: async () => ({ prerequisite }) };
+      }
+      return { ok: true, json: async () => ({}) };
+    }));
+
+    const engine = createEngine();
+    engine.state.fanBooking.context.selectedEvent = {
+      ...engine.state.fanBooking.context.selectedEvent,
+      spendingRequirement: "mustOwnProducts",
+      requiredProducts: [{ id: 5594, type: "media" }],
+    };
+    const { default: BookingFlowStep3 } = await import("@/components/FanBookingFlow/OneOnOneBookingFlow/BookingFlowStep3.vue");
+    const wrapper = mount(BookingFlowStep3, {
+      props: { engine, embedded: true },
+      global: {
+        provide: {
+          [bookingTranslationSymbol]: createBookingTranslator(),
+        },
+      },
+    });
+
+    await flushAsync();
+    const purchaseSummary = wrapper.get("[data-testid='booking-mandatory-purchase']");
+    expect(purchaseSummary.text()).toContain("MANDATORY SUBSCRIPTION");
+    expect(purchaseSummary.text()).toContain("Crave – All Access");
+    expect(purchaseSummary.text()).not.toContain("Variable Subscription Product - Tier 3");
+  });
+
+  it.each([false, true])("shows tokens plus unpaid product USD and the yellow USD equivalent (owned: %s)", async (eligible) => {
+    tokenGet.mockResolvedValue({ data: { balance: 1900 } });
+    const prerequisite = { eligible, product: { id: 92, title: "Required product", price: 25.99 } };
+    vi.stubGlobal("fetch", vi.fn(async () => ({
+      ok: true,
+      json: async () => ({ prerequisite, token_pricing: { base_price_per_token: 0.07616 } }),
+    })));
+    const engine = createEngine();
+    engine.state.fanBooking.context.selectedEvent.requiredProducts = [{ id: 92, type: "product" }];
+    const { default: BookingFlowStep3 } = await import("@/components/FanBookingFlow/OneOnOneBookingFlow/BookingFlowStep3.vue");
+    const wrapper = mount(BookingFlowStep3, { props: { engine, embedded: true } });
+    await flushAsync();
+    const due = wrapper.get("[data-testid='booking-amount-due-today']");
+    expect(due.text()).toContain("1,000");
+    expect(due.text().includes("+" )).toBe(!eligible);
+    expect(due.text().includes("USD$25.99")).toBe(!eligible);
+    expect(due.get("[data-testid='booking-amount-due-usd']").text()).toBe(eligible ? "=USD$ 76.16" : "=USD$ 102.15");
+    expect(due.get("[data-testid='booking-amount-due-usd']").classes()).toContain("text-[#FCE40D]");
+    // Both approximate rows use the same server-provided highest per-token rate.
+    expect(wrapper.text()).toContain('=76.16');
+    wrapper.unmount();
+  });
+
+  it.each([['upgrade', 3.49], ['downgrade', 0]])("uses the server's %s charge instead of the full recurring price", async (switchType, dueToday) => {
+    tokenGet.mockResolvedValue({ data: { balance: 1900 } });
+    const prerequisite = { eligible: false, action: 'switch', type: 'subscription',
+      product: { id: 92, title: 'New tier', price: 25 },
+      subscription: { amount_due_today: dueToday }, checkout: { switch_type: switchType } };
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, json: async () => ({ prerequisite, token_pricing: { base_price_per_token: 0.07616 } }) })));
+    const engine = createEngine();
+    engine.state.fanBooking.context.selectedEvent.requiredProducts = [{ id: 92, type: 'subscription' }];
+    const { default: BookingFlowStep3 } = await import('@/components/FanBookingFlow/OneOnOneBookingFlow/BookingFlowStep3.vue');
+    const wrapper = mount(BookingFlowStep3, { props: { engine, embedded: true } });
+    await flushAsync();
+    expect(wrapper.get('[data-testid="booking-prerequisite-price"]').text()).toBe(`USD$${dueToday.toFixed(2)}`);
+    expect(wrapper.get('[data-testid="booking-recurring-plan-price"]').text()).toBe('Recurring plan price: USD$25.00');
+    const due = wrapper.get('[data-testid="booking-amount-due-today"]');
+    expect(due.text()).toContain(`USD$${dueToday.toFixed(2)}`);
+    expect(due.text()).not.toContain('USD$25.00');
+    expect(due.get('[data-testid="booking-amount-due-usd"]').text()).toBe(`=USD$ ${(76.16 + dueToday).toFixed(2)}`);
+    wrapper.unmount();
+  });
+
+  it.each([false, true])("restores the wallet subtotal and available balance in the generic card (top-up: %s)", async (needsTopUp) => {
+    tokenGet.mockResolvedValue({ data: { balance: needsTopUp ? 500 : 1900 } });
+    resolveParentUserData.mockReturnValue({});
+    fetchUserProfileData.mockResolvedValue({});
+    const { default: BookingFlowStep3 } = await import("@/components/FanBookingFlow/OneOnOneBookingFlow/BookingFlowStep3.vue");
+    const wrapper = mount(BookingFlowStep3, { props: { engine: createEngine(), embedded: true } });
+    await flushAsync();
+    const wallet = wrapper.get("[data-testid='booking-balance-placeholder-card']");
+    expect(wallet.text()).toContain("Wallet Balance");
+    expect(wallet.text()).not.toContain("Your Token Balance");
+    expect(wallet.get("[data-testid='booking-balance-subtotal']").text()).toContain("Subtotal");
+    expect(wallet.get("[data-testid='booking-balance-subtotal']").text()).toContain("1K");
+    const available = wallet.get("[data-testid='booking-balance-available-after-booking']");
+    expect(available.element.style.display === "none").toBe(needsTopUp);
+    if (!needsTopUp) expect(available.text()).toContain("900");
+    wrapper.unmount();
+  });
+
+  it("routes a paid prerequisite into the existing Step 3 payment substep", async () => {
+    tokenGet.mockResolvedValue({ data: { balance: 1900 } });
+    const prerequisite = {
+      eligible: false,
+      action: "buy",
+      type: "product",
+      id: 92,
+      product: { id: 92, title: "Required item", price: 12, image_url: "/item.jpg" },
+      checkout: { url: "https://fansocial.local/checkout/?add-to-cart=92", product_id: 92, variation_id: 0 },
+      shipping: { required: false },
+    };
+    vi.stubGlobal("fetch", vi.fn(async (url) => {
+      if (String(url).includes("/wp-json/api/bookings/validate")) {
+        return { ok: true, json: async () => ({ prerequisite }) };
+      }
+      return { ok: true, json: async () => ({}) };
+    }));
+    const engine = createEngine();
+    engine.callFlow.mockImplementation(async (flowName) => {
+      if (flowName === "bookings.createTemporaryHold") {
+        return { ok: true, data: { temporaryHoldId: "temphold_prerequisite" } };
+      }
+      if (flowName === "bookings.getTemporaryHoldStatus") {
+        const hold = matchingTemporaryHold("temphold_prerequisite");
+        return { ok: true, data: { ...hold, temporaryHold: hold } };
+      }
+      return { ok: true, data: {} };
+    });
+    engine.state.fanBooking.context.selectedEvent = {
+      ...engine.state.fanBooking.context.selectedEvent,
+      spendingRequirement: "mustOwnProducts",
+      requiredProducts: [{ id: 92, type: "product" }],
+    };
+
+    const wrapper = await mountAndSubmitStep3(engine);
+
+    await vi.waitFor(() => {
+      expect(engine.forceSubstep).toHaveBeenCalledWith("topup", { intent: "topup-needed" });
+    });
+    engine.substep = "topup";
+    await flushAsync();
+    const topUpForm = wrapper.getComponent({ name: "TopUpForm" });
+    expect(topUpForm.props("prerequisite")).toEqual(prerequisite);
+  });
+
+  it.each(['product', 'media', 'subscription'])("opens %s prerequisite checkout for an anonymous fan", async (type) => {
+    backendJwtToken = '';
+    const engine = createEngine();
+    engine.state.fanBooking.context.fanId = 0;
+    engine.state.fanBooking.context.selectedEvent.spendingRequirement = 'mustOwnProducts';
+    engine.state.fanBooking.context.selectedEvent.requiredProducts = [{ id: 92, type }];
+    const prerequisite = { eligible: false, type, action: type === 'subscription' ? 'subscribe' : 'buy',
+      product: { id: 92, title: 'Guest prerequisite', price: 12 }, checkout: { product_id: 92 }, shipping: { required: type === 'product' } };
+    const fetchMock = vi.fn(async () => ({ ok: true, json: async () => ({ prerequisite }) }));
+    vi.stubGlobal('fetch', fetchMock);
+    engine.callFlow.mockImplementation(async (name) => {
+      if (name === 'bookings.createTemporaryHold') {
+        engine.state.fanBooking.temporaryHold.guestHoldToken = 'guest_hold';
+        return { ok: true, data: { temporaryHoldId: 'guest_prerequisite_hold', guestHoldToken: 'guest_hold' } };
+      }
+      if (name === 'bookings.getTemporaryHoldStatus') {
+        const hold = matchingTemporaryHold('guest_prerequisite_hold', { userId: 0 });
+        return { ok: true, data: { ...hold, temporaryHold: hold } };
+      }
+      return { ok: true, data: {} };
+    });
+    const wrapper = await mountAndSubmitStep3(engine);
+    await vi.waitFor(() => expect(engine.forceSubstep).toHaveBeenCalledWith('topup', { intent: 'topup-needed' }));
+    const validationCalls = fetchMock.mock.calls.filter(([url]) => String(url).includes('/bookings/validate'));
+    expect(validationCalls.length).toBeGreaterThan(0);
+    expect(JSON.parse(validationCalls[0][1].body).user_id).toBe(0);
+    engine.substep = 'topup';
+    await flushAsync();
+    expect(wrapper.getComponent({ name: 'TopUpForm' }).props('prerequisite')).toEqual(prerequisite);
+    expect(engine.callFlow.mock.calls.some(([name]) => name === 'bookings.createBooking')).toBe(false);
+    wrapper.unmount();
+  });
+
+  it("reuses the logged-in fan context when a paid prerequisite response omits auth fields", async () => {
+    tokenGet.mockResolvedValue({ data: { balance: 300 } });
+    const prerequisite = {
+      eligible: false,
+      action: "buy",
+      type: "media",
+      id: 5594,
+      product: { id: 13413, title: "Crave – All Access", price: 5, image_url: "" },
+      checkout: { url: "https://fansocial.local/checkout/?add-to-cart=13409&variation_id=13413", product_id: 13409, variation_id: 13413 },
+      shipping: { required: false },
+    };
+    let validationCount = 0;
+    vi.stubGlobal("fetch", vi.fn(async (url) => {
+      if (String(url).includes("/wp-json/api/bookings/validate")) {
+        validationCount += 1;
+        return {
+          ok: true,
+          json: async () => ({
+            prerequisite: {
+              ...prerequisite,
+              eligible: validationCount > 1,
+              action: validationCount > 1 ? "none" : "buy",
+            },
+          }),
+        };
+      }
+      return { ok: true, json: async () => ({}) };
+    }));
+
+    const engine = createEngine();
+    engine.substep = "topup";
+    engine.state.fanBooking.context.selectedEvent = {
+      ...engine.state.fanBooking.context.selectedEvent,
+      spendingRequirement: "mustOwnProducts",
+      requiredProducts: [{ id: 5594, type: "media" }],
+    };
+
+    const { default: BookingFlowStep3 } = await import("@/components/FanBookingFlow/OneOnOneBookingFlow/BookingFlowStep3.vue");
+    const wrapper = mount(BookingFlowStep3, { props: { engine, embedded: true } });
+    await flushAsync();
+    await vi.dynamicImportSettled();
+    await flushAsync();
+
+    const prerequisiteReady = await wrapper.getComponent({ name: "TopUpForm" })
+      .props("afterPrerequisitePayment")({
+        order_id: 50910,
+        order_status: "completed",
+        token: "gateway-payment-token",
+      });
+
+    expect(prerequisiteReady).toBe(true);
+    expect(backendJwtToken).toBe("jwt_test");
+    expect(engine.getState("fanBooking.context.fanId")).toBe(2615);
+    expect(engine.state.fanBooking.prerequisite.purchaseResult).toMatchObject({
+      status: "paid",
+      orderId: 50910,
+    });
+    expect(showToast).not.toHaveBeenCalledWith(expect.objectContaining({
+      title: "Account Verification Needed",
+    }));
+  });
+
+  it("activates a free subscription inline before opening a separate token top-up order", async () => {
+    tokenGet.mockResolvedValue({ data: { balance: 0 } });
+    resolveParentUserData.mockReturnValue({
+      UID: "encoded-fan-uid",
+      userAvatar: "https://example.test/current-user-avatar.jpg",
+    });
+    let subscriptionActivated = false;
+    const prerequisite = {
+      eligible: false,
+      action: "subscribe",
+      type: "subscription",
+      id: 13413,
+      product: { id: 13413, title: "Free tier", price: 0, image_url: "/tier.jpg" },
+      checkout: { url: "https://fansocial.local/?free-subscribe-to=13413", product_id: 13400, variation_id: 13413 },
+      shipping: { required: false },
+    };
+    const fetchMock = vi.fn(async (url, options = {}) => {
+      if (String(url).includes("/wp-json/api/subscriptions/free")) {
+        subscriptionActivated = true;
+        return {
+          ok: true,
+          json: async () => ({ success: true, action: "created", order_id: 9001, subscription_id: 9002 }),
+        };
+      }
+      if (String(url).includes("/wp-json/api/bookings/validate")) {
+        return {
+          ok: true,
+          json: async () => ({ prerequisite: { ...prerequisite, eligible: subscriptionActivated } }),
+        };
+      }
+      return { ok: true, json: async () => ({}) };
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const engine = createEngine();
+    engine.callFlow.mockImplementation(async (flowName) => {
+      if (flowName === "bookings.createTemporaryHold") {
+        return { ok: true, data: { temporaryHoldId: "temphold_free_subscription" } };
+      }
+      if (flowName === "bookings.getTemporaryHoldStatus") {
+        const hold = matchingTemporaryHold("temphold_free_subscription");
+        return { ok: true, data: { ...hold, temporaryHold: hold } };
+      }
+      return { ok: true, data: {} };
+    });
+    engine.state.fanBooking.context.selectedEvent = {
+      ...engine.state.fanBooking.context.selectedEvent,
+      spendingRequirement: "mustOwnProducts",
+      requiredProducts: [{ id: 13413, type: "subscription" }],
+    };
+
+    await mountAndSubmitStep3(engine);
+
+    await vi.waitFor(() => {
+      expect(fetchMock.mock.calls.some(([url]) => String(url).includes("/wp-json/api/subscriptions/free"))).toBe(true);
+    });
+    const freeRequest = fetchMock.mock.calls.find(([url]) => String(url).includes("/wp-json/api/subscriptions/free"));
+    expect(JSON.parse(freeRequest[1].body)).toMatchObject({
+      uid: "encoded-fan-uid",
+      tier_id: 13413,
+    });
+    expect(engine.forceSubstep).toHaveBeenCalledWith("topup", { intent: "topup-needed" });
+    expect(engine.state.fanBooking.prerequisite.purchaseResult).toMatchObject({
+      orderId: 9001,
+      subscriptionId: 9002,
+    });
+  });
 
   it("checks balance using engine context ids even if the shared resolver falls back", async () => {
     tokenGet.mockResolvedValue({
@@ -643,6 +995,7 @@ describe("BookingFlowStep3", () => {
     await wrapper.getComponent({ name: "TopUpForm" }).vm.$emit("auth-updated", {
       userId: 8123,
       backendJwtToken: "jwt_authenticated",
+      response: { userData: { userID: 8123, UID: 'fresh-login-fan-uid', jwtToken: 'jwt_authenticated' } },
     });
     await flushAsync();
 
@@ -650,15 +1003,18 @@ describe("BookingFlowStep3", () => {
     await flushAsync();
 
     expect(engine.getState("fanBooking.context.fanId")).toBe(8123);
+    expect(window.userData.UID).toBe('fresh-login-fan-uid');
     expect(fetchUserProfileData).toHaveBeenCalledWith(8123, {
       signal: expect.any(AbortSignal),
     });
     const avatarCard = wrapper.get("[data-testid='booking-balance-avatar-card']");
     expect(avatarCard.attributes("style")).toContain("https://example.test/fans/authenticated-avatar.svg");
     expect(avatarCard.element.style.backgroundColor).toBe("rgb(67, 97, 238)");
+    wrapper.unmount();
+    delete window.userData;
   });
 
-  it("translates the attendance policy and hidden available-balance row with dynamic amounts", async () => {
+  it("translates the attendance policy and restored available-balance row with dynamic amounts", async () => {
     tokenGet.mockResolvedValue({ data: { balance: 1900 } });
     const engine = createEngine();
     const translator = createBookingTranslator({
@@ -844,6 +1200,69 @@ describe("BookingFlowStep3", () => {
     expect(wrapper.getComponent({ name: "ReadAndUnderstandPopup" }).props("modelValue")).toBe(false);
   });
 
+  it("ignores stale required products when booking is open to everyone", async () => {
+    tokenGet.mockResolvedValue({ data: { balance: 3000 } });
+    const originalFetch = global.fetch;
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ token_pricing: { base_price_per_token: 0.1099 } }) });
+    global.fetch = fetchMock;
+
+    try {
+      const engine = createEngine();
+      engine.state.fanBooking.context.selectedEvent = {
+        ...engine.state.fanBooking.context.selectedEvent,
+        spendingRequirement: "none",
+        requiredProducts: [{ id: 5594, type: "subscription" }],
+        raw: {
+          ...engine.state.fanBooking.context.selectedEvent.raw,
+          spendingRequirement: "none",
+          requiredProducts: [{ id: 5594, type: "subscription" }],
+        },
+      };
+
+      const { default: BookingFlowStep3 } = await import("@/components/FanBookingFlow/OneOnOneBookingFlow/BookingFlowStep3.vue");
+      const wrapper = mount(BookingFlowStep3, { props: { engine, embedded: true } });
+      await flushAsync();
+
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(JSON.parse(fetchMock.mock.calls[0][1].body).must_own_products).toEqual([]);
+      expect(wrapper.find("[data-testid='booking-mandatory-purchase']").exists()).toBe(false);
+      expect(wrapper.get('[data-testid="booking-amount-due-usd"]').text()).toBe('=USD$ 109.90');
+      wrapper.unmount();
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
+
+  it.each([false, true])('routes subscriber-only goal groups through subscription checkout (raw: %s)', async (raw) => {
+    tokenGet.mockResolvedValue({ data: { balance: 3000 } });
+    const prerequisite = {
+      type: 'subscription', id: 13413, eligible: false, action: 'subscribe',
+      product: { id: 13413, title: 'Crave – All Access', price: 5, is_subscription_variation: true },
+      checkout: { product_id: 13409, variation_id: 13413 }, shipping: { required: false },
+    };
+    const fetchMock = vi.fn(async () => ({ ok: true, json: async () => ({ prerequisite }) }));
+    vi.stubGlobal('fetch', fetchMock);
+    const engine = createEngine();
+    configureEventGoalGroup(engine);
+    const settings = { whoCanBook: 'subscribersOnly', subscriptionTiers: [13413], spendingRequirement: 'none', requiredProducts: [] };
+    const event = engine.state.fanBooking.context.selectedEvent;
+    Object.assign(raw ? event.raw : event, settings);
+    const prepareGroupBooking = vi.fn(async () => true);
+    const wrapper = await mountAndSubmitStep3(engine, { groupReview: true, prepareGroupBooking });
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body).must_own_products).toEqual([{ id: 13413, type: 'subscription' }]);
+    expect(wrapper.get('[data-testid="booking-mandatory-purchase"]').text()).toContain('MANDATORY SUBSCRIPTION');
+    expect(wrapper.text()).toContain('Crave – All Access');
+    expect(engine.goToStep).toHaveBeenCalledWith(3);
+    expect(engine.forceSubstep).toHaveBeenCalledWith('topup', { intent: 'topup-needed' });
+    expect(engine.callFlow.mock.calls.some(([name]) => name === 'bookings.createBooking')).toBe(false);
+    // The real parent renders standalone Step 3 after leaving Step 2's review.
+    await wrapper.setProps({ groupReview: false });
+    engine.substep = 'topup';
+    await flushAsync();
+    await vi.waitFor(() => expect(wrapper.getComponent({ name: 'TopUpForm' }).props('prerequisite')).toEqual(prerequisite));
+    wrapper.unmount();
+  });
+
   it("accepts invite-only event links for authenticated fans before booking", async () => {
     tokenGet.mockResolvedValue({
       data: {
@@ -939,7 +1358,7 @@ describe("BookingFlowStep3", () => {
     expect(text).toContain("Creator Name");
     expect(text).toContain("15 Minute x 2 sessions (30 Min.)");
     expect(text).toContain("1,000");
-    expect(text).not.toContain("USD$ 60.00");
+    expect(wrapper.get("[data-testid='booking-amount-due-usd']").text()).toBe("=USD$ 60.00");
     expect(text).not.toContain("=USD$ 6.00");
     expect(text).toContain("This booking needs to be approved by Creator Name before your session is confirmed.");
     expect(text).not.toContain("@model");
@@ -992,6 +1411,22 @@ describe("BookingFlowStep3", () => {
     );
     expect(engine.forceSubstep).toHaveBeenCalledWith(null, { intent: "back" });
     expect(engine.goToStep).toHaveBeenCalledWith(2);
+  });
+
+  it("returns group booking Back to the calendar rather than the event list", async () => {
+    tokenGet.mockResolvedValue({ data: { balance: 1900 } });
+    const engine = createEngine();
+    engine.state.fanBooking.context.selectedEvent.type = "group-event";
+    engine.state.fanBooking.context.selectedEvent.eventType = "group-event";
+    const { default: BookingFlowStep3 } = await import("@/components/FanBookingFlow/OneOnOneBookingFlow/BookingFlowStep3.vue");
+    const wrapper = mount(BookingFlowStep3, { props: { engine, embedded: true } });
+    await flushAsync();
+    const backButton = wrapper.findAll("button").find(button => button.text().includes("Back"));
+    await backButton.trigger("click");
+    await flushAsync();
+    expect(engine.forceSubstep).toHaveBeenCalledWith(null, { intent: "back" });
+    expect(engine.goToStep).toHaveBeenCalledWith(2);
+    expect(engine.goToStep).not.toHaveBeenCalledWith(1);
   });
 
   it("formats compact token balances with one non-zero decimal across suffixes", async () => {
@@ -1075,15 +1510,61 @@ describe("BookingFlowStep3", () => {
     const { default: BookingFlowStep3 } = await import("@/components/FanBookingFlow/OneOnOneBookingFlow/BookingFlowStep3.vue");
     const wrapper = mount(BookingFlowStep3, {
       props: { engine, embedded: true },
+      global: {
+        provide: {
+          [bookingTranslationSymbol]: createBookingTranslator({
+            translations: {
+              fan_booking_extra_fee_tooltip: "The booking allocation is included in the displayed total. Translated policy explanation.",
+              fan_booking_booking_fee_included: "Translated booking deposit included",
+            },
+          }),
+        },
+      },
     });
 
     await flushAsync();
 
-    expect(wrapper.text()).toContain("Cancellation allocation included");
+    // The separate cancellation-allocation row is intentionally hidden in the
+    // current summary. Check the active included-total explanation instead.
+    expect(wrapper.text()).toContain("Translated policy explanation.");
+    expect(wrapper.text()).toContain("Translated booking deposit included");
+    expect(wrapper.text()).not.toContain("Cancellation allocation included");
     expect(wrapper.text()).not.toContain("Maximum temporarily held");
     expect(wrapper.text()).toContain("1,000");
     expect(wrapper.text()).not.toContain("1,200");
     expect(wrapper.text()).not.toContain("TOP UP NEEDED");
+  });
+
+  it('releases the previous fan reservation before making a guest hold on checkout logout', async () => {
+    const engine = createEngine();
+    engine.substep = 'topup';
+    engine.state.fanBooking.temporaryHold.temporaryHoldId = 'previous_fan_hold';
+    const releaseIdentity = [];
+    engine.callFlow.mockImplementation(async (name, payload) => {
+      if (name === 'bookings.releaseTemporaryHold') {
+        releaseIdentity.push(backendJwtToken);
+        return { ok: true };
+      }
+      if (name === 'bookings.createTemporaryHold') return { ok: true, data: { temporaryHoldId: 'guest_hold', guestHoldToken: 'guest_token' } };
+      if (name === 'bookings.getTemporaryHoldStatus') {
+        const hold = matchingTemporaryHold(payload.temporaryHoldId, { userId: payload.temporaryHoldId === 'guest_hold' ? 0 : 2615 });
+        return { ok: true, data: { ...hold, temporaryHold: hold } };
+      }
+      return { ok: true, data: {} };
+    });
+    const { default: BookingFlowStep3 } = await import('@/components/FanBookingFlow/OneOnOneBookingFlow/BookingFlowStep3.vue');
+    const wrapper = mount(BookingFlowStep3, { props: { engine, embedded: true } });
+    try {
+      await flushAsync();
+      await vi.dynamicImportSettled();
+      await flushAsync();
+      await wrapper.getComponent({ name: 'TopUpForm' }).props('afterAuthUpdate')({ userId: 0 });
+      expect(releaseIdentity).toEqual(['jwt_test']);
+      expect(backendJwtToken).toBe('');
+      expect(engine.callFlow).toHaveBeenCalledWith('bookings.createTemporaryHold', null,
+        expect.objectContaining({ context: expect.objectContaining({ userId: 0, isGuestHold: true, requestHeaders: { Authorization: null } }) }));
+      expect(engine.getState('fanBooking.temporaryHold.temporaryHoldId')).toBe('guest_hold');
+    } finally { wrapper.unmount(); }
   });
 
   it("creates guest temporary holds with guest session identity and no auth header", async () => {
@@ -1422,6 +1903,15 @@ describe("BookingFlowStep3", () => {
     expect(flowNames).not.toContain("bookings.getTemporaryHoldStatus");
     expect(topUpForm.props("beforeSubmit")()).toBe(true);
     expect(showToast).not.toHaveBeenCalled();
+
+    engine.state.fanBooking.context.selectedEvent.eventGoalTokens = 50000;
+    engine.state.fanBooking.context.selectedEvent.raw.eventGoalTokens = 50000;
+    engine.state.bookingDetails.contributionTokens = 14000;
+    await flushAsync();
+    expect(topUpForm.props("beforeSubmit")()).toBe(true);
+    engine.state.bookingDetails.contributionTokens = 14001;
+    await flushAsync();
+    expect(topUpForm.props("beforeSubmit")()).toBe(false);
   });
 
   it("waits for the authoritative top-up balance before creating the booking", async () => {
@@ -1956,7 +2446,63 @@ describe("BookingFlowStep3", () => {
     }
   });
 
-  it("renders event-goal group contribution controls in step 3 and updates booking state", async () => {
+  it("completes an eligible group directly from the inline step 2 review", async () => {
+    tokenGet.mockResolvedValue({ data: { balance: 3000 } });
+    const engine = createEngine();
+    configureEventGoalGroup(engine);
+    const prepareGroupBooking = vi.fn(async () => true);
+    engine.callFlow.mockImplementation(async (name) => name === 'bookings.createBooking'
+      ? { ok: true, data: { bookingId: 'group_from_step2' } }
+      : { ok: true, data: {} });
+    const wrapper = await mountAndSubmitStep3(engine, { groupReview: true, prepareGroupBooking });
+    expect(prepareGroupBooking).toHaveBeenCalledOnce();
+    expect(engine.callFlow).toHaveBeenCalledWith('bookings.createBooking', null, expect.any(Object));
+    expect(engine.goToStep).toHaveBeenCalledWith(4);
+    expect(engine.goToStep).not.toHaveBeenCalledWith(3);
+    expect(engine.forceSubstep).not.toHaveBeenCalledWith('summary', expect.any(Object));
+    expect(wrapper.text()).toContain('BOOKING SUMMARY');
+    expect(wrapper.text()).toContain('EVENT TOTAL');
+    expect(wrapper.find('[data-test="left-sidebar"]').exists()).toBe(false);
+    expect(wrapper.find('#step3-event-goal-contribution').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it.each([
+    { balance: 0, prerequisite: false },
+    { balance: 0, prerequisite: true },
+    { balance: 3000, prerequisite: true },
+  ])("opens step 3 only for required group payment ($balance tokens, prerequisite=$prerequisite)", async ({ balance, prerequisite }) => {
+    tokenGet.mockResolvedValue({ data: { balance } });
+    const engine = createEngine();
+    configureEventGoalGroup(engine);
+    if (prerequisite) {
+      engine.state.fanBooking.context.selectedEvent.spendingRequirement = 'mustOwnProducts';
+      engine.state.fanBooking.context.selectedEvent.requiredProducts = [{ id: 100, type: 'product' }];
+      vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, json: async () => ({ prerequisite: {
+        eligible: false, type: 'product', action: 'buy', product: { id: 100, title: 'Required merch', price: 5 },
+      } }) })));
+    }
+    const prepareGroupBooking = vi.fn(async () => true);
+    const wrapper = await mountAndSubmitStep3(engine, { groupReview: true, prepareGroupBooking });
+    expect(prepareGroupBooking).toHaveBeenCalledOnce();
+    expect(engine.goToStep).toHaveBeenCalledWith(3);
+    expect(engine.forceSubstep).toHaveBeenCalledWith('topup', { intent: 'topup-needed' });
+    expect(engine.callFlow.mock.calls.some(([name]) => name === 'bookings.createBooking')).toBe(false);
+    if (prerequisite) expect(engine.state.fanBooking.prerequisite.validation.prerequisite.product.id).toBe(100);
+    wrapper.unmount();
+  });
+
+  it("keeps the inline group review when step 2 availability validation fails", async () => {
+    tokenGet.mockResolvedValue({ data: { balance: 3000 } });
+    const engine = createEngine();
+    configureEventGoalGroup(engine);
+    const wrapper = await mountAndSubmitStep3(engine, { groupReview: true, prepareGroupBooking: async () => false });
+    expect(engine.goToStep).not.toHaveBeenCalled();
+    expect(engine.callFlow.mock.calls.some(([name]) => name === 'bookings.createBooking')).toBe(false);
+    wrapper.unmount();
+  });
+
+  it("uses contribution selected in step 2 without rendering another editor", async () => {
     tokenGet.mockResolvedValue({
       data: {
         balance: 3000,
@@ -1975,18 +2521,11 @@ describe("BookingFlowStep3", () => {
 
     await flushAsync();
 
-    expect(wrapper.text()).toContain("Your Contribution (500 Tokens minimum)");
-    const input = wrapper.get("#step3-event-goal-contribution");
-    const range = wrapper.get("[data-testid='step3-event-goal-contribution-range']");
-    expect(input.attributes("min")).toBe("500");
-    expect(input.attributes("max")).toBe("8000");
-    expect(range.attributes("max")).toBe("8000");
-
-    await input.setValue("4000");
+    expect(wrapper.find("#step3-event-goal-contribution").exists()).toBe(false);
+    engine.state.bookingDetails.contributionTokens = 4000;
+    engine.state.fanBooking.selection.contributionTokens = 4000;
     await flushAsync();
 
-    expect(engine.state.bookingDetails.contributionTokens).toBe(4000);
-    expect(engine.state.fanBooking.selection.contributionTokens).toBe(4000);
     expect(wrapper.text()).toContain("4,000");
   });
 
@@ -2035,14 +2574,14 @@ describe("BookingFlowStep3", () => {
     expect(sidebar.text()).toContain("Group Goal");
   });
 
-  it("allows event-goal contribution above wallet balance so step 3 can top up", async () => {
+  it("allows contribution above both goal and wallet balance so step 3 can top up", async () => {
     tokenGet.mockResolvedValue({
       data: {
         balance: 300,
       },
     });
     const engine = createEngine();
-    configureEventGoalGroup(engine);
+    configureEventGoalGroup(engine, { eventGoalTokens: 1000 });
 
     const { default: BookingFlowStep3 } = await import("@/components/FanBookingFlow/OneOnOneBookingFlow/BookingFlowStep3.vue");
     const wrapper = mount(BookingFlowStep3, {
@@ -2053,12 +2592,35 @@ describe("BookingFlowStep3", () => {
     });
 
     await flushAsync();
-    await wrapper.get("#step3-event-goal-contribution").setValue("4000");
+    engine.state.bookingDetails.contributionTokens = 5000;
+    engine.state.fanBooking.selection.contributionTokens = 5000;
     await flushAsync();
 
-    expect(engine.state.bookingDetails.contributionTokens).toBe(4000);
+    expect(engine.state.bookingDetails.contributionTokens).toBe(5000);
     expect(wrapper.text()).toContain("TOP UP NEEDED");
     expect(wrapper.text()).toContain("TOP-UP & PAY");
+    expect(wrapper.get('[data-testid="booking-complete-button"]').element.disabled).toBe(false);
+    wrapper.unmount();
+  });
+
+  it("blocks goal contributions above 14,000 in step 3 but allows the limit", async () => {
+    tokenGet.mockResolvedValue({ data: { balance: 50000 } });
+    const engine = createEngine();
+    configureEventGoalGroup(engine, { eventGoalTokens: 50000 });
+    const { default: BookingFlowStep3 } = await import("@/components/FanBookingFlow/OneOnOneBookingFlow/BookingFlowStep3.vue");
+    const wrapper = mount(BookingFlowStep3, { props: { engine, embedded: true } });
+    await flushAsync();
+    engine.state.bookingDetails.contributionTokens = 14000;
+    engine.state.fanBooking.selection.contributionTokens = 14000;
+    await flushAsync();
+    expect(wrapper.get('[data-testid="booking-complete-button"]').element.disabled).toBe(false);
+    engine.state.bookingDetails.contributionTokens = 14001;
+    engine.state.fanBooking.selection.contributionTokens = 14001;
+    await flushAsync();
+    expect(wrapper.get('[data-testid="booking-complete-button"]').element.disabled).toBe(true);
+    await wrapper.get('[data-testid="booking-complete-button"]').trigger('click');
+    expect(engine.callFlow).not.toHaveBeenCalledWith('createBooking', expect.anything());
+    wrapper.unmount();
   });
 
   it("allows event-goal contribution after the goal has already been reached", async () => {
@@ -2107,18 +2669,10 @@ describe("BookingFlowStep3", () => {
 
     await flushAsync();
 
-    const input = wrapper.get("#step3-event-goal-contribution");
-    const range = wrapper.get("[data-testid='step3-event-goal-contribution-range']");
-
     expect(wrapper.get("[data-test='left-sidebar']").attributes("data-event-goal-percent")).toBe("100");
-    expect(wrapper.text()).toContain("0 tokens remaining");
-    expect(input.attributes("max")).toBe("3000");
-    expect(range.attributes("max")).toBe("3000");
-    expect(range.attributes("disabled")).toBeUndefined();
-    expect(wrapper.find("[data-testid='step3-event-goal-contribution-error']").exists()).toBe(false);
-    expect(wrapper.find("button[disabled]").exists()).toBe(false);
-
-    await input.setValue("2000");
+    expect(wrapper.find("#step3-event-goal-contribution").exists()).toBe(false);
+    engine.state.bookingDetails.contributionTokens = 2000;
+    engine.state.fanBooking.selection.contributionTokens = 2000;
     await flushAsync();
 
     expect(engine.state.bookingDetails.contributionTokens).toBe(2000);
@@ -2214,7 +2768,7 @@ describe("BookingFlowStep3", () => {
     expect(text).toContain("Recurring Event Discount (25%)");
     expect(text).toContain("Off-hour Surcharge");
     expect(text).toContain("113");
-    expect(text).not.toContain("USD$ 6.78");
+    expect(wrapper.get("[data-testid='booking-amount-due-usd']").text()).toBe("=USD$ 6.78");
     expect(text.indexOf("Recurring Event Discount (25%)")).toBeLessThan(text.indexOf("Off-hour Surcharge"));
     expect(text.indexOf("Off-hour Surcharge")).toBeLessThan(text.indexOf("Session Total"));
   });
@@ -2338,7 +2892,7 @@ describe("BookingFlowStep3", () => {
     expect(text).toContain("Longer Session Discount");
     expect(text).toContain("First Time Discount");
     expect(text).toContain("140");
-    expect(text).not.toContain("USD$ 8.40");
+    expect(wrapper.get("[data-testid='booking-amount-due-usd']").text()).toBe("=USD$ 8.40");
   });
 
   it("renders translated recording metadata while using the canonical mapped total", async () => {
@@ -2376,7 +2930,7 @@ describe("BookingFlowStep3", () => {
     expect(addOns[0].attributes("data-addon-kind")).toBe("recording");
     expect(addOns[0].text()).toContain("录制我们的会话");
     expect(wrapper.text()).toContain("120");
-    expect(wrapper.text()).not.toContain("USD$ 7.20");
+    expect(wrapper.get("[data-testid='booking-amount-due-usd']").text()).toBe("=USD$ 7.20");
   });
 
   it("shows the captured booking payment total on the success screen", async () => {

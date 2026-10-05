@@ -7,6 +7,9 @@ export const FS_FAN_BOOKING_BALANCE_REFRESH_REQUEST = "FS_FAN_BOOKING_BALANCE_RE
 export const FS_FAN_BOOKING_AUTH_UPDATE = "FS_FAN_BOOKING_AUTH_UPDATE";
 export const FS_FAN_BOOKING_OPEN_CHAT = "FS_FAN_BOOKING_OPEN_CHAT";
 export const FS_FAN_BOOKING_OPEN_DETAILS = "FS_FAN_BOOKING_OPEN_DETAILS";
+export const FS_FAN_BOOKING_PREREQUISITE_CHECKOUT_REQUEST = "FS_FAN_BOOKING_PREREQUISITE_CHECKOUT_REQUEST";
+export const FS_FAN_BOOKING_PREREQUISITE_CHECKOUT_RESULT = "FS_FAN_BOOKING_PREREQUISITE_CHECKOUT_RESULT";
+export const FS_FAN_BOOKING_OPEN_PURCHASE = "FS_FAN_BOOKING_OPEN_PURCHASE";
 
 const MESSAGE_SOURCE = "fs-fan-booking-embed";
 import { logFanBookingDebug } from "@/embeds/fanBooking/debug.js";
@@ -52,6 +55,42 @@ export function requestFanBookingOpenChat(payload = {}) {
 
 export function requestFanBookingOpenDetails(payload = {}) {
   postToParent(FS_FAN_BOOKING_OPEN_DETAILS, payload);
+}
+
+export function requestFanBookingPrerequisiteCheckout(payload = {}) {
+  if (!isEmbeddedIframe()) {
+    return Promise.resolve({ status: "failed", reason: "booking_checkout_host_unavailable" });
+  }
+
+  const requestId = `booking-checkout-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  return new Promise((resolve) => {
+    let timeoutId = null;
+    const listener = (event) => {
+      if (event.source !== window.parent) return;
+      const data = event.data || {};
+      if (data.type !== FS_FAN_BOOKING_PREREQUISITE_CHECKOUT_RESULT) return;
+      if (String(data.payload?.requestId || "") !== requestId) return;
+
+      window.removeEventListener("message", listener);
+      if (timeoutId) window.clearTimeout(timeoutId);
+      resolve(data.payload || { requestId, status: "failed" });
+    };
+
+    window.addEventListener("message", listener);
+    timeoutId = window.setTimeout(() => {
+      window.removeEventListener("message", listener);
+      resolve({ requestId, status: "failed", reason: "booking_checkout_timed_out" });
+    }, 20 * 60 * 1000);
+
+    postToParent(FS_FAN_BOOKING_PREREQUISITE_CHECKOUT_REQUEST, {
+      ...payload,
+      requestId,
+    });
+  });
+}
+
+export function requestFanBookingOpenPurchase(payload = {}) {
+  postToParent(FS_FAN_BOOKING_OPEN_PURCHASE, payload);
 }
 
 export function installOneOnOneBookingBootstrapListener(handler) {

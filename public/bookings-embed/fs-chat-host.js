@@ -491,6 +491,7 @@
         }
       } else if (data.type === "FS_CHAT_READY") {
         extBtn.style.display = "flex";
+        if (typeof settings.onReady === "function") settings.onReady();
       } else if (data.type === "FS_CHAT_RESIZE" && data.payload) {
         var w = data.payload.width;
         var h = data.payload.height;

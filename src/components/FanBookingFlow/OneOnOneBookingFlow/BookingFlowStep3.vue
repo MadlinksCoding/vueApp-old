@@ -3,7 +3,7 @@ import { computed, ref, watch, onMounted, onBeforeUnmount, defineAsyncComponent 
 import OneOnOneBookingFlowLeftSideBar from '../HelperComponents/OneOnOneBookingFlowLeftSideBar.vue';
 import TokenHandler from '@/utils/TokenHandler.js';
 import { showToast } from '@/utils/toastBus.js';
-import { mapCreateBookingToRequest } from '@/services/bookings/mappers/createBookingMapper.js';
+import { mapCreateBookingToRequest, MAX_EVENT_GOAL_CONTRIBUTION_TOKENS } from '@/services/bookings/mappers/createBookingMapper.js';
 import { sumEventGoalContributionsForEvent } from '@/services/bookings/utils/bookingSlotUtils.js';
 import TooltipIcon from "@/components/ui/tooltip/TooltipIcon.vue";
 import CheckboxGroup from '@/components/ui/form/checkbox/CheckboxGroup.vue';
@@ -29,8 +29,8 @@ import { useEventBackgroundImage } from './useEventBackgroundImage.js';
 import FlowHandler from '@/services/flow-system/FlowHandler'
 import { useChatSocket } from '@/composables/useChatSocket';
 import { resolveGuestSessionId } from '@/utils/resolveGuestSessionId';
-import { getBackendJwtToken, setBackendJwtToken } from '@/utils/backendJwt.js';
-import { getBookingsApiBaseUrl } from '@/services/bookings/bookingsApiUtils.js';
+import { getBackendJwtToken, normalizeBackendAuthContext, setBackendJwtToken } from '@/utils/backendJwt.js';
+import { getBookingsApiBaseUrl, getBookingRequiredProducts, getBookingPrerequisitePrice, fetchBookingPrerequisiteEligibility } from '@/services/bookings/bookingsApiUtils.js';
 import { formatBookingValidationErrors, useBookingTranslations } from '@/i18n/bookingTranslations.js';
 import { extractBackendErrorMessage } from '@/utils/backendErrorMessage.js';
 import { presentBackendJwtAuthError } from '@/utils/backendJwtErrorToast.js';
@@ -98,6 +98,9 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  groupReview: { type: Boolean, default: false },
+  prepareGroupBooking: { type: Function, default: null },
+  groupActionDisabled: { type: Boolean, default: false },
   refreshBookingContext: {
     type: Function,
     default: null,
@@ -142,6 +145,14 @@ const holdError = ref('');
 const secondsRemaining = ref(0);
 let holdTimerId = null;
 const pendingTopUpExpectedBalance = ref(null);
+const prerequisiteValidation = ref(
+  props.engine.getState('fanBooking.prerequisite.eventId') === (selectedEvent.value?.eventId || selectedEvent.value?.id)
+    ? props.engine.getState('fanBooking.prerequisite.validation') || null
+    : null,
+);
+const isCheckingPrerequisite = ref(false);
+const isPrerequisiteCheckoutOpen = ref(false);
+const prerequisiteError = ref('');
 let topUpBalanceSyncGeneration = 0;
 let hasNotifiedTopUpBalanceChange = false;
 
@@ -289,7 +300,34 @@ watch(
 // --- COMPUTED VALUES (Derived from Engine State) ---
 const sessionDuration = computed(() => bookingData.value.selectedDuration?.value || 0);
 const selectedAddons = computed(() => bookingData.value.addons || []);
-const contributionTokens = ref(Number(
+const requiredProducts = computed(() => getBookingRequiredProducts(selectedEvent.value));
+const hasProductPrerequisite = computed(() => requiredProducts.value.length > 0);
+const prerequisiteDetail = computed(() => prerequisiteValidation.value?.prerequisite || null);
+const isSubscriptionPrerequisite = computed(() => (
+  prerequisiteDetail.value?.type === 'subscription'
+  || Number(prerequisiteDetail.value?.product?.is_subscription_variation) === 1
+  || ['subscribe', 'switch'].includes(prerequisiteDetail.value?.action)
+));
+const prerequisiteShippingCostLabel = computed(() => {
+  const shipping = prerequisiteDetail.value?.shipping;
+  if (typeof shipping?.cost === 'number') {
+    return shipping.cost > 0
+      ? t('fan_booking_shipping_charge', { amount: shipping.cost.toFixed(2) })
+      : t('fan_booking_free_shipping');
+  }
+  return shipping?.cost_label || t('fan_booking_calculated_at_checkout');
+});
+const prerequisiteProductTitle = computed(() => {
+  const product = prerequisiteDetail.value?.product || {};
+  if (isSubscriptionPrerequisite.value && String(product.variation_title || '').trim()) {
+    return String(product.variation_title).trim();
+  }
+  return String(product.title || product.name || '').trim();
+});
+const prerequisiteEligible = computed(() => (
+  !hasProductPrerequisite.value || prerequisiteDetail.value?.eligible === true
+));
+const contributionTokens = computed(() => Number(
   bookingData.value.contributionTokens
     ?? props.engine.getState('fanBooking.selection.contributionTokens')
     ?? 0,
@@ -449,7 +487,6 @@ const eventGoalPercent = computed(() => (
     ? Math.min(100, Math.max(0, Math.floor((eventGoalReachedTokens.value / eventGoalTokens.value) * 100)))
     : 0
 ));
-const eventGoalRemainingTokens = computed(() => Math.max(0, eventGoalTokens.value - eventGoalReachedTokens.value));
 
 function normalizeEventPerformer(value = {}) {
   if (!value || typeof value !== 'object') return null;
@@ -501,8 +538,7 @@ const groupPerformers = computed(() => (
     .filter(Boolean)
 ));
 
-const eventGoalMaximumContribution = computed(() => Math.max(0, walletBalance.value, eventGoalTokens.value));
-const contributionRangeMax = computed(() => Math.max(eventGoalMinimumTokens.value, eventGoalMaximumContribution.value));
+const eventGoalMaximumContribution = computed(() => MAX_EVENT_GOAL_CONTRIBUTION_TOKENS);
 const normalizedContributionTokens = computed(() => toWholeTokens(contributionTokens.value));
 const contributionInvalid = computed(() => {
   if (!isEventGoalGroupEvent.value) return false;
@@ -510,45 +546,6 @@ const contributionInvalid = computed(() => {
   const max = eventGoalMaximumContribution.value;
   return max <= 0 || amount < eventGoalMinimumTokens.value || amount > max;
 });
-const contributionSliderPercent = computed(() => {
-  const min = eventGoalMinimumTokens.value;
-  const max = eventGoalMaximumContribution.value;
-  if (max <= min) return 0;
-  const amount = Math.min(Math.max(normalizedContributionTokens.value, min), max);
-  return Math.round(((amount - min) / (max - min)) * 100);
-});
-const contributionSliderStyle = computed(() => ({ width: `${contributionSliderPercent.value}%` }));
-const contributionThumbStyle = computed(() => ({ left: `${contributionSliderPercent.value}%` }));
-
-function syncContributionToEngine(value) {
-  const next = isEventGoalGroupEvent.value ? toWholeTokens(value) : null;
-  props.engine.setState('bookingDetails.contributionTokens', next, {
-    reason: 'step3-event-goal-contribution',
-    silent: true,
-  });
-  props.engine.setState('fanBooking.selection.contributionTokens', next, {
-    reason: 'step3-event-goal-contribution',
-    silent: true,
-  });
-}
-
-function ensureContributionDefault() {
-  if (!isEventGoalGroupEvent.value) {
-    contributionTokens.value = 0;
-    syncContributionToEngine(null);
-    return;
-  }
-
-  const min = eventGoalMinimumTokens.value;
-  const max = eventGoalMaximumContribution.value;
-  const existing = toWholeTokens(contributionTokens.value || bookingData.value.contributionTokens);
-  const next = max >= min
-    ? Math.min(Math.max(existing || min, min), max)
-    : min;
-  contributionTokens.value = next;
-  syncContributionToEngine(next);
-}
-
 const formattedTime = computed(() => bookingData.value.formattedTimeRange || '-');
 const isFirstBookingForCreator = computed(() => (
   props.engine.getState('fanBooking.context.isFirstBookingForCreator') === true
@@ -579,7 +576,7 @@ const remainingBalance = computed(() => {
 });
 
 const remainingBalanceAfterBooking = computed(() => walletBalance.value + topUpAmount.value - maximumHeldAmount.value);
-const isTopUpSubstep = computed(() => paymentSubstep.value === PAYMENT_SUBSTEP_TOPUP);
+const isTopUpSubstep = computed(() => !props.groupReview && paymentSubstep.value === PAYMENT_SUBSTEP_TOPUP);
 const isGuestFlow = computed(() => resolveFanId() <= 0 || !getBackendJwtToken());
 const isInviteOnlyEvent = computed(() => {
   const raw = selectedEvent.value?.raw || {};
@@ -730,7 +727,7 @@ function formatTokenExact(value) {
 
 function tokensToUsdDisplay(value) {
   const num = Number(value);
-  const usd = Number.isFinite(num) ? num * 0.06 : 0;
+  const usd = Number.isFinite(num) ? num * approximateTokenRate.value : 0;
   return `USD$ ${usdFormatter.format(usd)}`;
 }
 
@@ -801,10 +798,22 @@ const sessionBreakdownLabel = computed(() => {
 });
 
 const sessionTotalTokens = computed(() => Math.max(0, Number(totalPrice.value || 0)));
+const approximateTokenRate = computed(() => {
+  const rate = Number(prerequisiteValidation.value?.token_pricing?.base_price_per_token);
+  return Number.isFinite(rate) && rate > 0 ? rate : 0.06;
+});
 const sessionTotalUsdDisplay = computed(() =>
   tokensToUsdDisplay(sessionTotalTokens.value).replace(/^USD\$\s*/, '').trim()
 );
-const amountDueUsdDisplay = computed(() => tokensToUsdDisplay(totalPrice.value));
+const prerequisiteAmountUsd = computed(() => (
+  prerequisiteDetail.value?.product && !prerequisiteDetail.value?.eligible
+    ? getBookingPrerequisitePrice(prerequisiteDetail.value)
+      + Math.max(0, Number(prerequisiteDetail.value.shipping?.cost || 0))
+    : 0
+));
+const amountDueUsdDisplay = computed(() => {
+  return `USD$ ${usdFormatter.format(sessionTotalTokens.value * approximateTokenRate.value + prerequisiteAmountUsd.value)}`;
+});
 
 const BACKEND_BOOKING_ERROR_TRANSLATIONS = Object.freeze({
   missing_bearer_token: 'fan_booking_error_missing_bearer_token',
@@ -1101,50 +1110,72 @@ function guestHoldHeaders() {
 }
 
 function normalizeAuthUpdatePayload(payload = {}) {
-  const source = payload?.response && typeof payload.response === 'object'
-    ? { ...payload.response, ...payload }
-    : payload;
-  const userId = source?.userId
-    ?? source?.user_id
-    ?? source?.userData?.userID
-    ?? source?.userData?.user_id
-    ?? source?.data?.userId
-    ?? source?.data?.user_id
-    ?? null;
-  const backendJwtToken = source?.backendJwtToken
-    ?? source?.jwtToken
-    ?? source?.backend_jwt_token
-    ?? source?.jwt_token
-    ?? source?.token
-    ?? source?.data?.backendJwtToken
-    ?? source?.data?.jwtToken
-    ?? '';
+  return normalizeBackendAuthContext(payload);
+}
 
-  return {
-    userId: Number(userId),
-    backendJwtToken: typeof backendJwtToken === 'string' ? backendJwtToken.trim() : '',
-  };
+function syncCheckoutAccountPresentation(payload = {}) {
+  const response = payload.response || payload;
+  const checkoutUser = response.userData;
+  const nonce = response.custom_checkout_params?.wp_rest_nonce;
+  if (checkoutUser) {
+    window.userData = { ...window.userData, ...checkoutUser };
+    if (window.parent !== window) window.parent.userData = { ...window.parent.userData, ...checkoutUser };
+  }
+  if (nonce) {
+    window.custom_checkout_params = { ...window.custom_checkout_params, ...response.custom_checkout_params };
+    if (window.parent !== window) {
+      window.parent.custom_checkout_params = {
+        ...window.parent.custom_checkout_params, ...response.custom_checkout_params,
+      };
+      if (window.parent.siteData) window.parent.siteData.restNonce = nonce;
+    }
+  }
 }
 
 async function applyAuthenticatedFanContext(payload = {}, { refreshBalance = true } = {}) {
   const { userId, backendJwtToken } = normalizeAuthUpdatePayload(payload);
-  const hasUserId = Number.isFinite(userId) && userId > 0;
 
   if (backendJwtToken) {
     setBackendJwtToken(backendJwtToken);
   }
 
-  if (!hasUserId) return false;
+  // Logged-in checkout responses do not repeat the fan id or JWT. In that
+  // case, retain the authenticated booking context already established when
+  // the iframe opened. Guest checkout must still provide the newly created or
+  // authenticated account details before it can continue.
+  const existingFanId = Number(resolveFanId());
+  const hasPayloadUserId = Number.isFinite(userId) && userId > 0;
+  const authenticatedUserId = hasPayloadUserId
+    ? userId
+    : (getBackendJwtToken() && Number.isFinite(existingFanId) && existingFanId > 0
+      ? existingFanId
+      : 0);
 
-  props.engine.setState('fanBooking.context.fanId', userId, { reason: 'auth-user-id', silent: true });
-  void refreshBalanceCardAvatar({ userId });
+  if (!authenticatedUserId) return false;
+
+  syncCheckoutAccountPresentation(payload);
+  window.parent?.FSEventsEmbed?.updateFanBookingAuth?.({
+    fanId: authenticatedUserId, jwtToken: getBackendJwtToken(),
+  });
+
+  const checkoutUser = payload?.response?.userData || payload?.userData;
+  if (checkoutUser && Number(checkoutUser.userID || checkoutUser.user_id) === authenticatedUserId) {
+    // Keep the existing account's UID as well as its JWT after inline login.
+    // Free-tier activation must not use an account captured by the parent page.
+    window.userData = { ...window.userData, ...checkoutUser };
+  }
+
+  props.engine.setState('fanBooking.context.fanId', authenticatedUserId, { reason: 'auth-user-id', silent: true });
+  props.engine.setState('userId', authenticatedUserId, { reason: 'auth-user-id', silent: true });
+  props.engine.setState('fanId', authenticatedUserId, { reason: 'auth-user-id', silent: true });
+  void refreshBalanceCardAvatar({ userId: authenticatedUserId });
   await acceptInviteForAuthenticatedFan({ silent: true });
 
   const creatorId = resolveCreatorId();
   if (Number.isFinite(Number(creatorId)) && Number(creatorId) > 0) {
     await props.engine.callFlow('bookings.fetchCreatorBookingContext', {
       creatorId,
-      fanId: userId,
+      fanId: authenticatedUserId,
       status: 'active',
       limit: 100,
       periodMonths: 6,
@@ -1154,7 +1185,7 @@ async function applyAuthenticatedFanContext(payload = {}, { refreshBalance = tru
       context: {
         stateEngine: props.engine,
         creatorId,
-        fanId: userId,
+        fanId: authenticatedUserId,
         apiBaseUrl: props.apiBaseUrl || undefined,
       },
     }).catch(() => {});
@@ -1164,7 +1195,7 @@ async function applyAuthenticatedFanContext(payload = {}, { refreshBalance = tru
   if (temporaryHoldId && getBackendJwtToken()) {
     await FlowHandler.run('bookings.updateTemporaryHoldUser', {
       temporaryHoldId,
-      userId,
+      userId: authenticatedUserId,
     }, {
       context: {
         stateEngine: props.engine,
@@ -1842,6 +1873,7 @@ async function waitForTopUpBalance(requiredBalance) {
 
       try {
         const authoritativeBalance = await fetchAuthoritativeWalletBalance();
+        logFanBookingDebug('step3', 'top-up-balance-sync:reading', `Fan ${resolveFanId()}: ${authoritativeBalance} / ${requiredBalance}`);
         if (generation !== topUpBalanceSyncGeneration) return { status: 'cancelled' };
 
         if (authoritativeBalance >= requiredBalance) {
@@ -1944,6 +1976,136 @@ async function refreshWalletBalance({ silent = false } = {}) {
   }
 }
 
+async function refreshPrerequisiteEligibility({ silent = false } = {}) {
+  if (!hasProductPrerequisite.value) {
+    const tokenPricing = prerequisiteValidation.value?.token_pricing;
+    prerequisiteValidation.value = { prerequisite: null, must_own_products_ok: true, token_pricing: tokenPricing };
+    prerequisiteError.value = '';
+    // The same public presentation response supplies the highest token rate
+    // for ungated bookings too. Pricing failure must not block such a booking.
+    if (!tokenPricing) {
+      try {
+        const presentation = await fetchBookingPrerequisiteEligibility(resolveFanId(), []);
+        prerequisiteValidation.value = { ...prerequisiteValidation.value, token_pricing: presentation?.token_pricing };
+      } catch (_) { /* Keep the existing fallback while pricing is unavailable. */ }
+    }
+    return prerequisiteValidation.value;
+  }
+
+  const fanId = resolveFanId();
+  isCheckingPrerequisite.value = true;
+  prerequisiteError.value = '';
+  try {
+    const payload = await fetchBookingPrerequisiteEligibility(fanId, requiredProducts.value);
+
+    prerequisiteValidation.value = payload;
+    props.engine.setState('fanBooking.prerequisite.validation', payload, {
+      reason: 'prerequisite-validation',
+      silent: true,
+    });
+    props.engine.setState('fanBooking.prerequisite.eventId', selectedEvent.value?.eventId || selectedEvent.value?.id, {
+      reason: 'prerequisite-validation',
+      silent: true,
+    });
+    return payload;
+  } catch (error) {
+    prerequisiteError.value = error?.message || t('fan_booking_prerequisite_check_failed');
+    if (!silent) {
+      showToast({
+        type: 'error',
+        title: t('fan_booking_prerequisite_check_failed_title'),
+        message: prerequisiteError.value,
+      });
+    }
+    return null;
+  } finally {
+    isCheckingPrerequisite.value = false;
+  }
+}
+
+async function purchaseMissingPrerequisite() {
+  const validation = await refreshPrerequisiteEligibility();
+  const detail = validation?.prerequisite;
+  if (!detail) return { ok: false };
+  if (detail.eligible === true) return { ok: true, toppedUp: false };
+  const tierId = Number(detail?.product?.id || detail?.checkout?.variation_id || detail?.id || 0);
+  const parentUserData = resolveParentUserData() || {};
+  const uid = window?.userData?.UID || parentUserData.UID || '';
+  if (detail.type !== 'subscription' || Number(detail.product?.price || 0) > 0 || !tierId || !uid) {
+    showToast({
+      type: 'error',
+      title: t('fan_booking_prerequisite_checkout_failed_title'),
+      message: t('fan_booking_prerequisite_checkout_unavailable'),
+    });
+    return { ok: false };
+  }
+
+  if (requiresTemporaryHold.value) {
+    const holdOk = await ensureTemporaryHold();
+    if (!holdOk) {
+      showToast({
+        type: 'error',
+        title: t('fan_booking_could_not_hold_slot_title'),
+        message: holdError.value || t('fan_booking_reserve_slot_failed'),
+      });
+      return { ok: false };
+    }
+  }
+
+  isPrerequisiteCheckoutOpen.value = true;
+  try {
+    const requestId = window?.crypto?.randomUUID?.()
+      || `booking-free-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    const response = await fetch('/wp-json/api/subscriptions/free', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        uid,
+        tier_id: tierId,
+        idempotency_key: requestId,
+      }),
+    });
+    const checkoutResult = await response.json().catch(() => ({}));
+
+    if (!response.ok || checkoutResult?.success !== true) {
+      throw new Error(checkoutResult?.message || t('fan_booking_prerequisite_checkout_failed'));
+    }
+
+    props.engine.setState('fanBooking.prerequisite.purchaseResult', {
+      status: 'paid',
+      orderId: checkoutResult?.order_id || null,
+      subscriptionId: checkoutResult?.subscription_id || null,
+      action: checkoutResult?.action || 'free_subscription',
+      payment: checkoutResult,
+    }, {
+      reason: 'prerequisite-checkout-completed',
+      silent: true,
+    });
+
+    const refreshed = await refreshPrerequisiteEligibility();
+    if (refreshed?.prerequisite?.eligible !== true) {
+      showToast({
+        type: 'warning',
+        title: t('fan_booking_prerequisite_sync_delayed_title'),
+        message: t('fan_booking_prerequisite_sync_delayed_message'),
+      });
+      return { ok: false };
+    }
+
+    return { ok: true, toppedUp: false };
+  } catch (error) {
+    showToast({
+      type: 'error',
+      title: t('fan_booking_prerequisite_checkout_failed_title'),
+      message: error?.message || t('fan_booking_prerequisite_checkout_failed'),
+    });
+    return { ok: false };
+  } finally {
+    isPrerequisiteCheckoutOpen.value = false;
+  }
+}
+
 // --- SHARED FUNCTION TO SUBMIT BOOKING & GO TO STEP 4 ---
 const finalizeBooking = async ({ isTopUpDone = false, nextWalletBalance = null } = {}) => {
   if (isSubmitting.value) return;
@@ -1981,6 +2143,7 @@ const finalizeBooking = async ({ isTopUpDone = false, nextWalletBalance = null }
 
     const preflight = preflightBookingPayload();
     if (!preflight.ok) {
+      logFanBookingDebug('step3', 'booking-preflight:failed', preflight.missingFields.join(', '));
       emit('booking-failed', {
         type: 'booking-preflight',
         missingFields: preflight.missingFields,
@@ -2017,6 +2180,7 @@ const finalizeBooking = async ({ isTopUpDone = false, nextWalletBalance = null }
       const failureMessage = staleSlotConflict
         ? t('fan_booking_slot_already_booked_try_different_slot')
         : extractBackendMessage(result);
+      logFanBookingDebug('step3', 'create-booking:failed', failureMessage);
       emit('booking-failed', {
         type: 'create-booking',
         result,
@@ -2113,7 +2277,7 @@ const handleChangeSchedule = async () => {
     await releaseTemporaryHoldForRepair(currentHoldId);
   }
   await props.engine.forceSubstep(null, { intent: 'change-schedule' });
-  props.engine.goToStep(isGroupEvent.value ? 1 : 2);
+  props.engine.goToStep(2);
 };
 
 const handleBack = async () => {
@@ -2127,7 +2291,7 @@ const handleBack = async () => {
     await releaseTemporaryHoldForRepair(currentHoldId);
   }
   await props.engine.forceSubstep(null, { intent: 'back' });
-  props.engine.goToStep(isGroupEvent.value ? 1 : 2);
+  props.engine.goToStep(2);
 };
 
 const enterTopUpSubstep = async () => {
@@ -2141,12 +2305,13 @@ const enterTopUpSubstep = async () => {
     return false;
   }
 
+  if (props.groupReview) await props.engine.goToStep(3);
   await props.engine.forceSubstep(PAYMENT_SUBSTEP_TOPUP, { intent: 'topup-needed' });
   return true;
 };
 
 function validateBeforeTopUpSubmit() {
-  if (isSubmitting.value || hasBookingCreated.value) return false;
+  if (isSubmitting.value || hasBookingCreated.value || contributionInvalid.value) return false;
   if (requiresTemporaryHold.value && holdLoading.value) return false;
   if (requiresTemporaryHold.value && !hasActiveHold.value) {
     showToast({
@@ -2162,11 +2327,50 @@ function validateBeforeTopUpSubmit() {
 
 const goBackToPaymentSummary = async () => {
   if (isSubmitting.value || holdLoading.value) return;
+  if (isGroupEvent.value) {
+    await props.engine.forceSubstep(null, { intent: 'group-payment-back' });
+    await props.engine.goToStep(2);
+    return;
+  }
   await props.engine.forceSubstep(PAYMENT_SUBSTEP_SUMMARY, { intent: 'topup-back' });
 };
 
 const onTopUpPaymentFailed = () => {
-  props.engine.forceSubstep(PAYMENT_SUBSTEP_SUMMARY, { intent: 'topup-payment-failed' });
+  if (!hasProductPrerequisite.value && !isGroupEvent.value) {
+    props.engine.forceSubstep(PAYMENT_SUBSTEP_SUMMARY, { intent: 'topup-payment-failed' });
+  }
+};
+
+const onPrerequisitePaymentSuccess = async (payload = {}) => {
+  const authApplied = await applyAuthenticatedFanContext(payload, { refreshBalance: false });
+  if (!authApplied || !getBackendJwtToken()) {
+    showToast({
+      type: 'error',
+      title: t('fan_booking_account_verification_needed_title'),
+      message: t('fan_booking_account_verification_needed_message'),
+    });
+    return false;
+  }
+
+  props.engine.setState('fanBooking.prerequisite.purchaseResult', {
+    status: 'paid',
+    orderId: payload?.order_id || payload?.orderId || payload?.response?.order_id || null,
+    orderReceiptUrl: payload?.receipt_url || payload?.response?.order_received_url || '',
+    payment: payload?.response || payload,
+  }, {
+    reason: 'prerequisite-checkout-completed',
+    silent: true,
+  });
+
+  const refreshed = await refreshPrerequisiteEligibility();
+  if (refreshed?.prerequisite?.eligible === true) return true;
+
+  showToast({
+    type: 'warning',
+    title: t('fan_booking_prerequisite_sync_delayed_title'),
+    message: t('fan_booking_prerequisite_sync_delayed_message'),
+  });
+  return false;
 };
 
 const onTopUpPaymentSuccess = async (payload = {}) => {
@@ -2181,13 +2385,39 @@ const onTopUpPaymentSuccess = async (payload = {}) => {
     return;
   }
 
-  const toppedUpBalance = walletBalance.value + topUpAmount.value;
+  if (hasProductPrerequisite.value && !prerequisiteEligible.value) {
+    props.engine.setState('fanBooking.prerequisite.purchaseResult', {
+      status: 'paid',
+      orderId: payload?.order_id || payload?.orderId || null,
+      orderReceiptUrl: payload?.order_received_url || payload?.receipt_url || '',
+      payment: payload,
+    }, {
+      reason: 'prerequisite-checkout-completed',
+      silent: true,
+    });
+
+    const refreshed = await refreshPrerequisiteEligibility();
+    if (refreshed?.prerequisite?.eligible !== true) {
+      showToast({
+        type: 'warning',
+        title: t('fan_booking_prerequisite_sync_delayed_title'),
+        message: t('fan_booking_prerequisite_sync_delayed_message'),
+      });
+      topUpFormRef.value?.setProcessingPayment?.(false);
+      return;
+    }
+  }
+
+  const paidTopUpAmount = topUpAmount.value;
+  const toppedUpBalance = walletBalance.value + paidTopUpAmount;
   hasNotifiedTopUpBalanceChange = false;
   pendingTopUpExpectedBalance.value = toppedUpBalance;
   applyWalletBalance(toppedUpBalance, 'top-up-preview');
   hasCheckedBalance.value = true;
   try {
-    const syncResult = await waitForTopUpBalance(maximumHeldAmount.value);
+    const syncResult = paidTopUpAmount > 0
+      ? await waitForTopUpBalance(maximumHeldAmount.value)
+      : { status: 'ready', balance: walletBalance.value };
     if (syncResult.status === 'cancelled') return;
     if (syncResult.status !== 'ready') {
       await props.engine.forceSubstep(PAYMENT_SUBSTEP_SUMMARY, { intent: 'topup-balance-sync-delayed' });
@@ -2195,9 +2425,9 @@ const onTopUpPaymentSuccess = async (payload = {}) => {
       return;
     }
 
-    notifyTopUpBalanceChanged();
+    if (paidTopUpAmount > 0) notifyTopUpBalanceChanged();
     await finalizeBooking({
-      isTopUpDone: true,
+      isTopUpDone: paidTopUpAmount > 0,
       nextWalletBalance: syncResult.balance - maximumHeldAmount.value,
     });
   } finally {
@@ -2206,12 +2436,40 @@ const onTopUpPaymentSuccess = async (payload = {}) => {
 };
 
 const onTopUpAuthUpdated = async (payload = {}) => {
-  await applyAuthenticatedFanContext(payload, { refreshBalance: true });
+  if (payload.userId === 0) {
+    // A fan-owned reservation cannot be converted by the next guest account.
+    // Release it while the old backend identity is still available, then
+    // reserve the same selection through the existing guest hold path.
+    const previousHoldId = props.engine.getState('fanBooking.temporaryHold.temporaryHoldId');
+    const previousHoldReleased = !previousHoldId || await releaseTemporaryHoldForRepair(previousHoldId);
+    syncCheckoutAccountPresentation(payload);
+    if (window.userData) window.userData = { ...window.userData, userID: 0, UID: '', jwtToken: '' };
+    setBackendJwtToken('');
+    props.engine.setState('userId', 0, { reason: 'checkout-logout', silent: true });
+    props.engine.setState('fanId', 0, { reason: 'checkout-logout', silent: true });
+    props.engine.setState('fanBooking.context.fanId', 0, { reason: 'checkout-logout', silent: true });
+    props.engine.setState('fanBooking.prerequisite.purchaseResult', null, { reason: 'checkout-logout', silent: true });
+    hasCheckedBalance.value = false;
+    await refreshWalletBalance({ silent: true });
+    if (!previousHoldReleased || !await ensureTemporaryHold()) {
+      throw new Error(holdError.value || t('fan_booking_hold_release_failed_message'));
+    }
+    return (await refreshPrerequisiteEligibility())?.prerequisite || null;
+  }
+  const authenticated = await applyAuthenticatedFanContext(payload, { refreshBalance: true });
+  if (!authenticated || !getBackendJwtToken()) return null;
+  return (await refreshPrerequisiteEligibility())?.prerequisite || null;
+};
+
+const activateFreeCheckoutPrerequisite = async () => {
+  const result = await purchaseMissingPrerequisite();
+  if (!result.ok) throw new Error(t('fan_booking_prerequisite_check_failed'));
+  return (await refreshPrerequisiteEligibility())?.prerequisite || null;
 };
 
 // --- BUTTON HANDLERS ---
 const continueBookingAction = async () => {
-  if (isSubmitting.value || isCheckingBalance.value) return;
+  if (isSubmitting.value || isCheckingBalance.value || isCheckingPrerequisite.value || isPrerequisiteCheckoutOpen.value) return;
 
   try {
     if (pendingTopUpExpectedBalance.value != null) {
@@ -2232,6 +2490,30 @@ const continueBookingAction = async () => {
     if (!hasCheckedBalance.value) {
       const ok = await refreshWalletBalance();
       if (!ok) return;
+    }
+
+    if (hasProductPrerequisite.value && !prerequisiteEligible.value) {
+      const validation = await refreshPrerequisiteEligibility();
+      const detail = validation?.prerequisite;
+      if (!detail) return;
+      if (detail.eligible === true) {
+        if (isTopUpNeeded.value) await enterTopUpSubstep();
+        else await finalizeBooking();
+        return;
+      }
+
+      // Free subscription changes use their existing server action and do not
+      // need a payment form. Every paid prerequisite stays inside Step 3.
+      if (!isGuestFlow.value && detail.type === 'subscription' && detail.action !== 'switch' && Number(detail.product?.price || 0) <= 0) {
+        const prerequisiteResult = await purchaseMissingPrerequisite();
+        if (!prerequisiteResult.ok) return;
+        if (isTopUpNeeded.value) await enterTopUpSubstep();
+        else await finalizeBooking();
+        return;
+      }
+
+      await enterTopUpSubstep();
+      return;
     }
 
     if (isTopUpNeeded.value) {
@@ -2259,7 +2541,7 @@ const handleButtonClick = async () => {
     fanId: resolveFanId(),
   });
 
-  if (isSubmitting.value || isCheckingBalance.value) return;
+  if (isSubmitting.value || isCheckingBalance.value || isCheckingPrerequisite.value || isPrerequisiteCheckoutOpen.value) return;
   if (contributionInvalid.value) {
     showToast({
       type: 'error',
@@ -2274,6 +2556,8 @@ const handleButtonClick = async () => {
     });
     return;
   }
+
+  if (props.groupReview && (!props.prepareGroupBooking || !(await props.prepareGroupBooking()))) return;
 
   if (!isGroupEvent.value) {
     isAttendancePolicyPopupOpen.value = true;
@@ -2298,13 +2582,16 @@ const confirmAttendancePolicy = async () => {
 };
 
 const actionLabel = computed(() => {
+  if (isCheckingPrerequisite.value) return t('fan_booking_checking_prerequisite');
+  if (isPrerequisiteCheckoutOpen.value) return t('fan_booking_processing');
   if (isCheckingBalance.value) return t('fan_booking_checking_balance');
   if (!hasCheckedBalance.value) return t('fan_booking_check_balance');
+  if (hasProductPrerequisite.value && !prerequisiteEligible.value) return t('fan_booking_pay_and_complete_booking');
   return isTopUpNeeded.value ? t('fan_booking_top_up_and_pay') : t('common_complete_booking');
 });
 
 const actionButtonClass = computed(() => {
-  if (isCheckingBalance.value || !hasCheckedBalance.value || contributionInvalid.value) {
+  if (isCheckingBalance.value || isCheckingPrerequisite.value || isPrerequisiteCheckoutOpen.value || !hasCheckedBalance.value || contributionInvalid.value || props.groupActionDisabled) {
     return 'bg-[#9CA3AF] after:border-r-[#9CA3AF] cursor-not-allowed';
   }
   return isTopUpNeeded.value
@@ -2333,49 +2620,23 @@ onMounted(() => {
     return;
   }
 
-  if (!props.engine.substep) {
+  if (!props.groupReview && !props.engine.substep) {
     props.engine.forceSubstep(PAYMENT_SUBSTEP_SUMMARY, { intent: 'step3-default' });
   }
 
   scheduleTopUpPrefetch('step3-mounted');
   void refreshBalanceCardAvatar();
-  ensureContributionDefault();
   acceptInviteForAuthenticatedFan({ silent: true });
   refreshWalletBalance();
+  refreshPrerequisiteEligibility({ silent: true });
 });
 
 watch(
   () => selectedEvent.value?.eventId,
   () => {
     if (!selectedEvent.value) return;
-    ensureContributionDefault();
     refreshWalletBalance({ silent: true });
-  },
-);
-
-watch(
-  () => [isEventGoalGroupEvent.value, eventGoalMinimumTokens.value, eventGoalMaximumContribution.value],
-  () => {
-    ensureContributionDefault();
-  },
-  { immediate: true },
-);
-
-watch(
-  () => contributionTokens.value,
-  (next) => {
-    if (!isEventGoalGroupEvent.value) return;
-    const min = eventGoalMinimumTokens.value;
-    const max = eventGoalMaximumContribution.value;
-    const normalized = toWholeTokens(next);
-    if (max >= min) {
-      const clamped = Math.min(Math.max(normalized || min, min), max);
-      if (String(clamped) !== String(next)) {
-        contributionTokens.value = clamped;
-        return;
-      }
-    }
-    syncContributionToEngine(normalized || min);
+    refreshPrerequisiteEligibility({ silent: true });
   },
 );
 
@@ -2410,14 +2671,15 @@ onBeforeUnmount(() => {
 
 <template>
     <div
-      class="relative lg:rounded-[20px] w-full h-full md:h-dvh lg:h-auto overflow-hidden"
-      :style="popupBackgroundStyle"
+      :class="groupReview ? 'w-full' : 'relative lg:rounded-[20px] w-full h-full md:h-dvh lg:h-auto overflow-hidden'"
+      :style="groupReview ? undefined : popupBackgroundStyle"
     >
-    <div class="absolute top-0 left-0 w-full h-full bg-[linear-gradient(0deg,rgba(12,17,29,0.5)_0%,rgba(12,17,29,0.5)_100%)]"></div>
-      <div :class="['h-full md:h-dvh lg:h-full lg:rounded-[20px] md:px-0 md:bg-black md:py-0 lg:p-0 lg:bg-transparent', !embedded && 'md:bg-black']">
-      <div class="md:rounded-bl-[20px] md:rounded-br-[0px] h-dvh md:h-full lg:overflow-visible lg:h-full md:rounded-t-[20px] flex flex-col md:flex-row md:backdrop-blur-[5px] bg-[#0C111D]/50 overflow-y-auto md:overflow-hidden [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none]">
+    <div v-if="!groupReview" class="absolute top-0 left-0 w-full h-full bg-[linear-gradient(0deg,rgba(12,17,29,0.5)_0%,rgba(12,17,29,0.5)_100%)]"></div>
+      <div :class="groupReview ? '' : ['h-full md:h-dvh lg:h-full lg:rounded-[20px] md:px-0 md:bg-black md:py-0 lg:p-0 lg:bg-transparent', !embedded && 'md:bg-black']">
+      <div :class="groupReview ? '' : 'md:rounded-bl-[20px] md:rounded-br-[0px] h-dvh md:h-full lg:overflow-visible lg:h-full md:rounded-t-[20px] flex flex-col md:flex-row md:backdrop-blur-[5px] bg-[#0C111D]/50 overflow-y-auto md:overflow-hidden [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none]'">
 
             <OneOnOneBookingFlowLeftSideBar
+              v-if="!groupReview"
               :time-display="formattedTime"
               :date-display="headerDateDisplay"
               :subtotal="totalPrice"
@@ -2439,11 +2701,11 @@ onBeforeUnmount(() => {
               :event-goal-percent="eventGoalPercent"
             />
 
-          <div class="relative flex-1 flex w-full lg:flex-row h-auto flex-col justify-between md:min-h-0 lg:overflow-visible [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none] z-[1]">
+          <div :class="groupReview ? '' : 'relative flex-1 flex w-full lg:flex-row h-auto flex-col justify-between md:min-h-0 lg:overflow-visible [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none] z-[1]'">
 
-            <div class="flex-1 h-full  flex-col px-2 pb-[5rem] lg:px-6 pt-2 lg:pt-3 lg:pb-0 gap-3 bg-[#0C111D]/50 lg:overflow-hidden h-auto md:max-h-none lg:h-[43.75rem]">
+            <div :class="groupReview ? '' : 'flex-1 h-full flex-col px-2 pb-[5rem] lg:px-6 pt-2 lg:pt-3 lg:pb-0 gap-3 bg-[#0C111D]/50 lg:overflow-hidden h-auto md:max-h-none lg:h-[43.75rem]'">
               <template v-if="!isTopUpSubstep">
-                <div class="flex flex-col gap-8 pt-12 md:overflow-y-auto h-full flex-1 pb-[6.25rem] md:pb-[4.5rem] relative z-[1]">
+                <div :class="groupReview ? 'flex flex-col gap-8' : 'flex flex-col gap-8 pt-12 md:overflow-y-auto h-full flex-1 pb-[6.25rem] md:pb-[4.5rem] relative z-[1]'">
                   <div class="rounded-lg bg-white/10 p-3 md:p-5 hidden flex-col gap-3">
                     <div class="flex items-center justify-between gap-4">
                       <h3 class="text-sm text-[#2CE]">{{ t("fan_booking_booking_schedule") }}</h3>
@@ -2470,7 +2732,7 @@ onBeforeUnmount(() => {
                   </div>
 
                   <!-- back steps -->
-                  <div class="flex items-center justify-between gap-4">
+                  <div v-if="!groupReview" class="flex items-center justify-between gap-4">
                     <button
                       type="button"
                       class="flex items-center justify-center gap-1 bg-transparent border-none gap-0.5"
@@ -2481,81 +2743,12 @@ onBeforeUnmount(() => {
                     </button>
                   </div>
 
-                  <div
-                    v-if="isEventGoalGroupEvent"
-                    class="rounded-lg bg-white/10 p-3 md:p-5 text-white"
-                    data-testid="step3-event-goal-contribution-panel"
-                  >
-                    <div class="flex flex-col gap-5">
-                      <label for="step3-event-goal-contribution" class="text-sm leading-[20px] text-white">
-                        {{ t("fan_booking_your_contribution_minimum", { min: eventGoalMinimumTokens }) }}
-                      </label>
-
-                      <div
-                        class="flex items-center gap-3 border-b pb-2"
-                        :class="contributionInvalid ? 'border-[#FF5CA8]' : 'border-[#98A2B3]'"
-                      >
-                        <img :src="bookingFlowTokenIcon" alt="token-icon" class="h-8 w-8 shrink-0" />
-                        <input
-                          id="step3-event-goal-contribution"
-                          v-model="contributionTokens"
-                          type="number"
-                          inputmode="numeric"
-                          :min="eventGoalMinimumTokens"
-                          :max="contributionRangeMax"
-                          class="min-w-0 flex-1 bg-transparent text-[2rem] font-normal leading-[2.5rem] text-white outline-none"
-                        />
-                        <span class="text-base font-medium text-white">{{ t("common_tokens") }}</span>
-                      </div>
-
-                      <div class="relative flex h-8 items-center">
-                        <div class="absolute left-0 top-1/2 h-2 w-full -translate-y-1/2 rounded-full bg-white"></div>
-                        <div
-                          class="absolute left-0 top-1/2 h-2 -translate-y-1/2 rounded-full bg-[#37FFD7]"
-                          :style="contributionSliderStyle"
-                        ></div>
-                        <input
-                          v-model="contributionTokens"
-                          type="range"
-                          :min="eventGoalMinimumTokens"
-                          :max="contributionRangeMax"
-                          class="relative z-10 h-8 w-full cursor-pointer appearance-none bg-transparent opacity-0"
-                          data-testid="step3-event-goal-contribution-range"
-                        />
-                        <div
-                          class="pointer-events-none absolute top-1/2 z-20 h-8 w-8 -translate-x-1/2 -translate-y-1/2"
-                          :style="contributionThumbStyle"
-                        >
-                          <img :src="bookingFlowTokenIcon" alt="token-icon" class="h-full w-full" />
-                        </div>
-                      </div>
-
-                      <div class="flex items-center justify-between gap-3 text-xs leading-[18px] text-[#D0D5DD]">
-                        <span>{{ t("fan_booking_contribution_bounds", { min: eventGoalMinimumTokens, max: eventGoalMaximumContribution }) }}</span>
-                        <span>{{ t("fan_booking_event_goal_remaining", { tokens: formatTokenExact(eventGoalRemainingTokens) }) }}</span>
-                      </div>
-
-                      <p
-                        v-if="contributionInvalid"
-                        class="text-xs leading-[18px] text-[#FF99C9]"
-                        data-testid="step3-event-goal-contribution-error"
-                      >
-                        {{
-                          t(
-                            "fan_booking_contribution_invalid",
-                            { min: eventGoalMinimumTokens, max: eventGoalMaximumContribution },
-                          )
-                        }}
-                      </p>
-                    </div>
-                  </div>
-
                   <div class="flex flex-col gap-8">
                     <div class="flex flex-col gap-4 w-full">
-                      <h3 class="text-sm font-medium text-[#2CE]">{{ t("fan_booking_payment_summary") }}</h3>
+                      <h3 class="text-sm font-medium uppercase" :class="groupReview ? 'text-[#FB5BA2]' : 'text-[#2CE]'">{{ t(groupReview ? "fan_booking_booking_summary" : "fan_booking_payment_summary") }}</h3>
                       <div class="flex flex-col gap-4">
                         <div class="flex flex-col gap-5">
-                          <div class="flex flex-col gap-2">
+                          <div v-if="!groupReview" class="flex flex-col gap-2">
                             <h4 class="text-sm font-medium text-white">{{ t("fan_booking_session_cost") }}</h4>
                             <div class="flex flex-row justify-between items-center text-white">
                               <div class="flex items-center gap-0.5">
@@ -2653,18 +2846,19 @@ onBeforeUnmount(() => {
                             </div>
                           </div>
 
-                          <div class="flex flex-col gap-1 border-t border-[#98A2B3]/50 pt-2">
+                          <div class="flex flex-col gap-1" :class="!groupReview && 'border-t border-[#98A2B3]/50 pt-2'">
                             <div class="flex justify-between items-center">
                               <div class="flex flex-col gap-1">
-                                <h4 class="text-sm font-semibold text-white">{{ t("fan_booking_session_total") }}</h4>
+                                <h4 class="text-sm font-semibold text-white">{{ t(groupReview ? "fan_booking_event_total" : "fan_booking_session_total") }}</h4>
                               </div>
                               <div class="flex flex-col">
                                 <div class="flex justify-end items-center gap-0.5">
-                                  <p class="text-base text-white font-normal">≈</p>
+                                  <p v-if="!groupReview" class="text-base text-white font-normal">≈</p>
                                   <div class="w-4 h-4 flex justify-center items-center"><img :src="bookingFlowTokenIcon" alt="token-icon" /></div>
                                   <p class="text-base font-semibold text-white">{{ formatTokenExact(sessionTotalTokens) }}</p>
                                 </div>
-                                <span class="dn text-xs font-medium text-[#98A2B3] whitespace-nowrap">={{ sessionTotalUsdDisplay }}</span>
+                                <span v-if="!groupReview" class="dn text-xs font-medium text-[#98A2B3] whitespace-nowrap">={{ sessionTotalUsdDisplay }}</span>
+                                <span v-else class="text-xs font-medium text-right max-w-[6.68rem]" :class="isTopUpNeeded ? 'text-[#FCE40D]' : 'text-[#07F468]'">{{ t(isTopUpNeeded ? 'common_top_up_needed' : 'fan_booking_pay_with_wallet_balance') }}</span>
                               </div>
                             </div>
                             <div v-if="bookingFeeAmount > 0" class="w-full text-sm text-[#FCE40D] flex items-center gap-2 justify-between">
@@ -2680,29 +2874,41 @@ onBeforeUnmount(() => {
                           </div>
 
                           <!-- Mandatory purchase -->
-                          <div class="_flex hidden flex-col gap-2 border-t border-[#98A2B3]/50 pt-2">
+                          <div
+                            v-if="prerequisiteDetail?.product && !prerequisiteDetail?.eligible"
+                            class="flex flex-col gap-2 border-t border-[#98A2B3]/50 pt-2"
+                            data-testid="booking-mandatory-purchase"
+                          >
                             <div class="flex gap-2 items-center">
-                              <h4 class="text-sm font-medium text-white">MANDATORY PURCHASE</h4>
+                              <h4 class="text-sm font-medium text-white">{{ t(isSubscriptionPrerequisite ? 'fan_booking_mandatory_subscription' : 'fan_booking_mandatory_purchase') }}</h4>
                               <TooltipIcon 
                               class="!w-[10px] !h-[10px] relative !mt-0 tooltip-blue-icon"
-                              :text="'Dummy text'" side="right" />
+                              :text="t('fan_booking_mandatory_purchase_help')" side="right" />
                             </div>
                             <!-- Content -->
                             <div class="flex items-center gap-2">
                               <div class="w-[2.625rem] h-[2.625rem] rounded-[4px] overflow-hidden">
-                                <img src="https://media.istockphoto.com/id/1364991519/photo/feet-in-modern-finger-socks.jpg?s=1024x1024&w=is&k=20&c=yTa5WXlblYuJi2Hu_e2XJzNm8kvFovig_4vzKbFunJs=" alt="token-icon" />
+                                <img :src="prerequisiteDetail.product.image_url" :alt="prerequisiteProductTitle" class="w-full h-full object-cover" />
                               </div>
                               <div class="flex-1 flex flex-col gap-1">
                                 <div class="flex items-center justify-between">
-                                  <span class="text-sm font-semibold text-white">Worn sock available</span>
-                                  <span class="text-sm font-semibold text-white text-right">USD$ 25.99</span>
+                                  <span class="text-sm font-semibold text-white">{{ prerequisiteProductTitle }}</span>
+                                  <span class="text-sm font-semibold text-white text-right" data-testid="booking-prerequisite-price">USD${{ usdFormatter.format(getBookingPrerequisitePrice(prerequisiteDetail)) }}</span>
                                 </div>
-                                <div class="flex items-center justify-between">
+                                <p v-if="prerequisiteDetail.action === 'switch'" class="text-xs text-[#FCE40D] text-right" data-testid="booking-recurring-plan-price">{{ t('fan_booking_recurring_plan_price', { amount: usdFormatter.format(Number(prerequisiteDetail.product.price || 0)) }) }}</p>
+                                <div v-if="prerequisiteDetail.shipping?.required" class="flex items-center justify-between">
                                   <div class="flex items-center gap-1">
                                     <span><img :src="bookingFlowTruckIcon" alt=""></span>
-                                    <span class="text-xs text-[#FCE40D]">Ships to <a href="#" class="text-xs text-[#FCE40D] underline">Taiwan</a> only</span>
+                                    <span class="text-xs text-[#FCE40D]" data-testid="booking-merch-shipping-destination">
+                                      <template v-if="prerequisiteDetail.shipping.is_merch && prerequisiteDetail.shipping.international">{{ t('fan_booking_ships_internationally') }}</template>
+                                      <template v-else>
+                                        {{ t('fan_booking_ships_to') }}
+                                        <span class="underline">{{ prerequisiteDetail.shipping.country || t('fan_booking_checkout_address') }}</span>
+                                        <template v-if="prerequisiteDetail.shipping.is_merch && prerequisiteDetail.shipping.international === false">{{ ' ' + t('fan_booking_shipping_only') }}</template>
+                                      </template>
+                                    </span>
                                   </div>
-                                  <span class="text-sm text-[#FCE40D] text-right">Free shipping</span>
+                                  <span class="text-sm text-[#FCE40D] text-right" data-testid="booking-merch-shipping-cost">{{ prerequisiteShippingCostLabel }}</span>
                                 </div>
                               </div>
                             </div>
@@ -2719,17 +2925,26 @@ onBeforeUnmount(() => {
                           <p class="text-base font-semibold">{{ formatTokenExact(cancellationReserveAmount) }}</p>
                         </div>
 
-                        <div class="flex flex-row justify-between items-start text-white border-t border-[#98A2B3]/50 pt-2">
-                          <p class="text-lg font-bold text-white">{{ t("fan_booking_amount_due_today") }}</p>
-                          <div class="flex flex-col">
-                            <div class="flex justify-end items-center gap-0.5">
-                              <div class="w-4 h-4 flex justify-center items-center"><img :src="bookingFlowTokenIcon" alt="token-icon" /></div>
-                              <p class="text-lg font-semibold">{{ formatTokenExact(totalPrice) }}</p>
+                        <div data-testid="booking-amount-due-today" class="flex flex-row justify-between items-start gap-2 text-white border-t border-[#98A2B3]/50 pt-2">
+                          <p class="text-lg leading-7 font-bold text-white uppercase">{{ t("fan_booking_amount_due_today") }}</p>
+                          <div class="flex flex-1 min-w-0 flex-col items-end gap-0.5">
+                            <div class="flex flex-wrap justify-end items-center gap-0.5 text-lg leading-7 font-semibold">
+                              <div class="flex items-center gap-0.5 whitespace-nowrap">
+                                <div class="w-4 h-4 flex justify-center items-center"><img :src="bookingFlowTokenIcon" alt="token-icon" /></div>
+                                <p>{{ formatTokenExact(totalPrice) }}</p>
+                              </div>
+                              <template v-if="prerequisiteDetail?.product && !prerequisiteDetail?.eligible">
+                                <span>+</span>
+                                <p class="whitespace-nowrap">USD${{ usdFormatter.format(prerequisiteAmountUsd) }}</p>
+                              </template>
                             </div>
+                            <span data-testid="booking-amount-due-usd" class="text-sm leading-5 font-normal text-[#FCE40D] whitespace-nowrap">={{ amountDueUsdDisplay }}</span>
                           </div>
                         </div>
                       </div>
                     </div>
+
+                    <p v-if="groupReview" class="text-sm italic text-[#EAECF0]">{{ t('fan_booking_session_fee_hold_notice') }}<template v-if="bookingFeeAmount > 0"> {{ t('fan_booking_non_refundable_booking_fee_applied', { tokens: formatTokenExact(bookingFeeAmount) }) }}</template></p>
 
                     <!-- Wallet Balance Card -->
                     <div
@@ -2741,7 +2956,7 @@ onBeforeUnmount(() => {
                       <div class="flex flex-col gap-3 p-4 rounded-lg overflow-hidden" style="background: linear-gradient(0deg, rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.2)), linear-gradient(90deg, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.5) 100%); backdrop-filter: blur(5px);">
 
                         <div class="flex justify-between items-center">
-                          <div class="flex items-center gap-2"><p class="text-sm font-semibold text-[#FCE40D]">{{ t("common_wallet_balance") }}</p></div>
+                          <div class="flex items-center gap-2"><p class="text-sm font-medium leading-5" :class="isTopUpNeeded ? 'text-[#FCE40D]' : 'text-white'">{{ t("common_wallet_balance") }}</p></div>
                           <div class="flex justify-center items-center gap-0.5">
 
                             <div v-if="isTopUpNeeded" class="flex items-center justify-center gap-2 px-1 py-0 h-[1.25rem] rounded-[6px] bg-[#FCE40D]">
@@ -2753,24 +2968,25 @@ onBeforeUnmount(() => {
 
                             <div class="flex items-center justify-center gap-[2px]">
                               <div class="w-6 h-6 flex justify-center items-center"><img :src="bookingFlowTokenIcon" alt="token-icon" /></div>
-                            <p class="text-base font-semibold text-[#FCE40D]">{{ formatTokenCompact(walletBalance) }}</p>
+                            <p class="text-base font-semibold" :class="isTopUpNeeded ? 'text-[#FCE40D]' : 'text-white'">{{ formatTokenCompact(walletBalance) }}</p>
                             </div>
                           </div>
                         </div>
 
-                        <div class="flex justify-between items-center">
-                          <div class="flex items-center gap-2"><p class="text-sm font-semibold text-white">{{ t("fan_booking_subtotal") }}</p></div>
+                        <div class="flex justify-between items-center" data-testid="booking-balance-subtotal">
+                          <div class="flex items-center gap-2"><p class="text-sm font-medium leading-5 text-white">{{ t("booking_adjustment_subtotal") }}</p></div>
                           <div class="flex justify-center items-center gap-0.5">
-                            <div class="w-4 h-4 flex justify-center items-center"><img :src="bookingFlowTokenIcon" alt="token-icon" /></div>
-                            <p class="text-base font-semibold text-white">{{ formatTokenCompact(remainingBalance) }}</p>
+                            <span class="text-lg font-semibold">-</span>
+                            <div class="w-6 h-6 flex justify-center items-center"><img :src="bookingFlowTokenIcon" alt="token-icon" /></div>
+                            <p class="text-base font-semibold text-white">{{ formatTokenCompact(totalPrice) }}</p>
                           </div>
                         </div>
 
                         <!-- Available Balance after booking  -->
-                        <div class="_flex hidden justify-between items-center border-t border-[#F2F4F7]/50 pt-3" data-testid="booking-balance-available-after-booking">
-                          <div class="flex items-center gap-2"><p class="text-sm font-semibold text-white">{{ t("fan_booking_available_balance_after_booking") }}</p></div>
+                        <div v-show="!isTopUpNeeded" class="flex justify-between items-center gap-2 border-t border-[#F2F4F7]/50 pt-3" data-testid="booking-balance-available-after-booking">
+                          <div class="flex items-center gap-2"><p class="text-sm font-medium leading-5 text-white">{{ t("fan_booking_available_balance_after_booking") }}</p></div>
                           <div class="flex justify-center items-center gap-0.5">
-                            <div class="w-4 h-4 flex justify-center items-center"><img :src="bookingFlowTokenIcon" alt="token-icon" /></div>
+                            <div class="w-6 h-6 flex justify-center items-center"><img :src="bookingFlowTokenIcon" alt="token-icon" /></div>
                             <p class="text-base font-semibold text-white">{{ formatTokenCompact(remainingBalance) }}</p>
                           </div>
                         </div>
@@ -2779,7 +2995,7 @@ onBeforeUnmount(() => {
                     </div>
                     <div
                       v-else
-                      class="text-white rounded-bl-lg rounded-br-lg overflow-hidden bg-[#182230] bg-[linear-gradient(90deg,rgba(16,24,40,0)_25%,rgba(16,24,40,0.9)_75%),#182230] shadow-[0_4px_8px_0_rgba(255,255,255,0.05)]"
+                      class="text-white rounded-lg overflow-hidden bg-[#182230] bg-[linear-gradient(90deg,rgba(16,24,40,0)_25%,rgba(16,24,40,0.9)_75%),#182230] shadow-[0_4px_8px_0_rgba(255,255,255,0.05)]"
                       data-testid="booking-balance-placeholder-card"
                     >
                       <div class="w-full relative bg-[rgba(24,34,48,0.10)]">
@@ -2788,9 +3004,9 @@ onBeforeUnmount(() => {
                             <path opacity="0.5" fill-rule="evenodd" clip-rule="evenodd" d="M9.28238 109.169L59.863 126.695C69.8881 130.173 79.8979 121.473 77.8907 111.076L73.0552 85.9181C71.5558 78.1298 77.13 70.8493 84.2 67.2442C93.7181 62.4149 101.459 54.0083 105.232 43.1126C112.981 20.7197 101.137 -3.66815 78.772 -11.4098C56.4068 -19.1514 31.986 -7.31763 24.2447 15.0445C20.3846 26.1794 21.3993 37.8078 26.1288 47.6259C29.5935 54.8898 29.5643 64.2732 23.4795 69.5272L4.76721 85.7353C-3.25772 92.685 -0.74977 105.722 9.28238 109.169Z" fill="#344054"/>
                           </svg>
                         </div>
-                        <div class="flex flex-col gap-2 p-5 relative z-2">
+                        <div class="flex flex-col gap-3 p-4 relative z-2">
                           <div class="flex justify-between items-center">
-                            <div class="flex items-center gap-2"><p class="text-base font-semibold text-[#FCE40D]">{{ t("fan_booking_your_token_balance") }}</p></div>
+                            <div class="flex items-center gap-2"><p class="text-sm font-medium leading-5" :class="isTopUpNeeded ? 'text-[#FCE40D]' : 'text-white'">{{ t("common_wallet_balance") }}</p></div>
                             <div class="flex justify-center items-center gap-0.5">
                               <div v-if="isTopUpNeeded" class="flex items-center justify-center gap-2 px-1 py-0 h-[1.25rem] rounded-[6px] bg-[#FCE40D]">
                                 <span class="text-[#0C111D] text-[11px] font-semibold leading-[10px] relative top-[-2px]">...</span>
@@ -2800,22 +3016,31 @@ onBeforeUnmount(() => {
                               </div>
                               <div class="flex items-center justify-center gap-[2px]">
                                 <div class="w-6 h-6 flex justify-center items-center"><img :src="bookingFlowTokenIcon" alt="token-icon" /></div>
-                                <p class="text-xl font-semibold text-[#FCE40D]">{{ formatTokenCompact(walletBalance) }}</p>
+                                <p class="text-base font-semibold" :class="isTopUpNeeded ? 'text-[#FCE40D]' : 'text-white'">{{ formatTokenCompact(walletBalance) }}</p>
                               </div>
                             </div>
                           </div>
-                          <hr class="hidden border-white/20" />
-                          <div class="hidden justify-between items-center">
-                            <div class="flex items-center gap-2"><p class="text-xl font-semibold">{{ t("fan_booking_balance_after_booking") }}</p></div>
+                          <div class="flex justify-between items-center" data-testid="booking-balance-subtotal">
+                            <p class="text-sm font-medium leading-5">{{ t("booking_adjustment_subtotal") }}</p>
                             <div class="flex justify-center items-center gap-0.5">
-                              <div class="w-4 h-4 flex justify-center items-center"><img :src="bookingFlowTokenIcon" alt="token-icon" /></div>
-                              <p class="text-2xl font-semibold">{{ formatTokenCompact(remainingBalance) }}</p>
+                              <span class="text-lg font-semibold">-</span>
+                              <div class="w-6 h-6 flex justify-center items-center"><img :src="bookingFlowTokenIcon" alt="token-icon" /></div>
+                              <p class="text-base font-semibold">{{ formatTokenCompact(totalPrice) }}</p>
+                            </div>
+                          </div>
+                          <div v-show="!isTopUpNeeded" class="flex justify-between items-center gap-2 border-t border-[#F2F4F7]/50 pt-3" data-testid="booking-balance-available-after-booking">
+                            <div class="flex items-center gap-2"><p class="text-sm font-medium leading-5">{{ t("fan_booking_available_balance_after_booking") }}</p></div>
+                            <div class="flex justify-center items-center gap-0.5">
+                              <div class="w-6 h-6 flex justify-center items-center"><img :src="bookingFlowTokenIcon" alt="token-icon" /></div>
+                              <p class="text-base font-semibold">{{ formatTokenCompact(remainingBalance) }}</p>
                             </div>
                           </div>
                         </div>
                       </div>
                     </div>
                     <!-- /Wallet Balance Card -->
+
+                    <p v-if="groupReview" class="text-sm italic text-[#EAECF0]">{{ t('fan_booking_policy_agreement') }}</p>
 
                     <div
                       v-if="!isGroupEvent"
@@ -2870,6 +3095,13 @@ onBeforeUnmount(() => {
                   :before-submit="validateBeforeTopUpSubmit"
                   :fan-id="resolveFanId()"
                   :creator-id="resolveCreatorId()"
+                  :creator="creatorPresentation"
+                  :event-id="selectedEvent?.eventId || selectedEvent?.id || ''"
+                  :prerequisite="prerequisiteDetail"
+                  :confirmed-switch="engine.getState('fanBooking.prerequisite.confirmedSwitch') || ''"
+                  :after-prerequisite-payment="onPrerequisitePaymentSuccess"
+                  :after-auth-update="onTopUpAuthUpdated"
+                  :activate-free-prerequisite="activateFreeCheckoutPrerequisite"
                   @back="goBackToPaymentSummary"
                   @auth-updated="onTopUpAuthUpdated"
                   @success="onTopUpPaymentSuccess"
@@ -2881,14 +3113,15 @@ onBeforeUnmount(() => {
           </div>
 
 
-          <div :class="actionFooterClass">
+          <div :class="groupReview ? 'absolute right-0 bottom-0 z-20' : actionFooterClass">
             <button
               v-if="!isTopUpSubstep"
               type="button"
-              :disabled="isCheckingBalance || isSubmitting || contributionInvalid"
+              :disabled="isCheckingBalance || isCheckingPrerequisite || isPrerequisiteCheckoutOpen || isSubmitting || contributionInvalid || groupActionDisabled"
               @click="handleButtonClick"
+              data-testid="booking-complete-button"
               class="w-auto flex justify-start items-center"
-              :class="(isCheckingBalance || isSubmitting || contributionInvalid) ? 'pointer-events-none' : 'cursor-pointer'"
+              :class="(isCheckingBalance || isCheckingPrerequisite || isPrerequisiteCheckoutOpen || isSubmitting || contributionInvalid || groupActionDisabled) ? 'pointer-events-none' : 'cursor-pointer'"
             >
               <div class="relative w-full p-[12px] md:rounded-br-[0px] flex justify-between items-center
                 gap-2 after:content-[''] after:absolute after:right-full after:top-0 after:w-0

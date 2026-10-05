@@ -42,6 +42,13 @@ export function updateEventMapper(payload = {}, context = {}) {
 
   delete mapped.idempotencyKey;
 
+  if (
+    Object.prototype.hasOwnProperty.call(payload, "spendingRequirement")
+    && mapped.spendingRequirement !== "mustOwnProducts"
+  ) {
+    mapped.requiredProducts = [];
+  }
+
   if (payload.isGroupScheduleLocked || context.isGroupScheduleLocked) {
     SCHEDULE_FIELDS.forEach((field) => {
       delete mapped[field];

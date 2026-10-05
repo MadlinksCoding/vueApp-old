@@ -1,7 +1,7 @@
 <script setup>
 import MiniCalendar from '@/components/calendar/MiniCalendar.vue';
 import OneOnOneBookingFlowLeftSideBar from '../HelperComponents/OneOnOneBookingFlowLeftSideBar.vue';
-import { ref, reactive, computed, nextTick, onBeforeUnmount, onMounted, watch } from 'vue';
+import { ref, reactive, computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, watch } from 'vue';
 import { ExclamationTriangleIcon } from '@heroicons/vue/24/solid';
 import { addMonths } from '@/utils/calendarHelpers.js';
 import { showToast } from '@/utils/toastBus.js';
@@ -9,11 +9,12 @@ import TokenHandler from '@/utils/TokenHandler.js';
 import { getBackendJwtToken } from '@/utils/backendJwt.js';
 import {
   buildBookingPaymentPreview,
+  MAX_EVENT_GOAL_CONTRIBUTION_TOKENS,
   resolveOffHourSurchargeTokens,
 } from '@/services/bookings/mappers/createBookingMapper.js';
 import {
   buildCandidateSlotsForEventDate,
-  computeNextAvailableSlot,
+  GROUP_BOOKING_CLOSE_BEFORE_END_MS,
   createSlotUiModel,
   formatLocalDateIso,
   getBlockingBookedSlotsForRange,
@@ -21,6 +22,7 @@ import {
   isRangeBooked,
   isSlotBookedByUser,
   mergeBookedSlotsIndexes,
+  sumEventGoalContributionsForEvent,
 } from '@/services/bookings/utils/bookingSlotUtils.js';
 import { addMinutesToHm, extractDateIso, hktDateTimeToLocalDate, toHm } from '@/services/events/eventsApiUtils.js';
 import {
@@ -53,15 +55,31 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  apiBaseUrl: { type: String, default: '' },
   refreshBookingContext: {
     type: Function,
     default: null,
   },
 });
 
+const emit = defineEmits(['booking-created', 'booking-failed', 'balance-changed']);
+const BookingFlowStep3 = defineAsyncComponent(() => import('./BookingFlowStep3.vue'));
+
 const { t, locale } = useBookingTranslations();
 const selectedEvent = computed(() => props.engine.getState('fanBooking.context.selectedEvent') || null);
 const bookedSlotsIndex = computed(() => props.engine.getState('fanBooking.catalog.bookedSlotsIndex') || {});
+const sidebarPrerequisite = computed(() => (
+  props.engine.getState('fanBooking.prerequisite.eventId') === (selectedEvent.value?.eventId || selectedEvent.value?.id)
+    ? props.engine.getState('fanBooking.prerequisite.validation')?.prerequisite || null
+    : null
+));
+const groupPerformers = computed(() => {
+  const event = selectedEvent.value || {};
+  const raw = event.raw || {};
+  return [event.coHosts, event.coPerformers, event.performers, event.collaborators,
+    raw.coHosts, raw.coPerformers, raw.performers, raw.collaborators]
+    .find(items => Array.isArray(items) && items.length > 0) || [];
+});
 const temporaryHoldSlotsIndex = computed(() => props.engine.getState('fanBooking.catalog.temporaryHoldSlotsIndex') || {});
 const availabilitySlotsIndex = computed(() => mergeBookedSlotsIndexes(
   bookedSlotsIndex.value,
@@ -134,7 +152,6 @@ const addons = ref([]);
 const otherRequest = ref('');
 const contributionTokens = ref('');
 const walletBalance = ref(0);
-const groupAutoRedirecting = ref(false);
 const showMaxDurationWarning = ref(false);
 const acknowledgedDurationOverlapKey = ref('');
 const isRefreshingAvailability = ref(false);
@@ -445,7 +462,10 @@ function buildCandidateSlotsForDisplayDate(
     });
 
     slots.forEach((slot) => {
-      if (Number.isFinite(slot.startMs) && slot.startMs < currentTimeMs.value) return;
+      const cutoffMs = isGroupEvent.value ? slot.endMs - GROUP_BOOKING_CLOSE_BEFORE_END_MS : slot.startMs;
+      if (Number.isFinite(cutoffMs) && (isGroupEvent.value
+        ? cutoffMs <= currentTimeMs.value
+        : cutoffMs < currentTimeMs.value)) return;
 
       const displayParts = getFixedOffsetDateTimeParts(
         slot.startMs,
@@ -468,6 +488,14 @@ function buildDisplaySlot(slot, bookedIndex = availabilitySlotsIndex.value) {
     slot,
     bookedSlotsIndex: bookedIndex,
   });
+  if (isGroupEvent.value && isSlotBookedByUser({
+    eventId: selectedEvent.value.eventId,
+    userId: fanId.value,
+    slot,
+    bookedSlotsIndex: bookedIndex,
+  })) {
+    uiSlot.disabled = true;
+  }
   const displayStart = getFixedOffsetDateTimeParts(
     uiSlot.startMs,
     displayTimezoneOffsetMinutes.value,
@@ -515,6 +543,10 @@ function canDurationFitSelectedSlot(slot, durationMinutes, bookedSlotsIndexOverr
   if (Number.isFinite(windowEndMs) && targetEndMs > windowEndMs) {
     return false;
   }
+
+  // Group slots already use capacity and current-fan checks in buildDisplaySlot.
+  // Another attendee's overlapping booking must not make the session private.
+  if (isGroupEvent.value) return !slot.disabled;
 
   return !isRangeBooked({
     eventId: selectedEvent.value?.eventId,
@@ -755,22 +787,32 @@ const isEventGoalGroupEvent = computed(() => {
   return isGroupEvent.value && String(raw?.priceSetting || selectedEvent.value?.priceSetting || '').toLowerCase() === 'eventgoal';
 });
 
+const calendarTheme = computed(() => isGroupEvent.value ? {
+  mini: { ...theme1.mini, selected: theme1.mini.selected.replace('!bg-[#07F468] !text-[#000000]', '!bg-[#F06] !text-[#fff]'), selectedDot: '!bg-[#07F468] bottom-[4px]' },
+} : theme1);
+
 const eventGoalMinimumTokens = computed(() => {
   const raw = selectedEvent.value?.raw || {};
   const configured = Number(raw?.minContributionPerUser ?? selectedEvent.value?.minContributionPerUser ?? 0);
   return Number.isFinite(configured) && configured > 0 ? toWholeTokens(configured) : 1;
 });
 
-const eventGoalMaximumTokens = computed(() => {
-  const raw = selectedEvent.value?.raw || {};
-  const eventGoal = toWholeTokens(raw?.eventGoalTokens ?? selectedEvent.value?.eventGoalTokens ?? 0);
-  const balance = toWholeTokens(walletBalance.value);
-  return Math.max(0, eventGoal, balance);
-});
+const eventGoalTokens = computed(() => toWholeTokens(
+  selectedEvent.value?.raw?.eventGoalTokens ?? selectedEvent.value?.eventGoalTokens ?? 0,
+));
+const eventGoalReachedTokens = computed(() => Math.min(
+  eventGoalTokens.value,
+  sumEventGoalContributionsForEvent({
+    eventId: selectedEvent.value?.eventId || selectedEvent.value?.id,
+    bookedSlotsIndex: bookedSlotsIndex.value,
+  }),
+));
+
+// The goal is a target, not a contribution limit. Wallet shortfalls use top-up.
+const eventGoalMaximumTokens = computed(() => MAX_EVENT_GOAL_CONTRIBUTION_TOKENS);
 
 const normalizedContributionTokens = computed(() => toWholeTokens(contributionTokens.value));
-const contributionRangeMax = computed(() => Math.max(eventGoalMinimumTokens.value, eventGoalMaximumTokens.value));
-const availableBalanceAfterContribution = computed(() => Math.max(0, toWholeTokens(walletBalance.value) - normalizedContributionTokens.value));
+const contributionRangeMax = computed(() => Math.min(MAX_EVENT_GOAL_CONTRIBUTION_TOKENS, Math.max(eventGoalMinimumTokens.value, eventGoalMaximumTokens.value)));
 const contributionSliderPercent = computed(() => {
   const min = eventGoalMinimumTokens.value;
   const max = eventGoalMaximumTokens.value;
@@ -809,34 +851,6 @@ function ensureContributionDefault() {
   contributionTokens.value = String(min);
 }
 
-function formatGroupDate(dateIso) {
-  if (!dateIso) return '';
-  const date = new Date(`${dateIso}T00:00:00`);
-  if (Number.isNaN(date.getTime())) return '';
-  return date.toLocaleDateString(locale.value, {
-    weekday: 'long',
-    month: 'long',
-    day: 'numeric',
-    year: 'numeric',
-  });
-}
-
-function slotDurationMinutes(slot = {}) {
-  const explicit = Number(slot?.durationMinutes);
-  if (Number.isFinite(explicit) && explicit > 0) return Math.round(explicit);
-  const startMs = Number(slot?.startMs);
-  const endMs = Number(slot?.endMs);
-  if (Number.isFinite(startMs) && Number.isFinite(endMs) && endMs > startMs) {
-    return Math.round((endMs - startMs) / (60 * 1000));
-  }
-  return 0;
-}
-
-function formatSlotRange(slot = {}) {
-  if (!slot?.startHm || !slot?.endHm) return '-';
-  return `${hmToLabel(slot.startHm)}-${hmToLabel(slot.endHm)}`;
-}
-
 function resolveTotalPriceWithoutBookingFee(preview = null) {
   const payment = preview?.payment && typeof preview.payment === 'object'
     ? preview.payment
@@ -848,93 +862,6 @@ function resolveTotalPriceWithoutBookingFee(preview = null) {
   const bookingFeeLine = lines.find((line) => String(line?.code || '') === 'booking_fee');
   const bookingFee = Number(bookingFeeLine?.amount || 0);
   return Math.max(0, safeTotal - (Number.isFinite(bookingFee) && bookingFee > 0 ? bookingFee : 0));
-}
-
-async function autoSelectGroupAndGoToPayment() {
-  if (!isGroupEvent.value || groupAutoRedirecting.value) return;
-  groupAutoRedirecting.value = true;
-
-  const event = selectedEvent.value;
-  const currentFanId = fanId.value ?? resolveFanId();
-  const resolvedBookedSlotsIndex = availabilitySlotsIndex.value;
-  const next = computeNextAvailableSlot(event, resolvedBookedSlotsIndex, 45, {
-    skipBookedByUserId: currentFanId,
-  });
-  if (!next?.slot) {
-    showToast({
-      type: 'error',
-      title: t('fan_booking_slot_unavailable_title'),
-      message: t('fan_booking_no_upcoming_free_slot'),
-    });
-    props.engine.goToStep(1);
-    return;
-  }
-
-  const duration = slotDurationMinutes(next.slot);
-  const contribution = isEventGoalGroupEvent.value ? eventGoalMinimumTokens.value : null;
-  const selectedDate = new Date(`${next.dateIso}T00:00:00`);
-  const selectedTimeValue = {
-    ...next.slot,
-    value: next.slot.startHm || next.slot.value,
-    label: formatSlotRange(next.slot),
-    disabled: false,
-  };
-  const selectedDuration = {
-    value: duration,
-    price: isEventGoalGroupEvent.value
-      ? contribution
-      : toWholeTokens(event?.raw?.basePriceTokens ?? event?.basePriceTokens ?? 0),
-    disabled: false,
-  };
-  const pricingPreview = buildBookingPaymentPreview(event, duration, [], selectedTimeValue, {
-    isFirstBookingForCreator: isFirstBookingForCreator.value,
-    contributionTokens: contribution,
-  });
-  const offHourSurchargeLine = pricingPreview.payment.lines.find(
-    (line) => line.code === 'off_hour_surcharge',
-  );
-  const dateDisplay = formatGroupDate(next.dateIso);
-  const bookingData = {
-    selectedDate,
-    selectedTime: selectedTimeValue,
-    selectedDuration,
-    addons: [],
-    otherRequest: '',
-    formattedTimeRange: formatSlotRange(next.slot),
-    selectedDateDisplay: dateDisplay,
-    headerDateDisplay: dateDisplay,
-    totalPrice: resolveTotalPriceWithoutBookingFee(pricingPreview),
-    contributionTokens: contribution,
-    longerDiscountAmount: 0,
-    firstTimeDiscountAmount: 0,
-    discountRows: [],
-    offHourSurchargeAmount: Number(offHourSurchargeLine?.amount || 0),
-    offHourSurchargeTokens: offHourSurchargeLine
-      ? resolveOffHourSurchargeTokens(event)
-      : 0,
-    isOffHours: Boolean(next.slot?.offHours),
-    walletBalance: Number(walletBalance.value || props.engine.getState('bookingDetails.walletBalance') || 0),
-    displayTimezoneOffsetMinutes: displayTimezoneOffsetMinutes.value,
-    displayTimezoneLabel: timezoneLabel.value,
-  };
-
-  props.engine.setState('bookingDetails', bookingData, { reason: 'step2-group-auto-selection', silent: true });
-  props.engine.setState('fanBooking.selection.selectedDate', next.dateIso, { reason: 'step2-group-auto-selection', silent: true });
-  props.engine.setState('fanBooking.selection.selectedSlot', selectedTimeValue, { reason: 'step2-group-auto-selection', silent: true });
-  props.engine.setState('fanBooking.selection.selectedDurationMinutes', duration, { reason: 'step2-group-auto-selection', silent: true });
-  props.engine.setState('fanBooking.selection.contributionTokens', contribution, { reason: 'step2-group-auto-selection', silent: true });
-  props.engine.setState('fanBooking.selection.selectedAddOns', [], { reason: 'step2-group-auto-selection', silent: true });
-  props.engine.setState('fanBooking.selection.personalRequestText', '', { reason: 'step2-group-auto-selection', silent: true });
-  props.engine.setState('fanBooking.temporaryHold', {
-    temporaryHoldId: null,
-    status: 'none',
-    expiresAt: null,
-    secondsRemaining: 0,
-    createdAt: null,
-    checkedAt: null,
-  }, { reason: 'step2-group-auto-selection-reset-hold', silent: true });
-
-  await props.engine.goToStep(3);
 }
 
 function resolveCreatorId() {
@@ -1275,6 +1202,9 @@ const selectedDurationTokenCost = computed(() => (
 ));
 
 const bookingSummarySessionLabel = computed(() => {
+  if (isGroupEvent.value) {
+    return t(isEventGoalGroupEvent.value ? 'fan_booking_event_goal_contribution' : 'fan_booking_session_cost');
+  }
   const baseMinutes = Math.round(Number(baseSessionDurationMinutes.value || 0)) || 15;
   const totalMinutes = Math.round(Number(selectedDurationDisplayMinutes.value || 0)) || baseMinutes;
   const count = Math.max(1, Number(selectedSessionCount.value || 1));
@@ -1536,6 +1466,7 @@ const pricingPreviewLines = computed(() => (
 ));
 
 const bookingSummarySessionCost = computed(() => {
+  if (isEventGoalGroupEvent.value) return normalizedContributionTokens.value;
   const baseLine = pricingPreviewLines.value.find((row) => String(row?.code || '') === 'base');
   const baseAmount = Number(baseLine?.amount);
   if (Number.isFinite(baseAmount) && baseAmount >= 0) return baseAmount;
@@ -1723,6 +1654,49 @@ function resolveDefaultSelectedDate() {
   return dateFromIso(defaultIso);
 }
 
+const onlyBookableGroupDate = computed(() => {
+  if (!isGroupEvent.value) return null;
+
+  // Count the complete bounded schedule, not just the calendar's 45-day preview.
+  // An open-ended recurring event still needs its date picker.
+  const scheduleEnd = maxSelectableDateIso.value || (
+    getEventRepeatRule(selectedEvent.value) === 'doesnotrepeat'
+    && getEventRawSlots(selectedEvent.value).length === 0
+      ? selectedEvent.value.localDateIso
+      : null
+  );
+  if (!scheduleEnd) return null;
+
+  const scheduleStart = minSelectableDateIso.value || todayDateIso.value;
+  let onlyDate = null;
+  for (let dateIso = scheduleStart; dateIso <= scheduleEnd; dateIso = addDaysToDateIso(dateIso, 1)) {
+    const slots = buildCandidateSlotsForDisplayDate(selectedEvent.value, dateIso)
+      .map((slot) => buildDisplaySlot(slot))
+      .filter((slot) => !slot.disabled);
+    if (!slots.length) continue;
+    if (onlyDate) return null;
+    onlyDate = { dateIso, slots };
+  }
+  return onlyDate;
+});
+
+const showCalendar = computed(() => !onlyBookableGroupDate.value);
+
+function preselectOnlyGroupDate() {
+  const onlyDate = onlyBookableGroupDate.value;
+  if (!onlyDate) return;
+
+  if (selectedDateIso.value !== onlyDate.dateIso) {
+    state.selected = dateFromIso(onlyDate.dateIso);
+    state.focus = new Date(state.selected);
+    selectedTime.value = null;
+    selectedDurationObj.value = null;
+  }
+  if (!selectedTime.value && onlyDate.slots.length === 1) {
+    selectTime(onlyDate.slots[0]);
+  }
+}
+
 const onSelectFromMini = (date) => {
   const picked = new Date(date);
   if (Number.isNaN(picked.getTime())) return;
@@ -1821,6 +1795,8 @@ function hydrateFromState() {
   } else {
     selectedDurationObj.value = null;
   }
+
+  preselectOnlyGroupDate();
 
   otherRequest.value = !personalRequestEnabled.value
     ? ''
@@ -1930,7 +1906,7 @@ const toggleAddon = (index) => {
   row.selected = !row.selected;
 };
 
-const goToNextStep = async () => {
+const goToNextStep = async ({ groupReview = false } = {}) => {
   if (isPreviewReadOnly.value) {
     return;
   }
@@ -1985,6 +1961,14 @@ const goToNextStep = async () => {
     return;
   }
 
+  persistSelection();
+  if (!groupReview) props.engine.goToStep(3);
+  return true;
+};
+
+// The group review uses the existing payment/booking handler, with this screen
+// owning schedule and contribution edits. Persist edits before its server checks.
+function persistSelection() {
   const bookingData = {
     selectedDate: state.selected,
     selectedTime: selectedTime.value,
@@ -2002,12 +1986,16 @@ const goToNextStep = async () => {
     offHourSurchargeAmount: offHourSurchargeAmount.value,
     offHourSurchargeTokens: offHourSurchargeTokens.value,
     isOffHours: Boolean(selectedTime.value?.offHours),
-    walletBalance: Number(walletBalance.value || 0),
+    walletBalance: Number(isGroupEvent.value
+      ? (props.engine.getState('bookingDetails.walletBalance') ?? walletBalance.value ?? 0)
+      : (walletBalance.value || 0)),
     displayTimezoneOffsetMinutes: displayTimezoneOffsetMinutes.value,
     displayTimezoneLabel: timezoneLabel.value,
   };
 
-  props.engine.setState('bookingDetails', bookingData);
+  props.engine.setState('bookingDetails', isGroupEvent.value
+    ? { ...props.engine.getState('bookingDetails'), ...bookingData }
+    : bookingData);
   props.engine.setState('fanBooking.selection.selectedDate', selectedDateIso.value, { reason: 'step2-selection', silent: true });
   props.engine.setState('fanBooking.selection.selectedSlot', selectedTime.value, { reason: 'step2-selection', silent: true });
   props.engine.setState('fanBooking.selection.selectedDurationMinutes', selectedDurationObj.value.value, { reason: 'step2-selection', silent: true });
@@ -2023,9 +2011,14 @@ const goToNextStep = async () => {
     createdAt: null,
     checkedAt: null,
   }, { reason: 'step2-selection-reset-hold', silent: true });
+}
 
-  props.engine.goToStep(3);
-};
+watch(
+  () => [selectedTime.value, selectedDurationObj.value, contributionTokens.value, formattedTimeRange.value],
+  () => {
+    if (isGroupEvent.value && selectedTime.value && selectedDurationObj.value) persistSelection();
+  },
+);
 
 watch(
   () => otherRequest.value,
@@ -2062,18 +2055,11 @@ watch(
       && getEventIdentity(nextEvent)
       && getEventIdentity(nextEvent) === getEventIdentity(previousEvent)
     );
-    if (sameEventRefresh && !isGroupEvent.value) {
+    if (sameEventRefresh) {
       ensureContributionDefault();
       return;
     }
 
-    if (isGroupEvent.value) {
-      hydrateAddons();
-      hydrateFromState();
-      await refreshWalletBalance();
-      await autoSelectGroupAndGoToPayment();
-      return;
-    }
     hydrateAddons();
     hydrateFromState();
     ensureContributionDefault();
@@ -2099,8 +2085,19 @@ watch(
 );
 
 watch(
+  onlyBookableGroupDate,
+  () => preselectOnlyGroupDate(),
+  { flush: 'post' },
+);
+
+watch(
   () => timeSlots.value,
   (slots) => {
+    if (isGroupEvent.value && selectedTime.value
+      && selectedTime.value.endMs - GROUP_BOOKING_CLOSE_BEFORE_END_MS <= currentTimeMs.value) {
+      clearSelectedSlotAfterAvailabilityRefresh('step2-group-booking-cutoff');
+      return;
+    }
     if (!Array.isArray(slots) || slots.length === 0) {
       selectedTime.value = null;
       return;
@@ -2203,11 +2200,6 @@ onMounted(() => {
     return;
   }
 
-  if (isGroupEvent.value) {
-    autoSelectGroupAndGoToPayment();
-    return;
-  }
-
   hydrateAddons();
   hydrateFromState();
   refreshWalletBalance();
@@ -2232,12 +2224,6 @@ onBeforeUnmount(() => {
 
 <template>
   <div
-    v-if="isGroupEvent"
-    class="relative lg:rounded-[20px] h-dvh lg:h-full w-full lg:w-[57.563rem] overflow-hidden bg-black/80"
-  ></div>
-
-  <div
-    v-else
     class="relative lg:rounded-[20px] h-dvh lg:h-full w-full lg:w-[57.563rem] overflow-hidden">
     <div :class="['h-full lg:rounded-[20px] md:bg-black lg:py-0 lg:bg-transparent lg:p-0 flex items-center', !embedded && 'md:bg-black']">
       <div class="w-full h-full lg:h-auto md:rounded-[20px] relative" :style="popupBackgroundStyle">
@@ -2270,13 +2256,20 @@ onBeforeUnmount(() => {
             :show-approval-needed="showApprovalNeeded"
             :is-group-event="isGroupEvent"
             :price-setting="groupPriceSetting"
+            :group-performers="groupPerformers"
+            :prerequisite="sidebarPrerequisite"
+            :event-goal-tokens="eventGoalTokens"
+            :event-goal-reached-tokens="eventGoalReachedTokens"
           />
 
-          <div class="flex-1 flex w-full flex-col gap-3 justify-between md:min-h-0 md:overflow-y-auto h-auto md:max-h-none lg:h-[43.75rem] [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none] px-0 pt-2 md:pt-7 pb-0 bg-[#0C111D]/50">
+          <div class="flex-1 flex w-full flex-col justify-between md:min-h-0 md:overflow-y-auto h-auto md:max-h-none lg:h-[43.75rem] [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none] px-0 pt-2 md:pt-7 pb-0 bg-[#0C111D]/50" :class="isGroupEvent ? 'gap-4' : 'gap-3'">
 
-            <div class="flex-none lg:flex-1 flex-col w-full pt-1 md:pt-5 px-3 md:p-5">
-              <div class="flex items-center justify-between w-full mb-2">
-                <div class="flex items-center">
+            <div class="flex-none flex-col w-full pt-1 md:pt-5 px-3 md:p-5" :class="showCalendar && 'lg:flex-1'">
+              <div v-if="isGroupEvent" class="flex items-center justify-between pb-4" data-testid="group-event-date-time-heading">
+                <h3 class="text-sm font-semibold text-[#FB5BA2] uppercase">{{ t('fan_booking_event_date_time') }}</h3>
+              </div>
+              <div class="flex items-center w-full mb-2" :class="showCalendar ? 'justify-between' : 'justify-end'">
+                <div v-if="showCalendar" class="flex items-center">
                   <div :class="theme1.mini.header" class="!text-base !font-medium">{{ header }}</div>
                   <div class="flex items-center gap-1">
                     <button class="w-[2rem] h-[2rem] flex items-center justify-center rounded-full hover:bg-gray-100" @click="shiftMonth(-1)">
@@ -2339,13 +2332,14 @@ onBeforeUnmount(() => {
               </div>
 
               <mini-calendar
+                v-if="showCalendar"
                 class="w-full"
                 :month-date="state.focus"
                 :selected-date="state.selected"
                 :min-date="minSelectableDate"
                 :max-date="maxSelectableDate"
                 :events="events1"
-                :theme="theme1"
+                :theme="calendarTheme"
                 :today-uses-selected-dot="false"
                 :data-attrs="{ 'data-calendar':'mini' }"
                 @date-selected="onSelectFromMini"
@@ -2372,16 +2366,19 @@ onBeforeUnmount(() => {
               </div>
 
               <template v-else>
-              <div class="flex flex-col gap-2 md:mt-0 mt-5">
+              <div class="flex flex-col md:mt-0 mt-5" :class="isGroupEvent ? 'gap-4' : 'gap-2'">
                 <div
+                  v-show="!isGroupEvent || canScrollTimeSlotsLeft || canScrollTimeSlotsRight || showOffHourSurchargeIndicator"
                   class="flex w-full min-w-0 flex-nowrap items-center gap-x-3 px-3 md:px-5"
+                  :class="isGroupEvent && 'justify-end'"
                   data-testid="booking-flow-time-slots-header"
                 >
-                  <h3 class="shrink-0 text-sm font-semibold leading-5 text-[#22CCEE]">
+                  <h3 v-if="!isGroupEvent" class="shrink-0 text-sm font-semibold leading-5 text-[#22CCEE]">
                     {{ t(isGroupEvent ? "fan_booking_select_event_time" : "fan_booking_select_call_start_time") }}
                   </h3>
-                  <div class="flex shrink-0 items-center gap-1">
+                  <div v-show="canScrollTimeSlotsLeft || canScrollTimeSlotsRight" class="flex shrink-0 items-center gap-1">
                     <button
+                      v-show="canScrollTimeSlotsLeft"
                       type="button"
                       class="flex h-8 w-8 items-center justify-center rounded-full text-white transition-colors hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-30"
                       data-testid="booking-flow-time-slots-previous"
@@ -2394,6 +2391,7 @@ onBeforeUnmount(() => {
                       </svg>
                     </button>
                     <button
+                      v-show="canScrollTimeSlotsRight"
                       type="button"
                       class="flex h-8 w-8 items-center justify-center rounded-full text-white transition-colors hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-30"
                       data-testid="booking-flow-time-slots-next"
@@ -2429,7 +2427,8 @@ onBeforeUnmount(() => {
                   <div
                     v-for="column in timeSlotHourColumns"
                     :key="column.key"
-                    class="flex w-[calc((100%_-_1rem)/3)] min-w-32 flex-none flex-col gap-2"
+                    class="flex flex-none flex-col gap-2"
+                    :class="isGroupEvent ? 'w-[calc((100%_-_1rem)/2)] min-w-max' : 'w-[calc((100%_-_1rem)/3)] min-w-32'"
                     data-testid="booking-flow-time-slot-column"
                     :data-hour="column.hour"
                   >
@@ -2439,20 +2438,22 @@ onBeforeUnmount(() => {
                       data-testid="booking-flow-time-slot"
                       :data-start-ms="slot.startMs"
                       @click="selectTime(slot)"
-                      class="flex justify-center items-center p-[0.625rem] rounded-[0.625rem] relative transition-colors"
+                      class="flex justify-center items-center rounded-[0.625rem] relative transition-colors"
                       :class="[
+                        isGroupEvent ? 'py-2 px-6 h-12 gap-[0.625rem]' : 'p-[0.625rem]',
                         slot.disabled
                           ? 'opacity-50 border border-white/30 cursor-not-allowed'
                           : (
                             selectedTime?.value === slot.value
                               ? 'bg-[#07F468] border border-[#07F468] cursor-pointer'
-                              : (slot.isOffHours ? 'border border-[#FF0066] cursor-pointer' : 'border-[0.5px] border-white cursor-pointer')
+                              : (slot.isOffHours ? 'border border-[#FF0066] cursor-pointer' : (isGroupEvent ? 'border-[0.5px] border-white/50 cursor-pointer' : 'border-[0.5px] border-white cursor-pointer'))
                           )
                       ]"
                     >
                       <p
-                        class="text-sm font-normal leading-"
+                        class="text-sm font-normal"
                         :class="[
+                          isGroupEvent ? 'leading-6' : 'leading-',
                           slot.disabled
                             ? 'text-white/70'
                             : (
@@ -2465,6 +2466,12 @@ onBeforeUnmount(() => {
                         {{ slot.label }}
                       </p>
 
+                      <span
+                        v-if="isGroupEvent && !slot.disabled && slot.remainingSpots > 0 && slot.remainingSpots <= 10"
+                        data-testid="group-slot-spots-left"
+                        class="flex h-[18px] shrink-0 px-[4px] justify-center items-center rounded-[4px] bg-[#FCE40D] text-[#0C111D] text-center text-xs font-semibold leading-[18px]"
+                      >{{ t('fan_booking_only_spots_left', { remaining: slot.remainingSpots }) }}</span>
+
                       <div v-if="false && slot.disabled" class="text-xs text-red-300">Booked</div>
                       <div v-else-if="slot.isOffHours && selectedTime?.value !== slot.value" class="absolute right-[0] top-[-0.3rem]">
                         <img :src="bookingFlowCloudMoonIcon" alt="" />
@@ -2472,6 +2479,47 @@ onBeforeUnmount(() => {
                     </div>
                   </div>
                 </div>
+              </div>
+
+              <p v-if="isGroupEvent && !selectedTime" class="px-3 md:px-5 text-[#FCE40D] text-sm italic" data-testid="group-select-time-prompt">
+                {{ t('fan_booking_select_event_time_for_summary') }}
+              </p>
+
+              <div v-if="isGroupEvent && selectedTime" class="px-3 pt-5 md:px-5 flex flex-col gap-8">
+                <div v-if="isEventGoalGroupEvent" class="flex flex-col items-start gap-6 self-stretch text-white" data-testid="step2-event-goal-contribution-panel">
+                  <div class="flex flex-col items-start gap-1 self-stretch">
+                    <label for="step2-event-goal-contribution" class="text-base">{{ t('fan_booking_your_contribution_minimum', { min: eventGoalMinimumTokens }) }}</label>
+                    <div class="w-full flex items-center gap-1">
+                      <img :src="bookingFlowTokenIcon" alt="token-icon" class="w-10 h-10 shrink-0" />
+                      <div class="px-1 flex-1 min-w-0 h-[44px] border-b flex items-center gap-1" :class="contributionInvalid ? 'border-[#FF5CA8]' : 'border-[#98A2B3]'">
+                        <input id="step2-event-goal-contribution" v-model="contributionTokens" type="number" inputmode="numeric" :min="eventGoalMinimumTokens" :max="contributionRangeMax" class="w-full min-w-0 bg-transparent text-white text-[1.875rem] font-normal leading-[2.375rem] focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                        <span class="text-base">{{ t('common_tokens') }}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="w-full relative flex items-center py-2 select-none">
+                    <div class="w-full h-2.5 bg-white rounded-full overflow-hidden relative shadow-inner"><div class="h-full bg-[#07F468] rounded-full transition-all duration-75" :style="contributionSliderStyle"></div></div>
+                    <div class="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 pointer-events-none z-10 transition-all duration-75 h-8 w-8" :style="contributionThumbStyle"><img :src="bookingFlowTokenIcon" alt="" class="h-full w-full" /></div>
+                    <input v-model="contributionTokens" type="range" :min="eventGoalMinimumTokens" :max="contributionRangeMax" step="1" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20" :aria-label="t('fan_booking_your_contribution_minimum', { min: eventGoalMinimumTokens })" data-testid="step2-event-goal-contribution-range" />
+                  </div>
+                  <div class="flex w-full justify-between gap-3 text-xs text-[#D0D5DD]">
+                    <span>{{ t('fan_booking_contribution_bounds', { min: eventGoalMinimumTokens, max: eventGoalMaximumTokens }) }}</span>
+                    <span>{{ t('fan_booking_event_goal_remaining', { tokens: formatTokens(Math.max(0, eventGoalTokens - eventGoalReachedTokens)) }) }}</span>
+                  </div>
+                  <p v-if="contributionInvalid" class="text-xs text-[#FF99C9]" data-testid="step2-event-goal-contribution-error">{{ t('fan_booking_contribution_invalid', { min: eventGoalMinimumTokens, max: eventGoalMaximumTokens }) }}</p>
+                </div>
+                <BookingFlowStep3
+                  group-review
+                  :engine="engine"
+                  :api-base-url="apiBaseUrl"
+                  :embedded="embedded"
+                  :refresh-booking-context="refreshBookingContext"
+                  :prepare-group-booking="() => goToNextStep({ groupReview: true })"
+                  :group-action-disabled="bottomActionDisabled"
+                  @booking-created="emit('booking-created', $event)"
+                  @booking-failed="emit('booking-failed', $event)"
+                  @balance-changed="emit('balance-changed', $event)"
+                />
               </div>
 
               <div v-if="!isGroupEvent" class="flex flex-col gap-4 md:mt-0 mt-5 px-3 md:px-5">
@@ -2690,7 +2738,7 @@ onBeforeUnmount(() => {
 
               <!-- Previous Booking details -->
               <div
-                v-if="selectedDurationObj && (discountRows.length > 0 || offHourSurchargeAmount > 0 || bookingFeeAmount > 0 || cancellationFeeAmount > 0)"
+                v-if="!isGroupEvent && selectedDurationObj && (discountRows.length > 0 || offHourSurchargeAmount > 0 || bookingFeeAmount > 0 || cancellationFeeAmount > 0)"
                 class="mt-2 rounded-xl border border-white/10 bg-white/5 p-3 hidden"
                 data-testid="booking-flow-price-breakdown"
               >
@@ -2763,7 +2811,7 @@ onBeforeUnmount(() => {
 
               <!-- Booking Summary -->
               <div
-                v-if="selectedDurationObj"
+                v-if="!isGroupEvent && selectedDurationObj"
                 class="flex flex-col gap-4 md:mt-0 mt-5 px-3 md:px-5"
                 data-testid="booking-flow-step2-summary"
               >
@@ -2881,7 +2929,7 @@ onBeforeUnmount(() => {
 
           </div>
 
-          <div v-if="state.selected && hasAvailableSlots" :class="actionFooterClass">
+          <div v-if="!isGroupEvent && state.selected && hasAvailableSlots" :class="actionFooterClass">
             <button
               :disabled="bottomActionDisabled"
               @click="goToNextStep"

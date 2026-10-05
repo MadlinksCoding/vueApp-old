@@ -15,6 +15,8 @@ describe("fs-events-host openFanBookingPopup", () => {
     delete window.openTipPopup;
     delete window.showing_call_popup;
     delete window.__fsTokenBalanceUiRefreshState;
+    delete window.custom_checkout;
+    delete window.madlinksFetch;
     vi.stubGlobal("fetch", vi.fn(() => Promise.resolve({
       ok: false,
       text: () => Promise.resolve(""),
@@ -1679,6 +1681,29 @@ describe("fs-events-host openFanBookingPopup", () => {
     expect(document.body.contains(bookingPopup.overlay)).toBe(false);
   });
 
+  it("mounts the existing chat for an authenticated former guest and waits until it is ready", () => {
+    const popup = window.FSEventsEmbed.openFanBookingPopup({ creatorId: 1407, fanId: 0 });
+    const openChat = vi.fn();
+    const mountChatEmbed = vi.fn(() => ({ openChat }));
+    window.FSChatEmbed = { mountChatEmbed };
+    try {
+      window.FSEventsEmbed.updateFanBookingAuth({ fanId: 2616, jwtToken: 'guest_paid_jwt' });
+      window.dispatchEvent(new MessageEvent('message', {
+        source: popup.iframe.contentWindow, origin: window.location.origin,
+        data: { type: 'FS_FAN_BOOKING_OPEN_CHAT', payload: { chatId: 'booking_chat', userId: 1407 } },
+      }));
+      expect(mountChatEmbed).toHaveBeenCalledWith(document.body, expect.objectContaining({
+        currentUserId: 2616, jwtToken: 'guest_paid_jwt', userRole: 'fan',
+      }));
+      expect(openChat).not.toHaveBeenCalled();
+      mountChatEmbed.mock.calls[0][1].onReady();
+      expect(openChat).toHaveBeenCalledWith({ chatId: 'booking_chat', userId: 1407 });
+    } finally {
+      delete window.FSChatEmbed;
+      popup.close();
+    }
+  });
+
   it("ignores booking detail requests from guest booking flows", () => {
     const bookingPopup = window.FSEventsEmbed.openFanBookingPopup({
       creatorId: 1407,
@@ -1724,6 +1749,41 @@ describe("fs-events-host openFanBookingPopup", () => {
     expect(window.FSEventsEmbed.updateAuth({ jwtToken: "jwt_newer" })).toBe(1);
     expect(firstPostMessage).not.toHaveBeenCalled();
     expect(secondPostMessage).toHaveBeenCalledOnce();
+  });
+
+  it("opens membership through the existing profile tab without changing receipt handling", () => {
+    document.body.innerHTML = '<div data-tabs-menu="profile-tabs-menu"><button data-tabbed-child-id="membership">Membership</button></div>';
+    const tabClick = vi.fn();
+    document.querySelector('[data-tabbed-child-id="membership"]').addEventListener('click', tabClick);
+    const receiptRequest = vi.fn();
+    document.addEventListener('bookingPrerequisitePurchaseRequested', receiptRequest);
+    const popup = window.FSEventsEmbed.openFanBookingPopup({ creatorId: 1407, fanId: 25 });
+    function send(payload) {
+      window.dispatchEvent(new MessageEvent('message', { source: popup.iframe.contentWindow,
+        origin: window.location.origin, data: { type: 'FS_FAN_BOOKING_OPEN_PURCHASE', payload } }));
+    }
+    send({ view: 'membership' });
+    expect(tabClick).toHaveBeenCalledTimes(1);
+    expect(receiptRequest).not.toHaveBeenCalled();
+    send({ orderId: 987, orderReceiptUrl: '/receipt/987/' });
+    expect(receiptRequest.mock.calls[0][0].detail).toEqual({ orderId: 987, orderReceiptUrl: '/receipt/987/' });
+    document.removeEventListener('bookingPrerequisitePurchaseRequested', receiptRequest);
+    popup.destroy();
+  });
+
+  it.each(['purchases', 'purchased-media', 'subscriptions'])("navigates to the %s dashboard instead of opening a receipt popup", view => {
+    const onOpenUrl = vi.fn();
+    const popup = window.FSEventsEmbed.openFanBookingPopup({ creatorId: 1407, fanId: 25, onOpenUrl });
+    const receiptRequest = vi.fn();
+    document.addEventListener('bookingPrerequisitePurchaseRequested', receiptRequest);
+    window.dispatchEvent(new MessageEvent('message', {
+      source: popup.iframe.contentWindow, origin: window.location.origin,
+      data: { type: 'FS_FAN_BOOKING_OPEN_PURCHASE', payload: { view } },
+    }));
+    expect(onOpenUrl).toHaveBeenCalledWith({ url: `/dashboard/${view}`, target: '_self' });
+    expect(receiptRequest).not.toHaveBeenCalled();
+    document.removeEventListener('bookingPrerequisitePurchaseRequested', receiptRequest);
+    popup.destroy();
   });
 
   it("hides the loading layer when the child-ready message arrives", () => {
@@ -1853,6 +1913,98 @@ describe("fs-events-host openFanBookingPopup", () => {
     expect(document.body.contains(popup.overlay)).toBe(false);
     expect(onClose).toHaveBeenCalledTimes(1);
     expect(window.__FSFanBookingActivePopup).toBeNull();
+  });
+
+  it("keeps the simple product id when checkout includes variation_id=0", async () => {
+    window.custom_checkout = { fetch_checkout_popup: vi.fn().mockResolvedValue(undefined) };
+    const popup = window.FSEventsEmbed.openFanBookingPopup({ creatorId: 1407, fanId: 25 });
+
+    window.dispatchEvent(new MessageEvent("message", {
+      source: popup.iframe.contentWindow,
+      data: {
+        type: "FS_FAN_BOOKING_PREREQUISITE_CHECKOUT_REQUEST",
+        payload: {
+          requestId: "simple-product-prerequisite-1",
+          eventId: "evt_simple",
+          requirementType: "product",
+          checkout: {
+            url: "/checkout/?add-to-cart=50509&variation_id=0",
+            product_id: 50509,
+            variation_id: 0,
+          },
+          contributionTokens: 10,
+          topUpTokens: 0,
+        },
+      },
+      origin: window.location.origin,
+    }));
+    for (let index = 0; index < 8; index += 1) await Promise.resolve();
+
+    expect(window.custom_checkout.fetch_checkout_popup).toHaveBeenCalledWith(
+      null,
+      expect.objectContaining({
+        product_id: "50509",
+        variation_id: "0",
+        buy_now: 1,
+        booking_event_id: "evt_simple",
+        booking_prerequisite_product_id: 50509,
+        booking_topup_tokens: 0,
+        booking_contribution_tokens: 10,
+      }),
+      true,
+      {},
+    );
+  });
+
+  it("uses the existing free-subscription API without opening checkout", async () => {
+    const freeSubscriptionResponse = {
+      action: "downgrade_scheduled",
+      subscription_id: 812,
+      tier_id: 93,
+    };
+    window.madlinksFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue(freeSubscriptionResponse),
+    });
+    window.custom_checkout = { fetch_checkout_popup: vi.fn() };
+    const popup = window.FSEventsEmbed.openFanBookingPopup({ creatorId: 1407, fanId: 25 });
+    const postMessage = vi.spyOn(popup.iframe.contentWindow, "postMessage");
+
+    window.dispatchEvent(new MessageEvent("message", {
+      source: popup.iframe.contentWindow,
+      data: {
+        type: "FS_FAN_BOOKING_PREREQUISITE_CHECKOUT_REQUEST",
+        payload: {
+          requestId: "free-prerequisite-1",
+          eventId: "evt_free",
+          checkout: { url: "/checkout/?free-subscribe-to=93" },
+          topUpTokens: 50,
+        },
+      },
+      origin: window.location.origin,
+    }));
+    for (let index = 0; index < 8; index += 1) await Promise.resolve();
+
+    expect(window.madlinksFetch).toHaveBeenCalledWith(
+      "/wp-json/api/subscriptions/free",
+      {
+        method: "POST",
+        body: { tier_id: 93, idempotency_key: "free-prerequisite-1" },
+      },
+    );
+    expect(window.custom_checkout.fetch_checkout_popup).not.toHaveBeenCalled();
+    expect(postMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "FS_FAN_BOOKING_PREREQUISITE_CHECKOUT_RESULT",
+        payload: expect.objectContaining({
+          requestId: "free-prerequisite-1",
+          status: "already_eligible",
+          topUpIncluded: false,
+          payment: freeSubscriptionResponse,
+        }),
+      }),
+      window.location.origin,
+    );
   });
 
   it("queues token balance UI refreshes requested by the active booking iframe", async () => {

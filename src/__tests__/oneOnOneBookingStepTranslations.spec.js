@@ -2854,6 +2854,7 @@ describe("one-on-one booking step translations", () => {
     expect(engine.state.spendingRequirement).toBe("mustOwnProducts");
     expect(wrapper.text()).toContain("Creator product");
     expect(wrapper.text()).toContain("Switch Product");
+    expect(wrapper.getComponent({ name: "SpendingRequirementProductPopup" }).props("excludeSubscriberExclusiveMerch")).toBe(true);
 
     audienceDropdown.vm.$emit("update:modelValue", "inviteOnly");
     await settleValidation();

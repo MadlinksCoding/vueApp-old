@@ -25,6 +25,7 @@ const DAY_NAME_TO_INDEX = {
 
 const ACTIVE_BOOKING_EXTENSION_STATUSES = new Set(["held", "captured"]);
 const DEFAULT_CREATOR_TIMEZONE = "Asia/Hong_Kong";
+export const GROUP_BOOKING_CLOSE_BEFORE_END_MS = 10 * 60 * 1000;
 
 function pad2(value) {
   return String(value).padStart(2, "0");
@@ -1087,21 +1088,21 @@ export function createSlotUiModel({ event, eventId, localDateIso, slot, bookedSl
       || isPrivateDateAtDailyCapacity({ event, eventId, localDateIso, bookedSlotsIndex })
     );
   const today = new Date();
-  const todayIso = toLocalDateIsoFromDate(today);
   const pastDisabled = (
-    Boolean(localDateIso)
-    && localDateIso === todayIso
-    && (
-      groupEvent
-        ? Number.isFinite(slot?.endMs) && slot.endMs <= today.getTime()
-        : Number.isFinite(slot?.startMs) && slot.startMs < today.getTime()
-    )
+    groupEvent
+      ? Number.isFinite(slot?.endMs) && slot.endMs - GROUP_BOOKING_CLOSE_BEFORE_END_MS <= today.getTime()
+      : Boolean(localDateIso)
+        && localDateIso === toLocalDateIsoFromDate(today)
+        && Number.isFinite(slot?.startMs) && slot.startMs < today.getTime()
   );
   const creationDisabled = groupEvent && isGroupSlotBeforeEventCreated(event, slot);
   const disabled = bookedDisabled || pastDisabled || creationDisabled;
   return {
     ...slot,
     disabled,
+    remainingSpots: groupEvent && Number.isFinite(resolveGroupCapacity(event))
+      ? Math.max(0, resolveGroupCapacity(event) - countGroupSlotBookings({ eventId, slot, bookedSlotsIndex }))
+      : null,
   };
 }
 

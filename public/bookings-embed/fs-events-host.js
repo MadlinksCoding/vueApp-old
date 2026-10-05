@@ -25,6 +25,9 @@
   var FS_FAN_BOOKING_DEBUG = "FS_FAN_BOOKING_DEBUG";
   var FS_FAN_BOOKING_AUTH_UPDATE = "FS_FAN_BOOKING_AUTH_UPDATE";
   var FS_FAN_BOOKING_OPEN_DETAILS = "FS_FAN_BOOKING_OPEN_DETAILS";
+  var FS_FAN_BOOKING_PREREQUISITE_CHECKOUT_REQUEST = "FS_FAN_BOOKING_PREREQUISITE_CHECKOUT_REQUEST";
+  var FS_FAN_BOOKING_PREREQUISITE_CHECKOUT_RESULT = "FS_FAN_BOOKING_PREREQUISITE_CHECKOUT_RESULT";
+  var FS_FAN_BOOKING_OPEN_PURCHASE = "FS_FAN_BOOKING_OPEN_PURCHASE";
   var FS_BOOKING_NOTICES_BOOTSTRAP = "FS_BOOKING_NOTICES_BOOTSTRAP";
   var FS_BOOKING_NOTICES_UPDATE = "FS_BOOKING_NOTICES_UPDATE";
   var FS_BOOKING_NOTICES_CHILD_READY = "FS_BOOKING_NOTICES_CHILD_READY";
@@ -1072,6 +1075,183 @@
 
       if (data.type === FS_FAN_BOOKING_BALANCE_REFRESH_REQUEST) {
         await queueTokenBalanceUiRefresh(data.payload || {});
+        return;
+      }
+
+      if (data.type === FS_FAN_BOOKING_PREREQUISITE_CHECKOUT_REQUEST) {
+        var checkoutPayload = data.payload || {};
+        var checkoutRequestId = String(checkoutPayload.requestId || "");
+        var checkoutData = checkoutPayload.checkout || {};
+        var checkoutUrl = String(checkoutData.url || "");
+        var checkoutSettled = false;
+
+        var replyCheckout = function (status, result) {
+          if (checkoutSettled || !iframe.contentWindow) return;
+          checkoutSettled = true;
+          document.removeEventListener("checkoutCompleted", onCheckoutCompleted);
+          document.removeEventListener("popupClosed", onCheckoutClosed);
+          iframe.contentWindow.postMessage({
+            type: FS_FAN_BOOKING_PREREQUISITE_CHECKOUT_RESULT,
+            payload: Object.assign({ requestId: checkoutRequestId, status: status }, result || {}),
+          }, targetOrigin);
+        };
+
+        var onCheckoutCompleted = function (checkoutEvent) {
+          var eventData = checkoutEvent && checkoutEvent.detail && checkoutEvent.detail.data;
+          var paymentData = eventData && eventData.data ? eventData.data : eventData || {};
+          var paid = paymentData && paymentData.is_success
+            && (paymentData.order_status === "completed" || paymentData.order_status === "processing");
+          replyCheckout(paid ? "paid" : "failed", {
+            orderId: paymentData.order_id || null,
+            orderReceiptUrl: paymentData.order_receipt_url || paymentData.thankyou_page || "",
+            payment: paymentData,
+          });
+        };
+
+        var onCheckoutClosed = function (closeEvent) {
+          var target = closeEvent && closeEvent.detail && closeEvent.detail.target;
+          if (target === "checkout-popup" || target === "#checkout-popup") {
+            replyCheckout("cancelled", { reason: "checkout_closed" });
+          }
+        };
+
+        if (!checkoutRequestId || !checkoutUrl) {
+          replyCheckout("failed", { reason: "booking_checkout_unavailable" });
+          return;
+        }
+
+        try {
+          var parsedCheckoutUrl = new URL(checkoutUrl, global.location.origin);
+          var freeSubscriptionTierId = Number(parsedCheckoutUrl.searchParams.get("free-subscribe-to") || 0);
+
+          if (freeSubscriptionTierId > 0) {
+            if (typeof global.madlinksFetch !== "function") {
+              replyCheckout("failed", { reason: "free_subscription_unavailable" });
+              return;
+            }
+
+            var freeSubscriptionResponse = await global.madlinksFetch("/wp-json/api/subscriptions/free", {
+              method: "POST",
+              body: {
+                tier_id: freeSubscriptionTierId,
+                idempotency_key: checkoutRequestId,
+              },
+            });
+            var freeSubscriptionData = await freeSubscriptionResponse.json().catch(function () { return {}; });
+            if (freeSubscriptionResponse.ok === false || freeSubscriptionData.error) {
+              replyCheckout("failed", {
+                reason: "free_subscription_failed",
+                message: freeSubscriptionData.message || freeSubscriptionData.error || "",
+              });
+              return;
+            }
+
+            replyCheckout("already_eligible", {
+              orderId: freeSubscriptionData.order_id || null,
+              payment: freeSubscriptionData,
+              topUpIncluded: false,
+            });
+            return;
+          }
+
+          if (!global.custom_checkout || typeof global.custom_checkout.fetch_checkout_popup !== "function") {
+            replyCheckout("failed", { reason: "booking_checkout_unavailable" });
+            return;
+          }
+
+          var checkoutParams = {};
+          var checkoutQueryParams = {};
+          parsedCheckoutUrl.searchParams.forEach(function (value, key) {
+            if (key === "add-to-cart") {
+              checkoutParams.product_id = value;
+            } else if (key === "variation_id") {
+              checkoutParams.variation_id = value;
+              if (Number(value) > 0) {
+                checkoutParams.product_id = value;
+              }
+            } else {
+              checkoutParams[key] = value;
+            }
+
+            if (key === "switch-subscription" || key === "_wcsnonce" || key === "item") {
+              checkoutQueryParams[key] = value;
+            }
+          });
+
+          if (checkoutParams._wcsnonce && global.custom_checkout_params && global.custom_checkout_params._wcsnonce) {
+            checkoutParams._wcsnonce = global.custom_checkout_params._wcsnonce;
+            checkoutQueryParams._wcsnonce = global.custom_checkout_params._wcsnonce;
+          }
+
+          checkoutParams.buy_now = 1;
+          checkoutParams.prevent_payment_redirect = 1;
+          checkoutParams.is_call_checkout = 1;
+          checkoutParams.booking_event_id = String(checkoutPayload.eventId || "");
+          checkoutParams.booking_prerequisite_product_id = Number(checkoutData.variation_id || checkoutData.product_id || 0);
+          checkoutParams.booking_prerequisite_type = String(checkoutPayload.requirementType || "");
+          checkoutParams.booking_topup_tokens = Math.max(0, Math.ceil(Number(checkoutPayload.topUpTokens || 0)));
+          checkoutParams.booking_contribution_tokens = Math.max(0, Math.ceil(Number(checkoutPayload.contributionTokens || 0)));
+
+          document.addEventListener("checkoutCompleted", onCheckoutCompleted, { once: true });
+          document.addEventListener("popupClosed", onCheckoutClosed);
+          await global.custom_checkout.fetch_checkout_popup(null, checkoutParams, true, checkoutQueryParams);
+        } catch (checkoutError) {
+          replyCheckout("failed", {
+            reason: "booking_checkout_launch_failed",
+            message: checkoutError && checkoutError.message ? checkoutError.message : String(checkoutError),
+          });
+        }
+        return;
+      }
+
+      if (data.type === FS_FAN_BOOKING_OPEN_PURCHASE) {
+        var purchasePayload = data.payload || {};
+        if (["purchases", "purchased-media", "subscriptions"].includes(purchasePayload.view)) {
+          openUrl({
+            url: "/dashboard/" + purchasePayload.view,
+            target: "_self",
+          }, settings);
+          return;
+        }
+        if (purchasePayload.view === "membership") {
+          // Reuse the profile's normal tab click so its existing loader and
+          // benefits UI remain responsible for displaying the subscription.
+          var membershipTab = document.querySelector('[data-tabs-menu="profile-tabs-menu"] [data-tabbed-child-id="membership"]');
+          if (membershipTab) membershipTab.click();
+          return;
+        }
+        var purchaseOrderId = Number(purchasePayload.orderId || 0);
+        var receiptUrl = String(purchasePayload.orderReceiptUrl || "");
+        if (purchaseOrderId > 0) {
+          document.dispatchEvent(new CustomEvent("bookingPrerequisitePurchaseRequested", {
+            detail: { orderId: purchaseOrderId, orderReceiptUrl: receiptUrl },
+          }));
+        } else if (receiptUrl) {
+          global.open(receiptUrl, "_blank", "noopener,noreferrer");
+        }
+        return;
+      }
+
+      if (data.type === "FS_FAN_BOOKING_OPEN_CHAT") {
+        // A guest profile has no mounted chat widget. After paid checkout,
+        // mount the same widget used by logged-in pages, not a separate chat.
+        if (document.querySelector('iframe[title="Chat"]')) return;
+        if (!safePositiveNumber(settings.fanId, null) || !settings.jwtToken) return;
+        if (!global.FSChatEmbed) {
+          await new Promise(function (resolve, reject) {
+            var script = document.createElement("script");
+            script.src = "/wp-content/plugins/fansocial/bookings-embed/fs-chat-host.js";
+            script.onload = resolve;
+            script.onerror = reject;
+            document.head.appendChild(script);
+          });
+        }
+        var bookingChat = global.FSChatEmbed.mountChatEmbed(document.body, {
+          currentUserId: settings.fanId, userRole: "fan",
+          apiBaseUrl: settings.apiBaseUrl, tokenHandlerApiUrl: settings.tokenHandlerApiUrl,
+          jwtToken: settings.jwtToken, fanUid: global.userData && global.userData.UID,
+          onReady: function () { bookingChat.openChat(data.payload || {}); },
+        });
         return;
       }
 

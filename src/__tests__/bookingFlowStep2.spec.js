@@ -175,6 +175,11 @@ function createMountedStep({
             [bookingTranslationSymbol]: createBookingTranslator({ translations }),
           },
           stubs: {
+            BookingFlowStep3: {
+              name: 'BookingFlowStep3',
+              props: ['prepareGroupBooking', 'groupActionDisabled', 'groupReview'],
+              template: "<div data-testid='group-booking-review'><button data-testid='group-booking-action' :disabled='groupActionDisabled' @click='prepareGroupBooking()'>COMPLETE BOOKING</button></div>",
+            },
             MiniCalendar: {
               props: ["minDate", "maxDate", "events", "monthDate", "selectedDate"],
               emits: ["date-selected"],
@@ -197,7 +202,8 @@ function createMountedStep({
               `,
             },
             OneOnOneBookingFlowLeftSideBar: {
-              props: ["timeDisplay", "duration", "isFirstBookingForCreator", "subtotal"],
+              name: 'OneOnOneBookingFlowLeftSideBar',
+              props: ["timeDisplay", "duration", "isFirstBookingForCreator", "subtotal", "groupPerformers", "prerequisite"],
               template: "<aside data-testid='step2-sidebar' :data-first-booking='String(isFirstBookingForCreator)' :data-subtotal='String(subtotal)'>{{ timeDisplay }} {{ duration }}</aside>",
             },
           },
@@ -222,6 +228,81 @@ async function flushStep2() {
 }
 
 describe("BookingFlowStep2", () => {
+  it.each([
+    { capacity: 7, enabled: true, remaining: 5 },
+    { capacity: 3, enabled: true, remaining: 1 },
+    { capacity: 8, enabled: true, remaining: 6 },
+    { capacity: 12, enabled: true, remaining: 10 },
+    { capacity: 13, enabled: true, remaining: null },
+    { capacity: 2, enabled: true, remaining: null },
+    { capacity: 3, enabled: false, remaining: null },
+  ])('shows the group slot warning only for 1–10 remaining places ($capacity, $enabled)', async ({ capacity, enabled, remaining }) => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2030-01-15T09:00:00'));
+    const row = { eventId: 'evt_group_1', startIso: '2030-01-15T10:00:00', endIso: '2030-01-15T13:00:00' };
+    const { wrapperPromise } = createMountedStep({
+      selectedEvent: createGroupEvent('2030-01-15', { raw: { enableMaxAttendees: enabled, maxAttendees: capacity } }),
+      bookedSlotsIndex: buildBookedSlotsIndex([
+        { ...row, bookingId: 'joined', userId: 4000, status: 'confirmed' },
+        { ...row, bookingId: 'cancelled', userId: 4001, status: 'cancelled_by_user' },
+        { ...row, bookingId: 'other-session', userId: 4002, status: 'confirmed', startIso: '2030-01-16T10:00:00', endIso: '2030-01-16T13:00:00' },
+      ]),
+      temporaryHoldSlotsIndex: buildBookedSlotsIndex([{ ...row, bookingId: 'held', userId: 4003, status: 'temporary_hold' }]),
+    });
+    const wrapper = await wrapperPromise;
+    await flushStep2();
+    const badge = wrapper.find('[data-testid="group-slot-spots-left"]');
+    expect(badge.exists()).toBe(remaining !== null);
+    if (remaining !== null) {
+      expect(badge.text()).toBe(`Only ${remaining} left !`);
+      expect(badge.classes()).toContain('bg-[#FCE40D]');
+      await wrapper.get('[data-testid="booking-flow-time-slot"]').trigger('click');
+      expect(wrapper.get('[data-testid="group-slot-spots-left"]').text()).toBe(`Only ${remaining} left !`);
+    }
+    expect(wrapper.get('[data-testid="group-event-date-time-heading"]').text()).toBe('EVENT DATE & TIME');
+    wrapper.unmount();
+  });
+
+  it('updates the group slot warning when availability changes', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2030-01-15T09:00:00'));
+    const mounted = createMountedStep({ selectedEvent: createGroupEvent('2030-01-15', {
+      raw: { enableMaxAttendees: true, maxAttendees: 11 },
+    }) });
+    const wrapper = await mounted.wrapperPromise;
+    await flushStep2();
+    expect(wrapper.find('[data-testid="group-slot-spots-left"]').exists()).toBe(false);
+    mounted.engine.state.fanBooking.catalog.bookedSlotsIndex = buildBookedSlotsIndex([{
+      bookingId: 'new-booking', eventId: 'evt_group_1', userId: 4000, status: 'confirmed',
+      startIso: '2030-01-15T10:00:00', endIso: '2030-01-15T13:00:00',
+    }]);
+    await wrapper.setProps({ engine: { ...mounted.engine } });
+    await flushStep2();
+    expect(wrapper.get('[data-testid="group-slot-spots-left"]').text()).toBe('Only 10 left !');
+    wrapper.unmount();
+  });
+
+  it('passes group performers and the matching prerequisite to the existing sidebar', async () => {
+    const { engine, wrapperPromise } = createMountedStep({ selectedEvent: createGroupEvent('2030-01-15', {
+      raw: { coPerformers: [{ name: 'Guest Creator', avatar: '/guest.png' }] },
+    }) });
+    engine.state.fanBooking.prerequisite = {
+      eventId: 'evt_group_1',
+      validation: { prerequisite: { eligible: false, type: 'subscription', product: {
+        title: 'Parent title', variation_title: 'Close Circle', price: 25, image_url: '/tier.png',
+      } } },
+    };
+    const wrapper = await wrapperPromise;
+    await flushStep2();
+    const sidebar = wrapper.findComponent({ name: 'OneOnOneBookingFlowLeftSideBar' });
+    expect(sidebar.props('groupPerformers')).toEqual([{ name: 'Guest Creator', avatar: '/guest.png' }]);
+    expect(sidebar.props('prerequisite').product.variation_title).toBe('Close Circle');
+    engine.state.fanBooking.prerequisite.eventId = 'different-event';
+    await wrapper.setProps({ engine: { ...engine } });
+    expect(sidebar.props('prerequisite')).toBe(null);
+    wrapper.unmount();
+  });
+
   afterEach(() => {
     vi.useRealTimers();
     vi.mocked(showToast).mockReset();
@@ -254,30 +335,40 @@ describe("BookingFlowStep2", () => {
     });
   }
 
-  it("auto-selects group event slot and routes directly to payment summary", async () => {
-    const dateIso = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  it("preselects the only group date and slot without showing the calendar", async () => {
+    setFixedStepClock();
+    const dateIso = "2030-01-16";
     const { engine, wrapperPromise } = createMountedStep({
       dateIso,
       selectedEvent: createGroupEvent(dateIso),
+      selection: { selectedDate: null },
     });
     const wrapper = await wrapperPromise;
     await nextTick();
     await nextTick();
     await nextTick();
 
-    expect(wrapper.text()).not.toContain("SELECT EVENT TIME");
+    expect(wrapper.find(".mini-calendar-stub").exists()).toBe(false);
+    expect(wrapper.find("[data-testid='booking-flow-timezone-selector']").exists()).toBe(true);
+    expect(wrapper.find("[data-testid='booking-flow-time-slot']").exists()).toBe(true);
     expect(wrapper.text()).not.toContain("SELECT LENGTH");
     expect(wrapper.text()).not.toContain("ADD-ON SERVICE");
     expect(wrapper.text()).not.toContain("OTHER REQUEST");
 
-    expect(engine.goToStep).toHaveBeenCalledWith(3);
+    expect(engine.goToStep).not.toHaveBeenCalled();
+    expect(engine.state.fanBooking.selection.selectedDate).toBe(dateIso);
+    expect(wrapper.get("[data-testid='booking-flow-time-slot']").classes()).toContain("bg-[#07F468]");
+    await wrapper.get("[data-testid='group-booking-action']").trigger("click");
+    await flushStep2();
+    expect(engine.goToStep).not.toHaveBeenCalled();
     expect(engine.state.fanBooking.selection.selectedDurationMinutes).toBe(180);
     expect(engine.state.fanBooking.selection.selectedAddOns).toEqual([]);
     expect(engine.state.fanBooking.selection.personalRequestText).toBe("");
   });
 
-  it("excludes the booking fee from the auto-selected group totalPrice", async () => {
-    const dateIso = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  it("excludes the booking fee from the selected group totalPrice", async () => {
+    setFixedStepClock();
+    const dateIso = "2030-01-16";
     const { engine, wrapperPromise } = createMountedStep({
       dateIso,
       selectedEvent: createGroupEvent(dateIso, {
@@ -289,39 +380,36 @@ describe("BookingFlowStep2", () => {
         },
       }),
     });
-    await wrapperPromise;
+    const wrapper = await wrapperPromise;
     await nextTick();
     await nextTick();
     await nextTick();
 
-    expect(engine.goToStep).toHaveBeenCalledWith(3);
+    await wrapper.get("[data-testid='group-booking-action']").trigger("click");
+    await flushStep2();
+    expect(engine.goToStep).not.toHaveBeenCalled();
     expect(engine.state.bookingDetails.totalPrice).toBe(50);
   });
 
-  it("auto-selects an ongoing group event session before a later session", async () => {
+  it("does not preselect a recurring group with an ongoing and later sessions", async () => {
     const today = setFixedStepClock();
     const { engine, wrapperPromise } = createMountedStep({
       dateIso: today,
       selectedEvent: createDailyGroupEvent(),
+      selection: { selectedDate: null },
     });
-    await wrapperPromise;
+    const wrapper = await wrapperPromise;
     await nextTick();
     await nextTick();
     await nextTick();
 
-    expect(engine.goToStep).toHaveBeenCalledWith(3);
-    expect(engine.state.fanBooking.selection.selectedDate).toBe(today);
-    expect(engine.state.fanBooking.selection.selectedSlot).toEqual(expect.objectContaining({
-      startHm: "11:00",
-      endHm: "13:00",
-      disabled: false,
-    }));
-    expect(engine.state.fanBooking.selection.selectedDurationMinutes).toBe(120);
+    expect(engine.goToStep).not.toHaveBeenCalled();
+    expect(wrapper.find(".mini-calendar-selected").text()).toBe("");
+    expect(engine.state.fanBooking.selection.selectedSlot).toBeUndefined();
   });
 
   it("skips an ongoing group session already booked by the current user", async () => {
     const today = setFixedStepClock();
-    const tomorrow = addDays(today, 1);
     const bookedSlotsIndex = buildBookedSlotsIndex([{
       bookingId: "booking_current_user_ongoing",
       eventId: "evt_group_1",
@@ -336,18 +424,346 @@ describe("BookingFlowStep2", () => {
       bookedSlotsIndex,
       fanId: 2615,
     });
-    await wrapperPromise;
+    const wrapper = await wrapperPromise;
     await nextTick();
     await nextTick();
     await nextTick();
 
-    expect(engine.goToStep).toHaveBeenCalledWith(3);
-    expect(engine.state.fanBooking.selection.selectedDate).toBe(tomorrow);
-    expect(engine.state.fanBooking.selection.selectedSlot).toEqual(expect.objectContaining({
-      startHm: "11:00",
-      endHm: "13:00",
-      disabled: false,
-    }));
+    expect(engine.goToStep).not.toHaveBeenCalled();
+    expect(wrapper.text()).toContain("No booking available on this date.");
+    expect(engine.state.fanBooking.selection.selectedSlot).toBeUndefined();
+  });
+
+  it.each([
+    { name: "multiple sessions on one date", dates: ["2030-01-16", "2030-01-16"] },
+    { name: "sessions on different dates", dates: ["2030-01-16", "2030-01-17"] },
+  ])("shows the calendar only for different group dates with $name", async ({ dates }) => {
+    setFixedStepClock();
+    const { engine, wrapperPromise } = createMountedStep({
+      selectedEvent: createGroupEvent(dates[0], {
+        raw: {
+          slots: dates.map((date, index) => ({
+            date,
+            times: [{ startTime: index ? "15:00" : "12:00", endTime: index ? "16:00" : "13:00" }],
+          })),
+        },
+      }),
+      selection: { selectedDate: null },
+    });
+    const wrapper = await wrapperPromise;
+    await flushStep2();
+
+    const multipleDates = dates[0] !== dates[1];
+    expect(wrapper.find(".mini-calendar-stub").exists()).toBe(multipleDates);
+    expect(wrapper.find("[data-testid='booking-flow-time-slot']").exists()).toBe(!multipleDates);
+    expect(engine.goToStep).not.toHaveBeenCalled();
+
+    if (multipleDates) {
+      expect(wrapper.find(".mini-calendar-selected").text()).toBe("");
+      // Select through the same event emitted by the real calendar.
+      wrapper.findComponent(".mini-calendar-stub").vm.$emit("date-selected", new Date(`${dates[0]}T00:00:00`));
+      await flushStep2();
+    }
+    const slot = wrapper.get("[data-testid='booking-flow-time-slot']");
+    expect(slot.classes()).not.toContain("bg-[#07F468]");
+    expect(wrapper.find("[data-testid='group-booking-review']").exists()).toBe(false);
+    expect(wrapper.get("[data-testid='group-select-time-prompt']").text()).toContain('Please select an event time');
+    await slot.trigger("click");
+    await flushStep2();
+    await wrapper.get("[data-testid='group-booking-action']").trigger("click");
+    await flushStep2();
+    expect(engine.goToStep).not.toHaveBeenCalled();
+    expect(engine.state.fanBooking.selection.selectedDate).toBe(dates[0]);
+  });
+
+  it("preselects only the remaining bookable group slot and preserves goal contribution", async () => {
+    setFixedStepClock();
+    const dateIso = "2030-01-16";
+    const selectedEvent = createGroupEvent(dateIso, {
+      raw: {
+        priceSetting: "eventGoal",
+        eventGoalTokens: 1000,
+        minContributionPerUser: 20,
+        enableMaxAttendees: true,
+        maxAttendees: 1,
+        slots: [{ date: dateIso, times: [
+          { startTime: "12:00", endTime: "13:00" },
+          { startTime: "15:00", endTime: "16:00" },
+        ] }],
+      },
+    });
+    const bookedSlotsIndex = buildBookedSlotsIndex([{
+      bookingId: "full_group_slot",
+      eventId: selectedEvent.eventId,
+      userId: 999,
+      eventType: "group-event",
+      startIso: `${dateIso}T12:00:00+08:00`,
+      endIso: `${dateIso}T13:00:00+08:00`,
+      status: "confirmed",
+    }]);
+    const { engine, wrapperPromise } = createMountedStep({
+      selectedEvent,
+      bookedSlotsIndex,
+      selection: { selectedDate: null, contributionTokens: 40 },
+    });
+    const wrapper = await wrapperPromise;
+    await flushStep2();
+    expect(wrapper.find(".mini-calendar-stub").exists()).toBe(false);
+    expect(engine.state.fanBooking.selection.selectedDate).toBe(dateIso);
+    const slots = wrapper.findAll("[data-testid='booking-flow-time-slot']");
+    expect(slots[0].classes()).toContain("cursor-not-allowed");
+    expect(slots[1].classes()).toContain("bg-[#07F468]");
+    expect(engine.goToStep).not.toHaveBeenCalled();
+    expect(wrapper.get('#step2-event-goal-contribution').element.value).toBe('40');
+    await wrapper.get("[data-testid='group-booking-action']").trigger("click");
+    await flushStep2();
+    expect(engine.state.fanBooking.selection.contributionTokens).toBe(40);
+    expect(engine.state.fanBooking.selection.selectedDurationMinutes).toBe(60);
+  });
+
+  it("hides the group calendar for a sole date beyond its 45-day preview", async () => {
+    setFixedStepClock();
+    const dateIso = '2030-04-16';
+    const { engine, wrapperPromise } = createMountedStep({
+      selectedEvent: createGroupEvent(dateIso, { raw: {
+        slots: [{ date: dateIso, times: [{ startTime: '12:00', endTime: '13:00' }] }],
+      } }),
+      selection: { selectedDate: null },
+    });
+    const wrapper = await wrapperPromise;
+    await flushStep2();
+    expect(wrapper.find('.mini-calendar-stub').exists()).toBe(false);
+    expect(wrapper.get('[data-testid="booking-flow-time-slot"]').classes()).toContain('bg-[#07F468]');
+    expect(engine.state.fanBooking.selection.selectedDate).toBe(dateIso);
+    wrapper.unmount();
+  });
+
+  it("counts only bookable group dates and updates the calendar when capacity changes", async () => {
+    setFixedStepClock();
+    const dates = ['2030-01-16', '2030-01-17'];
+    const selectedEvent = createGroupEvent(dates[0], { raw: {
+      enableMaxAttendees: true,
+      maxAttendees: 1,
+      slots: dates.map(date => ({ date, times: [{ startTime: '12:00', endTime: '13:00' }] })),
+    } });
+    const { engine, wrapperPromise } = createMountedStep({
+      selectedEvent,
+      selection: { selectedDate: null },
+    });
+    const wrapper = await wrapperPromise;
+    await flushStep2();
+    expect(wrapper.find('.mini-calendar-stub').exists()).toBe(true);
+
+    engine.state.fanBooking.catalog.bookedSlotsIndex = buildBookedSlotsIndex([{
+      eventId: selectedEvent.eventId,
+      userId: 999,
+      eventType: 'group-event',
+      startIso: `${dates[1]}T12:00:00+08:00`,
+      endIso: `${dates[1]}T13:00:00+08:00`,
+      status: 'confirmed',
+    }]);
+    await wrapper.setProps({ engine: { ...engine } });
+    await flushStep2();
+    expect(wrapper.find('.mini-calendar-stub').exists()).toBe(false);
+    expect(engine.state.fanBooking.selection.selectedDate).toBe(dates[0]);
+    const selectedStart = engine.state.fanBooking.selection.selectedSlot.startMs;
+
+    engine.state.fanBooking.catalog.bookedSlotsIndex = {};
+    await wrapper.setProps({ engine: { ...engine } });
+    await flushStep2();
+    expect(wrapper.find('.mini-calendar-stub').exists()).toBe(true);
+    expect(engine.state.fanBooking.selection.selectedSlot.startMs).toBe(selectedStart);
+    wrapper.unmount();
+  });
+
+  it("keeps the private calendar even when there is only one date", async () => {
+    setFixedStepClock();
+    const { wrapperPromise } = createMountedStep({ selectedEvent: createPrivateEvent('2030-01-16') });
+    const wrapper = await wrapperPromise;
+    await flushStep2();
+    expect(wrapper.find('.mini-calendar-stub').exists()).toBe(true);
+    wrapper.unmount();
+  });
+
+  it("edits the goal contribution in step 2 and preserves it for the payment handler", async () => {
+    setFixedStepClock();
+    const { engine, wrapperPromise } = createMountedStep({
+      dateIso: '2030-01-16',
+      selectedEvent: createGroupEvent('2030-01-16', { raw: {
+        priceSetting: 'eventGoal', eventGoalTokens: 1000, minContributionPerUser: 20,
+      } }),
+    });
+    const wrapper = await wrapperPromise;
+    await flushStep2();
+    const input = wrapper.get('#step2-event-goal-contribution');
+    const range = wrapper.get('[data-testid="step2-event-goal-contribution-range"]');
+    expect(input.attributes('min')).toBe('20');
+    expect(range.attributes('max')).toBe('14000');
+    await input.setValue('500');
+    await flushStep2();
+    expect(engine.state.bookingDetails.contributionTokens).toBe(500);
+    expect(engine.state.bookingDetails.totalPrice).toBe(500);
+    expect(engine.state.fanBooking.selection.contributionTokens).toBe(500);
+    expect(range.element.value).toBe('500');
+    await input.setValue('10');
+    await flushStep2();
+    expect(input.element.value).toBe('20');
+    expect(engine.state.bookingDetails.contributionTokens).toBe(20);
+    expect(engine.goToStep).not.toHaveBeenCalled();
+    wrapper.unmount();
+  });
+
+  it.each([
+    { goal: 50000, balance: 0 },
+    { goal: 1000, balance: 50000 },
+    { goal: 1000, balance: 5000 },
+    { goal: 1000, balance: 0 },
+  ])("caps goal contribution at 14,000 with goal $goal and balance $balance", async ({ goal, balance }) => {
+    setFixedStepClock();
+    const { engine, wrapperPromise } = createMountedStep({
+      dateIso: '2030-01-16',
+      bookingDetails: { walletBalance: balance },
+      selectedEvent: createGroupEvent('2030-01-16', { raw: {
+        priceSetting: 'eventGoal', eventGoalTokens: goal, minContributionPerUser: 20,
+      } }),
+    });
+    const wrapper = await wrapperPromise;
+    await flushStep2();
+    const input = wrapper.get('#step2-event-goal-contribution');
+    const range = wrapper.get('[data-testid="step2-event-goal-contribution-range"]');
+    expect(input.attributes('max')).toBe('14000');
+    expect(range.attributes('max')).toBe('14000');
+    await input.setValue('5000');
+    await flushStep2();
+    expect(engine.state.bookingDetails.contributionTokens).toBe(5000);
+    expect(engine.state.bookingDetails.totalPrice).toBe(5000);
+    expect(engine.state.fanBooking.selection.contributionTokens).toBe(5000);
+    await input.setValue('14000');
+    await flushStep2();
+    expect(engine.state.bookingDetails.contributionTokens).toBe(14000);
+    await input.setValue('14001');
+    await flushStep2();
+    expect(input.element.value).toBe('14000');
+    expect(engine.state.bookingDetails.contributionTokens).toBe(14000);
+    expect(engine.state.fanBooking.selection.contributionTokens).toBe(14000);
+    wrapper.unmount();
+  });
+
+  it("keeps a manually chosen group session through the availability refresh", async () => {
+    setFixedStepClock();
+    const selectedEvent = createGroupEvent("2030-01-16", {
+      raw: { slots: [{ date: "2030-01-16", times: [
+        { startTime: "12:00", endTime: "13:00" },
+        { startTime: "15:00", endTime: "16:00" },
+      ] }] },
+    });
+    const refreshBookingContext = vi.fn();
+    const { engine, wrapperPromise } = createMountedStep({
+      dateIso: "2030-01-16",
+      selectedEvent,
+      componentProps: { refreshBookingContext },
+    });
+    const wrapper = await wrapperPromise;
+    await flushStep2();
+    await wrapper.findAll("[data-testid='booking-flow-time-slot']")[1].trigger("click");
+    await flushStep2();
+    refreshBookingContext.mockImplementation(async () => {
+      engine.state.fanBooking.context.selectedEvent = { ...selectedEvent };
+      await wrapper.setProps({ engine: { ...engine } });
+      return { ok: true };
+    });
+    await vi.advanceTimersByTimeAsync(15000);
+    await flushStep2();
+    expect(wrapper.findAll("[data-testid='booking-flow-time-slot']")[1].classes()).toContain("bg-[#07F468]");
+    expect(engine.goToStep).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { name: 'another attendee with places remaining', users: [999], available: true },
+    { name: 'a full session', users: [991, 992, 993, 994, 995, 996], available: false },
+    { name: 'the current fan already booked', users: [2615], available: false },
+  ])('rechecks group capacity on Continue: $name', async ({ users, available }) => {
+    setFixedStepClock();
+    const dateIso = '2030-01-16';
+    const selectedEvent = createGroupEvent(dateIso, {
+      raw: { enableMaxAttendees: true, maxAttendees: 6 },
+    });
+    const booking = (userId) => ({
+      bookingId: `group_booking_${userId}`,
+      eventId: selectedEvent.eventId,
+      userId,
+      eventType: 'group-event',
+      startIso: `${dateIso}T10:00:00+08:00`,
+      endIso: `${dateIso}T13:00:00+08:00`,
+      status: 'confirmed',
+    });
+    const refreshBookingContext = vi.fn();
+    const { engine, wrapperPromise } = createMountedStep({
+      dateIso,
+      selectedEvent,
+      bookedSlotsIndex: buildBookedSlotsIndex([booking(999)]),
+      componentProps: { refreshBookingContext },
+    });
+    const wrapper = await wrapperPromise;
+    await flushStep2();
+    refreshBookingContext.mockImplementation(async () => {
+      engine.state.fanBooking.catalog.bookedSlotsIndex = buildBookedSlotsIndex(users.map(booking));
+      await wrapper.setProps({ engine: { ...engine } });
+      return { ok: true };
+    });
+    showToast.mockClear();
+    await wrapper.get('[data-testid="group-booking-action"]').trigger('click');
+    await flushStep2();
+    expect(Boolean(engine.state.fanBooking.selection.selectedSlot)).toBe(available);
+    if (available) expect(showToast).not.toHaveBeenCalled();
+    else expect(showToast).toHaveBeenCalled();
+    wrapper.unmount();
+  });
+
+  it("preselects an ongoing group session only when it is the sole remaining session", async () => {
+    const today = setFixedStepClock();
+    const { engine, wrapperPromise } = createMountedStep({
+      selectedEvent: createGroupEvent(today, { localStartHm: "11:00", localEndHm: "13:00" }),
+      selection: { selectedDate: null },
+    });
+    const wrapper = await wrapperPromise;
+    await flushStep2();
+    expect(wrapper.find(".mini-calendar-stub").exists()).toBe(false);
+    expect(engine.state.fanBooking.selection.selectedDate).toBe(today);
+    expect(wrapper.get("[data-testid='booking-flow-time-slot']").classes()).toContain("bg-[#07F468]");
+    expect(engine.goToStep).not.toHaveBeenCalled();
+  });
+
+  it("leaves an expired group event unselected without jumping to another step", async () => {
+    const today = setFixedStepClock();
+    const { engine, wrapperPromise } = createMountedStep({
+      selectedEvent: createGroupEvent(today, { localStartHm: "09:00", localEndHm: "10:00" }),
+      selection: { selectedDate: null },
+    });
+    const wrapper = await wrapperPromise;
+    await flushStep2();
+    expect(wrapper.find(".mini-calendar-selected").text()).toBe("");
+    expect(engine.goToStep).not.toHaveBeenCalled();
+  });
+
+  it('removes an ongoing group slot and its selection at the ten-minute cutoff', async () => {
+    const today = setFixedStepClock();
+    vi.setSystemTime(new Date(`${today}T12:49:59`));
+    const { engine, wrapperPromise } = createMountedStep({
+      selectedEvent: createGroupEvent(today, { localStartHm: '11:00', localEndHm: '13:00' }),
+      selection: { selectedDate: null },
+    });
+    const wrapper = await wrapperPromise;
+    await flushStep2();
+    expect(wrapper.find('[data-testid="booking-flow-time-slot"]').exists()).toBe(true);
+    expect(engine.state.fanBooking.selection.selectedSlot).toBeTruthy();
+    await vi.advanceTimersByTimeAsync(1000);
+    await flushStep2();
+    expect(wrapper.find('[data-testid="booking-flow-time-slot"]').exists()).toBe(false);
+    expect(engine.state.fanBooking.selection.selectedSlot).toBeNull();
+    expect(wrapper.text()).toContain('No booking available on this date.');
+    expect(engine.goToStep).not.toHaveBeenCalled();
+    wrapper.unmount();
   });
 
   it("keeps private booking length, call wording, add-ons, and other request", async () => {
@@ -919,21 +1335,41 @@ describe("BookingFlowStep2", () => {
     const next = wrapper.get("[data-testid='booking-flow-time-slots-next']");
     expect(previous.attributes("disabled")).toBeDefined();
     expect(next.attributes("disabled")).toBeUndefined();
+    expect(previous.element.style.display).toBe("none");
+    expect(next.element.style.display).toBe("");
 
     await next.trigger("click");
     await nextTick();
     expect(scrollElement.scrollBy).toHaveBeenCalledWith({ left: 136, behavior: "smooth" });
     expect(previous.attributes("disabled")).toBeUndefined();
+    expect(previous.element.style.display).toBe("");
+    expect(next.element.style.display).toBe("");
 
     await previous.trigger("click");
     await nextTick();
     expect(scrollElement.scrollBy).toHaveBeenLastCalledWith({ left: -136, behavior: "smooth" });
     expect(previous.attributes("disabled")).toBeDefined();
+    expect(previous.element.style.display).toBe("none");
 
     scrollElement.scrollLeft = 276;
     scrollElement.dispatchEvent(new Event("scroll"));
     await nextTick();
     expect(next.attributes("disabled")).toBeDefined();
+    expect(next.element.style.display).toBe("none");
+    expect(previous.element.style.display).toBe("");
+  });
+
+  it('hides group slot arrows and their empty header when there is no overflow', async () => {
+    const wrapper = await createMountedStep().wrapperPromise;
+    await flushStep2();
+    const scroll = wrapper.get('[data-testid="booking-flow-time-slots-scroll"]');
+    Object.defineProperty(scroll.element, 'clientWidth', { configurable: true, value: 500 });
+    Object.defineProperty(scroll.element, 'scrollWidth', { configurable: true, value: 500 });
+    await scroll.trigger('scroll');
+    expect(wrapper.get('[data-testid="booking-flow-time-slots-previous"]').isVisible()).toBe(false);
+    expect(wrapper.get('[data-testid="booking-flow-time-slots-next"]').isVisible()).toBe(false);
+    expect(wrapper.get('[data-testid="booking-flow-time-slots-header"]').isVisible()).toBe(false);
+    wrapper.unmount();
   });
 
   it("shows a translated off-hour surcharge legend only when applicable", async () => {

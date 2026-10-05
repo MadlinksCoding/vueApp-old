@@ -713,7 +713,7 @@ describe("booking slot utilities", () => {
     expect(createSlotUiModel({ event, eventId, localDateIso, slot, bookedSlotsIndex }).disabled).toBe(true);
   });
 
-  it("keeps ongoing group slots bookable until the slot end time passes", () => {
+  it("keeps ongoing group slots bookable before the final ten minutes", () => {
     setFixedNow();
     const event = {
       eventId,
@@ -728,6 +728,27 @@ describe("booking slot utilities", () => {
 
     expect(createSlotUiModel({ event, eventId, localDateIso, slot: ongoingSlot, bookedSlotsIndex: {} }).disabled).toBe(false);
     expect(createSlotUiModel({ event, eventId, localDateIso, slot: endedSlot, bookedSlotsIndex: {} }).disabled).toBe(true);
+  });
+
+  it.each([
+    ['12:49:59', false],
+    ['12:50:00', true],
+    ['12:50:01', true],
+    ['13:00:00', true],
+  ])('closes group booking ten minutes before the end at %s', (time, disabled) => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(`${localDateIso}T${time}`));
+    const event = { eventId, type: 'group-event', raw: { type: 'group-event' } };
+    const slot = makeSlot('11:00', '13:00');
+    expect(createSlotUiModel({ event, eventId, localDateIso, slot, bookedSlotsIndex: {} }).disabled).toBe(disabled);
+  });
+
+  it('applies the group cutoff to an overnight slot that started yesterday', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2030-01-16T00:50:00'));
+    const event = { eventId, type: 'group-event', raw: { type: 'group-event' } };
+    const slot = { startMs: new Date('2030-01-15T23:00:00').getTime(), endMs: new Date('2030-01-16T01:00:00').getTime() };
+    expect(createSlotUiModel({ event, eventId, localDateIso, slot, bookedSlotsIndex: {} }).disabled).toBe(true);
   });
 
   it("disables group slots that started before the event was created", () => {

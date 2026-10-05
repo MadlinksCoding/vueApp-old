@@ -2,6 +2,7 @@
 import { computed, ref, watch, h } from "vue";
 import {
   MagnifyingGlassIcon,
+  InformationCircleIcon,
   MusicalNoteIcon,
   RectangleStackIcon,
   VideoCameraIcon,
@@ -9,6 +10,7 @@ import {
 import { getSpendingRequirementMediaBadge } from "@/utils/spendingRequirementMediaBadge.js";
 import galleryIcon from '@/assets/images/icons/image-03.svg';
 import SearchResultIcon from '@/assets/images/icons/search-result.svg';
+import NotificationCard from '@/components/dev/card/notification/NotificationCard.vue';
 
 const GalleryIconComponent = (props) => h('img', { src: galleryIcon, ...props, alt: "" });
 
@@ -22,6 +24,8 @@ const props = defineProps({
   confirmLabel: { type: String, default: "Add to spending requirement" },
   markAsChatPopup: { type: Boolean, default: false },
   includeRawItemData: { type: Boolean, default: false },
+  maxSelections: { type: Number, default: 0 },
+  excludeSubscriberExclusiveMerch: { type: Boolean, default: false },
 });
 
 const emit = defineEmits(["update:modelValue", "confirm", "cancel", "tab-change", "load-more"]);
@@ -35,6 +39,7 @@ const tabs = [
 const activeTab = ref("media");
 const searchQuery = ref("");
 const draftSelected = ref([]);
+const subscriberMerchNoticeOpen = ref(true);
 
 const mediaBadgeIconComponents = {
   audio: MusicalNoteIcon,
@@ -59,6 +64,9 @@ function normalizeSelectedItems(items = []) {
     const id = Number.isFinite(parsedId) ? parsedId : null;
     const type = String(item.type || "").trim();
     if (id === null || !type) return;
+    const variationTitle = type.toLowerCase() === "subscription"
+      ? String(item.variation_title || item.variationTitle || item.raw?.variation_title || "").trim()
+      : "";
 
     const key = `${type}:${id}`;
     if (map.has(key)) return;
@@ -66,7 +74,8 @@ function normalizeSelectedItems(items = []) {
     const normalized = {
       id,
       type,
-      title: String(item.title || "").trim(),
+      title: variationTitle || String(item.title || "").trim(),
+      variation_title: variationTitle,
       buyPrice: Number.isFinite(Number(item.buyPrice)) ? Number(item.buyPrice) : 0,
       subscribePrice: Number.isFinite(Number(item.subscribePrice)) ? Number(item.subscribePrice) : 0,
       canBuy: toBooleanFlag(item.canBuy),
@@ -92,6 +101,7 @@ watch(
     draftSelected.value = normalizeSelectedItems(props.selectedItems);
     searchQuery.value = "";
     activeTab.value = "media";
+    subscriberMerchNoticeOpen.value = true;
     emit("tab-change", "media");
   }
 );
@@ -107,13 +117,27 @@ const filteredItems = computed(() => {
 
   return source.filter((item) => {
     if (String(item?.type || "").toLowerCase() !== tab) return false;
+    if (tab === "product" && props.excludeSubscriberExclusiveMerch
+        && toBooleanFlag(item.subscriberExclusive ?? item.raw?.subscriber_exclusive)) return false;
     if (!query) return true;
 
-    const title = String(item?.title || "").toLowerCase();
+    const title = displayTitleForItem(item).toLowerCase();
     const tags = Array.isArray(item?.tags) ? item.tags.join(" ").toLowerCase() : "";
     return title.includes(query) || tags.includes(query);
   });
 });
+
+function displayTitleForItem(item = {}) {
+  const type = String(item?.type || "").trim().toLowerCase();
+  if (type === "subscription") {
+    const variationTitle = String(
+      item?.variation_title || item?.variationTitle || item?.raw?.variation_title || ""
+    ).trim();
+    if (variationTitle) return variationTitle;
+  }
+
+  return String(item?.title || "").trim();
+}
 
 const activeTabLoading = computed(() => Boolean(props.loadingByType?.[activeTab.value]));
 const activeTabHasMore = computed(() => Boolean(props.hasMoreByType?.[activeTab.value]));
@@ -221,7 +245,15 @@ function toggleSelect(item) {
     return;
   }
 
-  draftSelected.value = normalizeSelectedItems([...draftSelected.value, item]);
+  if (Number(props.maxSelections) === 1) {
+    draftSelected.value = normalizeSelectedItems([item]);
+    return;
+  }
+
+  const next = normalizeSelectedItems([...draftSelected.value, item]);
+  draftSelected.value = Number(props.maxSelections) > 1
+    ? next.slice(-Number(props.maxSelections))
+    : next;
 }
 
 function closePopup() {
@@ -280,6 +312,15 @@ function handleConfirm() {
            </div>
          </div>
  
+         <div v-if="excludeSubscriberExclusiveMerch && activeTab === 'product' && subscriberMerchNoticeOpen"
+              role="status" data-testid="subscriber-merch-notice" class="mb-2 shrink-0">
+           <NotificationCard v-model="subscriberMerchNoticeOpen" variant="notice" :icon="InformationCircleIcon">
+             <span class="pr-5 text-sm font-semibold leading-5 text-cyan-700">
+               Subscriber exclusive merch(s) are hidden from this list because it's not supported at the moment.
+             </span>
+           </NotificationCard>
+         </div>
+
          <div class="overflow-y-auto px-2 md:px-4 pb-16 flex-1" @scroll="handleListScroll">
            <div v-if="activeTabError" class="py-4 text-center text-sm text-rose-600">
              {{ activeTabError }}
@@ -291,7 +332,7 @@ function handleConfirm() {
                       searchQuery }}'.
                   </div>
               </div>
- 
+
            <div v-else class="grid grid-cols-2 gap-3">
              <button
                v-for="item in filteredItems"
@@ -317,7 +358,7 @@ function handleConfirm() {
                  </div>
                  <img
                    :src="item.thumbnailUrl"
-                   :alt="item.title"
+                   :alt="displayTitleForItem(item)"
                    class="w-full aspect-[179/103] object-cover"
                  />
                  <div
@@ -336,7 +377,7 @@ function handleConfirm() {
                  </div>-->
                </div>
                <div class="">
-                 <div class="text-sm font-semibold text-gray-950 line-clamp-2">{{ item.title }}</div>
+                 <div class="text-sm font-semibold text-gray-950 line-clamp-2">{{ displayTitleForItem(item) }}</div>
                  <!-- <div class="mt-1 text-[11px] text-slate-500">{{ item.type }}</div> -->
                  <!--<div class="flex gap-3">
                    <div v-if="item.buyPrice" class="mt-1 text-[11px] text-slate-700">
@@ -354,6 +395,12 @@ function handleConfirm() {
                </div>
              </button>
            </div>
+
+           <button v-if="excludeSubscriberExclusiveMerch && activeTab === 'product' && filteredItems.length === 0 && activeTabHasMore && !activeTabLoading && !searchQuery.trim()"
+                   type="button" class="w-full py-3 text-sm text-slate-600 hover:text-slate-800"
+                   @click="emit('load-more', activeTab)">
+             Load more products
+           </button>
  
            <div v-if="activeTabLoading" class="py-4 text-center text-xs text-slate-500">
              Loading more...

@@ -145,7 +145,7 @@ describe("BookingFlowStep1 group cards", () => {
     vi.useRealTimers();
   });
 
-  it("renders fixed-price group card with limited spots and selects the upcoming slot", async () => {
+  it("renders fixed-price group card with limited spots and opens the calendar", async () => {
     const dateIso = localDateOffset(1);
     const event = groupEvent(dateIso);
     const bookedSlots = [1, 2].map((index) => ({
@@ -166,11 +166,9 @@ describe("BookingFlowStep1 group cards", () => {
     const cta = wrapper.findAll("button").find((button) => button.text().includes("JOIN EVENT"));
     await cta.trigger("click");
 
-    expect(engine.goToStep).toHaveBeenCalledWith(3);
-    expect(engine.state.fanBooking.selection.selectedDate).toBe(dateIso);
-    expect(engine.state.fanBooking.selection.selectedDurationMinutes).toBe(180);
-    expect(engine.state.fanBooking.selection.selectedAddOns).toEqual([]);
-    expect(engine.state.fanBooking.selection.personalRequestText).toBe("");
+    expect(engine.goToStep).toHaveBeenCalledWith(2);
+    expect(engine.goToStep).not.toHaveBeenCalledWith(3);
+    expect(engine.state.fanBooking.selection).toBeUndefined();
   });
 
   it("counts another fan's active hold toward group capacity", async () => {
@@ -209,7 +207,7 @@ describe("BookingFlowStep1 group cards", () => {
     expect(engine.goToStep).not.toHaveBeenCalled();
   });
 
-  it("stores fixed off-hour token pricing when a group card routes directly to payment", async () => {
+  it("keeps off-hour settings for pricing in the calendar instead of preselecting payment", async () => {
     const dateIso = localDateOffset(1);
     const event = groupEvent(dateIso, {
       offHourSurcharge: true,
@@ -228,10 +226,10 @@ describe("BookingFlowStep1 group cards", () => {
     const cta = wrapper.findAll("button").find((button) => button.text().includes("JOIN EVENT"));
     await cta.trigger("click");
 
-    expect(engine.state.bookingDetails.offHourSurchargeTokens).toBe(10);
-    expect(engine.state.bookingDetails.offHourSurchargeAmount).toBe(10);
-    expect(engine.state.bookingDetails.totalPrice).toBe(510);
-    expect(engine.state.fanBooking.selection.selectedSlot.offHours).toBe(true);
+    expect(engine.goToStep).toHaveBeenCalledWith(2);
+    expect(engine.state.fanBooking.context.selectedEvent.raw.offHourSurchargeTokens).toBe(10);
+    expect(engine.state.bookingDetails).toEqual({ walletBalance: 0 });
+    expect(engine.state.fanBooking.selection).toBeUndefined();
   });
 
   it("refreshes selected-event availability before navigating", async () => {
@@ -257,7 +255,8 @@ describe("BookingFlowStep1 group cards", () => {
     await clickPromise;
     await nextTick();
 
-    expect(engine.goToStep).toHaveBeenCalledWith(3);
+    expect(engine.goToStep).toHaveBeenCalledWith(2);
+    expect(engine.goToStep).not.toHaveBeenCalledWith(3);
   });
 
   it("stays on step 1 when selected-event availability cannot be refreshed", async () => {
@@ -422,8 +421,9 @@ describe("BookingFlowStep1 group cards", () => {
     const cta = wrapper.findAll("button").find((button) => button.text().includes("JOIN EVENT"));
     await cta.trigger("click");
 
-    expect(engine.goToStep).toHaveBeenCalledWith(3);
-    expect(engine.state.fanBooking.selection.selectedDate).toBe(secondDateIso);
+    expect(engine.goToStep).toHaveBeenCalledWith(2);
+    expect(engine.goToStep).not.toHaveBeenCalledWith(3);
+    expect(engine.state.fanBooking.selection).toBeUndefined();
   });
 
   it("shows the scheduled time and Fully Booked CTA for a full non-repeating fixed-price group", async () => {
@@ -529,8 +529,9 @@ describe("BookingFlowStep1 group cards", () => {
     expect(cta.attributes("disabled")).toBeUndefined();
     await cta.trigger("click");
 
-    expect(engine.goToStep).toHaveBeenCalledWith(3);
-    expect(engine.state.fanBooking.selection.selectedDate).toBe(dateIso);
+    expect(engine.goToStep).toHaveBeenCalledWith(2);
+    expect(engine.goToStep).not.toHaveBeenCalledWith(3);
+    expect(engine.state.fanBooking.selection).toBeUndefined();
   });
 
   it("disables the group CTA when the current fan already booked the displayed slot", async () => {
@@ -670,8 +671,9 @@ describe("BookingFlowStep1 group cards", () => {
     expect(cta.attributes("disabled")).toBeUndefined();
     await cta.trigger("click");
 
-    expect(engine.goToStep).toHaveBeenCalledWith(3);
-    expect(engine.state.fanBooking.selection.selectedDate).toBe(secondDateIso);
+    expect(engine.goToStep).toHaveBeenCalledWith(2);
+    expect(engine.goToStep).not.toHaveBeenCalledWith(3);
+    expect(engine.state.fanBooking.selection).toBeUndefined();
   });
 
   it("skips to the next event-goal occurrence when the current fan booked the first displayed slot", async () => {
@@ -730,8 +732,8 @@ describe("BookingFlowStep1 group cards", () => {
     expect(cta.attributes("disabled")).toBeUndefined();
     await cta.trigger("click");
 
-    expect(engine.goToStep).toHaveBeenCalledWith(3);
-    expect(engine.state.fanBooking.selection.selectedDate).toBe(secondDateIso);
-    expect(engine.state.fanBooking.selection.contributionTokens).toBe(500);
+    expect(engine.goToStep).toHaveBeenCalledWith(2);
+    expect(engine.goToStep).not.toHaveBeenCalledWith(3);
+    expect(engine.state.fanBooking.selection).toBeUndefined();
   });
 });

@@ -102,6 +102,22 @@ describe("fetchSpendingRequirementItemsFlow", () => {
     }));
   });
 
+  it("preserves the authoritative merch exclusivity flag without hiding other consumers' products", async () => {
+    const { mapFetchSpendingRequirementItemsFromResponse } = await import("@/services/events/mappers/fetchSpendingRequirementItemsMapper.js");
+    const mapped = mapFetchSpendingRequirementItemsFromResponse({
+      type: "product", count: 2, totalCount: 3,
+      results: [
+        { id: 20, title: "Exclusive merch", subscriber_exclusive: true },
+        { id: 21, title: "Public merch", subscriber_exclusive: false, can_subscribe: true },
+      ],
+    });
+    expect(mapped.items).toHaveLength(2);
+    expect(mapped.items[0].subscriberExclusive).toBe(true);
+    expect(mapped.items[1].subscriberExclusive).toBe(false);
+    expect(mapped.nextOffset).toBe(2);
+    expect(mapped.hasMore).toBe(true);
+  });
+
   it("does not call a second endpoint when subscription loading fails", async () => {
     const apiGet = vi.fn().mockRejectedValue({ code: "HTTP_404", message: "Not found" });
     const { fetchSpendingRequirementItemsFlow } = await import("@/services/events/flows/fetchSpendingRequirementItemsFlow.js");
