@@ -33,4 +33,32 @@ describe("backend JWT cache", () => {
 
     expect(getBackendJwtToken()).toBe(getConfiguredDevTestFallback());
   });
+
+  it("does not treat a gateway payment token as the backend JWT", async () => {
+    const { normalizeBackendAuthContext } = await import("@/utils/backendJwt.js");
+
+    expect(normalizeBackendAuthContext({
+      user_id: 8073,
+      token: "8ac7a4a0-payment-token",
+      order_id: 50912,
+    })).toEqual({
+      userId: 8073,
+      backendJwtToken: "",
+    });
+  });
+
+  it("accepts only explicitly named backend JWT fields from checkout auth data", async () => {
+    const { normalizeBackendAuthContext } = await import("@/utils/backendJwt.js");
+
+    expect(normalizeBackendAuthContext({
+      token: "gateway-token",
+      userData: {
+        userID: 8073,
+        jwtToken: "fansocial.jwt.token",
+      },
+    })).toEqual({
+      userId: 8073,
+      backendJwtToken: "fansocial.jwt.token",
+    });
+  });
 });

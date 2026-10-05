@@ -11,10 +11,6 @@ import {
   sumEventGoalContributionsForSlot,
 } from "@/services/bookings/utils/bookingSlotUtils.js";
 import {
-  buildBookingPaymentPreview,
-  resolveOffHourSurchargeTokens,
-} from "@/services/bookings/mappers/createBookingMapper.js";
-import {
   bookingFlowArrowUpRightIcon,
   bookingFlowBackgroundImage,
   bookingFlowTokenIcon,
@@ -46,6 +42,7 @@ const props = defineProps({
     type: Function,
     default: null,
   },
+  requestEventBooking: { type: Function, default: null },
 });
 
 const { t, locale } = useBookingTranslations();
@@ -60,7 +57,9 @@ const fanId = computed(() => resolveCurrentFanId());
 const isLoading = computed(() => Boolean(props.engine.getState("fanBooking.ui.catalogLoading")));
 const loadError = computed(() => props.engine.getState("fanBooking.ui.catalogError") || "");
 
-const currentIndex = ref(0);
+const currentIndex = ref(Math.max(0, events.value.findIndex(event =>
+  String(event.eventId || event.id) === String(props.engine.getState('fanBooking.context.selectedEventId')),
+)));
 
 const totalEvents = computed(() => events.value.length);
 const currentEvent = computed(() => {
@@ -186,17 +185,6 @@ function groupDisplayFallback(event = {}) {
     label: `${localDateIso} @ ${slot.label}`,
     slot,
   };
-}
-
-function groupSlotDuration(slot = {}) {
-  const explicit = Number(slot?.durationMinutes);
-  if (Number.isFinite(explicit) && explicit > 0) return Math.round(explicit);
-  const startMs = Number(slot?.startMs);
-  const endMs = Number(slot?.endMs);
-  if (Number.isFinite(startMs) && Number.isFinite(endMs) && endMs > startMs) {
-    return Math.round((endMs - startMs) / (60 * 1000));
-  }
-  return 0;
 }
 
 function formatGroupDate(dateIso) {
@@ -385,75 +373,10 @@ async function selectEvent(event) {
     const selected = groupNextAvailable(event);
     if (!selected?.slot) return;
     if (hasCurrentFanBookedGroupSlot(event, selected.slot)) return;
-
-    const duration = groupSlotDuration(selected.slot);
-    const selectedDate = new Date(`${selected.dateIso}T00:00:00`);
-    const contributionTokens = isEventGoalGroupEvent(event) ? eventGoalMinimumTokens(event) : null;
-    const selectedDuration = {
-      value: duration,
-      price: isEventGoalGroupEvent(event)
-        ? contributionTokens
-        : toWholeTokens(event?.raw?.basePriceTokens ?? event?.basePriceTokens ?? 0),
-      disabled: false,
-    };
-    const selectedTime = {
-      ...selected.slot,
-      value: selected.slot.startHm || selected.slot.value,
-      label: formatGroupTime(selected.slot),
-      disabled: false,
-    };
-    const pricingPreview = buildBookingPaymentPreview(event, duration, [], selectedTime, {
-      isFirstBookingForCreator: props.engine.getState("fanBooking.context.isFirstBookingForCreator"),
-      contributionTokens,
-    });
-    const offHourSurchargeLine = pricingPreview.payment.lines.find(
-      (line) => line.code === "off_hour_surcharge",
-    );
-    const dateDisplay = formatGroupDate(selected.dateIso);
-    const timeRange = formatGroupTime(selected.slot);
-    const bookingData = {
-      selectedDate,
-      selectedTime,
-      selectedDuration,
-      addons: [],
-      otherRequest: "",
-      formattedTimeRange: timeRange,
-      selectedDateDisplay: dateDisplay,
-      headerDateDisplay: dateDisplay,
-      totalPrice: Number(pricingPreview?.payment?.total || 0),
-      contributionTokens,
-      longerDiscountAmount: 0,
-      firstTimeDiscountAmount: 0,
-      discountRows: [],
-      offHourSurchargeAmount: Number(offHourSurchargeLine?.amount || 0),
-      offHourSurchargeTokens: offHourSurchargeLine
-        ? resolveOffHourSurchargeTokens(event)
-        : 0,
-      isOffHours: Boolean(selected.slot?.offHours),
-      walletBalance: Number(props.engine.getState("bookingDetails.walletBalance") || 0),
-    };
-
-    props.engine.setState("bookingDetails", bookingData, { reason: "group-step1-auto-selection", silent: true });
-    props.engine.setState("fanBooking.selection.selectedDate", selected.dateIso, { reason: "group-step1-auto-selection", silent: true });
-    props.engine.setState("fanBooking.selection.selectedSlot", selectedTime, { reason: "group-step1-auto-selection", silent: true });
-    props.engine.setState("fanBooking.selection.selectedDurationMinutes", duration, { reason: "group-step1-auto-selection", silent: true });
-    props.engine.setState("fanBooking.selection.contributionTokens", contributionTokens, { reason: "group-step1-auto-selection", silent: true });
-    props.engine.setState("fanBooking.selection.selectedAddOns", [], { reason: "group-step1-auto-selection", silent: true });
-    props.engine.setState("fanBooking.selection.personalRequestText", "", { reason: "group-step1-auto-selection", silent: true });
-    props.engine.setState("fanBooking.temporaryHold", {
-      temporaryHoldId: null,
-      status: "none",
-      expiresAt: null,
-      secondsRemaining: 0,
-      createdAt: null,
-      checkedAt: null,
-    }, { reason: "group-step1-auto-selection-reset-hold", silent: true });
-
-    await props.engine.goToStep(3);
-    return;
   }
 
-  await props.engine.goToStep(2);
+  if (props.requestEventBooking) await props.requestEventBooking();
+  else await props.engine.goToStep(2);
 }
 
 function editSchedule(event) {

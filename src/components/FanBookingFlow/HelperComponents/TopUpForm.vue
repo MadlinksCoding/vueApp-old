@@ -11,15 +11,20 @@ import {
   bookingFlowMapsTravelsIcon,
   bookingFlowArrowsDownIcon,
   bookingFlowTruckIcon,
+  bookingFlowCalendarCheckIcon,
+  bookingFlowLightningIcon,
 } from "../OneOnOneBookingFlow/oneOnOneBookingFlowAssets.js";
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
+import { ref, computed, nextTick, onMounted, onBeforeUnmount, watch } from 'vue';
 import { showToast } from '@/utils/toastBus.js';
 import '@/utils/axcessGatewayFormHandler.js';
 import '@/assets/css/axcessGatewayForm.css';
 import GuestCheckoutForm from './GuestCheckoutForm.vue';
 import CardForm from './CardForm.vue';
+import SubscriptionSwitchConfirmation, { subscriptionSwitchReviewKey } from './SubscriptionSwitchConfirmation.vue';
 import TooltipIcon from "@/components/ui/tooltip/TooltipIcon.vue";
 import { useBookingTranslations } from '@/i18n/bookingTranslations.js';
+import { getBackendJwtToken, normalizeBackendAuthContext } from '@/utils/backendJwt.js';
+import { getBookingPrerequisitePrice } from '@/services/bookings/bookingsApiUtils.js';
 
 const props = defineProps({
   walletBalance: {
@@ -41,6 +46,13 @@ const props = defineProps({
   beforeSubmit: { type: Function, default: null },
   fanId:        { type: Number, default: 0 },
   creatorId:    { type: Number, default: 0 },
+  creator: { type: Object, default: null },
+  eventId:      { type: [String, Number], default: '' },
+  prerequisite: { type: Object, default: null },
+  confirmedSwitch: { type: String, default: '' },
+  afterPrerequisitePayment: { type: Function, default: null },
+  afterAuthUpdate: { type: Function, default: null },
+  activateFreePrerequisite: { type: Function, default: null },
 });
 
 const emit = defineEmits(['back', 'success', 'payment-failed', 'auth-updated']);
@@ -58,15 +70,36 @@ const failureCountdown = ref(5);
 let failureTimer = null;
 
 function closePaymentFailure() {
+  const wasOpen = showPaymentFailure.value;
   showPaymentFailure.value = false;
   paymentError.value = '';
   if (failureTimer) clearInterval(failureTimer);
+  if (wasOpen) void reloadCardForm();
 }
 
 const billingEmail     = ref('');
 const cardFormRef      = ref(null);
 const guestFormRef     = ref(null);
 const currentOrderId   = ref(null);
+const checkoutDetails  = ref(null);
+const checkoutPhase    = ref(props.prerequisite?.product && !props.prerequisite?.eligible ? 'prerequisite' : 'topup');
+const isUpdatingAccount = ref(false);
+const accountCheckFailed = ref(false);
+const prerequisiteReview = ref(null);
+const prerequisiteReviewOpen = ref(false);
+const prerequisiteReviewButton = ref(null);
+const authenticatedCheckoutPayload = ref(null);
+const prerequisitePaymentResult = ref(null);
+const shippingExpanded = ref(Boolean(props.prerequisite?.shipping?.required));
+const shippingError    = ref('');
+const isUpdatingShipping = ref(false);
+const shippingAddressId = ref('');
+const saveShippingAddress = ref(true);
+const quotedShippingAddress = ref('');
+const shippingAddress  = ref({
+  first_name: '', last_name: '', address_1: '', address_2: '', city: '',
+  state: '', postcode: '', country: '', phone: '', email: '',
+});
 
 let handler = null;
 
@@ -76,6 +109,104 @@ const pricingConfig   = ref(null);
 
 const minPurchase = computed(() => pricingConfig.value?.min_purchase  ?? 10);
 const maxPurchase = computed(() => pricingConfig.value?.max_purchase  ?? 14000);
+const hasPrerequisite = computed(() => Boolean(props.prerequisite?.product));
+const isPrerequisiteCheckout = computed(() => checkoutPhase.value === 'prerequisite' && hasPrerequisite.value);
+const isPrerequisitePaid = computed(() => Boolean(prerequisitePaymentResult.value || props.prerequisite?.eligible));
+const requiresTopUp = computed(() => Number(props.topUpAmount || 0) > 0);
+const isSubscriptionPrerequisite = computed(() => (
+  props.prerequisite?.type === 'subscription'
+  || ['subscribe', 'switch'].includes(String(props.prerequisite?.action || ''))
+  || checkoutDetails.value?.is_subscription === true
+  || Boolean(checkoutDetails.value?.subscription_switch?.subscription_id)
+));
+const prerequisiteLabel = computed(() => isSubscriptionPrerequisite.value
+  ? t('fan_booking_mandatory_subscription')
+  : t('fan_booking_mandatory_purchase'));
+const prerequisiteProduct = computed(() => props.prerequisite?.product || checkoutDetails.value?.items?.[0] || null);
+const prerequisiteProductTitle = computed(() => {
+  const product = prerequisiteProduct.value || {};
+  const isSubscriptionVariation = product.is_subscription_variation === true
+    || Number(product.is_subscription_variation) === 1
+    || isSubscriptionPrerequisite.value;
+  if (isSubscriptionVariation && String(product.variation_title || '').trim()) {
+    return String(product.variation_title).trim();
+  }
+  return String(product.title || product.name || '').trim();
+});
+const prerequisitePrice = computed(() => {
+  // Before an address is quoted, the merch item can still include WooCommerce's
+  // default-country shipping. Show the validated product price separately;
+  // the order total remains authoritative and is not changed here.
+  const unquotedMerch = props.prerequisite?.shipping?.is_merch
+    && checkoutDetails.value?.address_complete === false;
+  return Number(unquotedMerch
+    ? (prerequisiteProduct.value?.price ?? checkoutDetails.value?.items?.[0]?.total ?? 0)
+    : (checkoutDetails.value?.items?.[0]?.total ?? getBookingPrerequisitePrice(props.prerequisite)));
+});
+const amountDueUsd = computed(() => Number(
+  isPrerequisiteCheckout.value
+    ? (checkoutDetails.value?.total ?? prerequisitePrice.value)
+    : Number(topUpUSD.value),
+));
+const prerequisiteOrderUsd = computed(() => Number(
+  checkoutDetails.value?.product_total
+    ?? (prerequisitePrice.value + Number(checkoutDetails.value?.shipping_total || 0)),
+));
+const requiresShipping = computed(() => Boolean(
+  checkoutDetails.value?.requires_shipping ?? props.prerequisite?.shipping?.required,
+));
+const shippingCountryMismatch = computed(() => {
+  const shipping = props.prerequisite?.shipping;
+  return requiresShipping.value && shipping?.is_merch && shipping.international === false
+    && Boolean(shipping.country_code && shippingAddress.value.country)
+    && shipping.country_code.toUpperCase() !== shippingAddress.value.country.toUpperCase();
+});
+const shippingWarning = computed(() => shippingCountryMismatch.value
+  ? t('fan_booking_shipping_country_mismatch', { country: props.prerequisite.shipping.country })
+  : shippingError.value);
+watch(shippingCountryMismatch, (mismatch) => {
+  if (mismatch) shippingExpanded.value = true;
+});
+const shippingCostLabel = computed(() => {
+  // Never present an old quote as the cost of an edited address.
+  if (checkoutDetails.value?.address_complete) {
+    if (shippingNeedsUpdate.value) return t('fan_booking_calculated_at_checkout');
+    const cost = Number(checkoutDetails.value.shipping_total || 0);
+    return cost > 0
+      ? t('fan_booking_shipping_charge', { amount: cost.toFixed(2) })
+      : t('fan_booking_free_shipping');
+  }
+  const cost = props.prerequisite?.shipping?.cost;
+  if (typeof cost === 'number') {
+    return cost > 0
+      ? t('fan_booking_shipping_charge', { amount: cost.toFixed(2) })
+      : t('fan_booking_free_shipping');
+  }
+  return props.prerequisite?.shipping?.cost_label || t('fan_booking_calculated_at_checkout');
+});
+const shippingAddressComplete = computed(() => {
+  if (!requiresShipping.value) return true;
+  if (shippingCountryMismatch.value) return false;
+  const country = shippingAddress.value.country;
+  if (!checkoutDetails.value?.shipping_countries?.[country]) return false;
+  return Object.entries(shippingFields.value).every(([key, field]) => (
+    !field.required || field.hidden || String(shippingAddress.value[key] || '').trim()
+  ));
+});
+const shippingFields = computed(() => checkoutDetails.value?.shipping_fields?.[shippingAddress.value.country] || {});
+const shippingStates = computed(() => checkoutDetails.value?.shipping_states?.[shippingAddress.value.country] || {});
+const savedShippingAddresses = computed(() => checkoutDetails.value?.shipping_addresses || []);
+const shippingNeedsUpdate = computed(() => requiresShipping.value && (
+  !checkoutDetails.value?.address_complete || quotedShippingAddress.value !== shippingSignature(shippingAddress.value)
+));
+function shippingSignature(address) {
+  return JSON.stringify(Object.keys(shippingAddress.value).map(key => String(address?.[key] || '').trim()));
+}
+function selectShippingAddress() {
+  const address = savedShippingAddresses.value.find(item => String(item.id) === shippingAddressId.value);
+  shippingAddress.value = Object.fromEntries(Object.keys(shippingAddress.value).map(key => [key, address?.[key] || '']));
+  shippingError.value = '';
+}
 
 // --- PRICING TIERS ---
 function getTierForAmount(amount) {
@@ -89,6 +220,9 @@ function getTierForAmount(amount) {
 const activeTier = computed(() => getTierForAmount(selectedAmount.value));
 
 const topUpUSD = computed(() => {
+  if (isPrerequisiteCheckout.value && checkoutDetails.value?.topup_usd != null) {
+    return Number(checkoutDetails.value.topup_usd).toFixed(2);
+  }
   const tier = activeTier.value;
   if (tier) return (selectedAmount.value * tier.price_per_token).toFixed(2);
   const base = pricingConfig.value?.base_price_per_token || 0.1099;
@@ -101,50 +235,168 @@ const balanceAfterTopUp   = computed(() => props.walletBalance + selectedAmount.
 const balanceAfterBooking = computed(() => balanceAfterTopUp.value - props.totalPrice);
 
 const isAmountBelowDefault = computed(() => {
+  if (!requiresTopUp.value) return false;
   const current = Number(amountInput.value);
   let defaultAmount = Math.max(props.topUpAmount, minPurchase.value);
 
   return current < defaultAmount;
 });
 
-const isLoggedIn = computed(() => Number(window?.userData?.userID) > 0 );
+const checkoutUserId = ref(Number(window?.userData?.userID ?? props.fanId) || 0);
+const isLoggedIn = computed(() => checkoutUserId.value > 0);
 
 const hasEmail  = computed(() => isLoggedIn.value || billingEmail.value?.trim().includes('@'));
 const canSubmit = computed(() =>
   !isFormLoading.value && !isProcessing.value && hasEmail.value
+  && !isUpdatingAccount.value && !accountCheckFailed.value
+  && !prerequisiteReview.value
   && !guestFormRef.value?.requiresLogin
   && Boolean(cardFormRef.value?.canPay)
   && !isAmountBelowDefault.value
+  && shippingAddressComplete.value
+  && !shippingNeedsUpdate.value
+  && !isUpdatingShipping.value
 );
+const paymentButtonLabel = computed(() => {
+  if (!isPrerequisiteCheckout.value) return t('fan_booking_top_up_complete_booking_spaced');
+  return t('fan_booking_pay_and_complete_booking');
+});
+
+function checkoutRequestParams() {
+  const checkout = props.prerequisite?.checkout || {};
+  // Cart::add_to_cart() expects a purchasable variation ID in product_id.
+  // Keep variation_id alongside it for the existing subscription-switch
+  // metadata, but do not send the variable parent as the buy-now item.
+  const variationId = Number(checkout.variation_id || 0);
+  const productId = Number(checkout.product_id || prerequisiteProduct.value?.parent_id || prerequisiteProduct.value?.id || 0);
+  const purchasableProductId = variationId || productId;
+  const params = {
+    product_id: purchasableProductId,
+    variation_id: variationId,
+    booking_event_id: String(props.eventId || ''),
+    booking_prerequisite_product_id: purchasableProductId,
+    booking_prerequisite_type: String(props.prerequisite?.type || ''),
+    // Separate orders share one gateway authorization for the complete total.
+    booking_topup_tokens: requiresTopUp.value ? selectedAmount.value : 0,
+    booking_contribution_tokens: Math.max(0, Math.ceil(Number(props.totalPrice || 0))),
+  };
+  try {
+    const url = new URL(checkout.url || '', window.location.origin);
+    ['switch-subscription', '_wcsnonce', 'item'].forEach((key) => {
+      if (url.searchParams.has(key)) params[key] = url.searchParams.get(key);
+    });
+  } catch (_) { /* validation supplies direct product identifiers */ }
+  return params;
+}
+
+const prerequisiteGuestCheckoutContext = computed(() => isPrerequisiteCheckout.value ? {
+  ...checkoutRequestParams(),
+  booking_prerequisite_checkout: 1,
+  order_key: checkoutDetails.value?.order_key || '',
+  tip_checkout_popup: 0,
+  is_buy_now: 1,
+  is_call_checkout: 1,
+  prevent_payment_redirect: 1,
+  is_has_merch: requiresShipping.value ? 1 : 0,
+  items: handler?._renderParams?.items || [],
+} : null);
+
+function applyCheckoutDetails(details = {}) {
+  if (!details || typeof details !== 'object') return;
+  const preserveEditedAddress = !checkoutDetails.value
+    ? Object.values(shippingAddress.value).some(value => String(value || '').trim())
+    : Boolean(details.order_id)
+      && checkoutDetails.value.order_id === details.order_id
+      && quotedShippingAddress.value !== shippingSignature(shippingAddress.value);
+  checkoutDetails.value = details;
+  const nextAddress = details.shipping_address || details.billing_address;
+  if (!preserveEditedAddress && nextAddress && typeof nextAddress === 'object') {
+    shippingAddress.value = { ...shippingAddress.value, ...nextAddress };
+    quotedShippingAddress.value = shippingSignature(shippingAddress.value);
+    const saved = (details.shipping_addresses || []).find(address => (
+      shippingSignature(address) === quotedShippingAddress.value
+    ));
+    shippingAddressId.value = saved ? String(saved.id) : '';
+  }
+  if (requiresShipping.value && !shippingAddressComplete.value) shippingExpanded.value = true;
+}
+
+async function updateShippingAddress() {
+  if (!currentOrderId.value || !shippingAddressComplete.value || isUpdatingShipping.value) {
+    shippingError.value = t('fan_booking_shipping_address_required');
+    return;
+  }
+
+  isUpdatingShipping.value = true;
+  shippingError.value = '';
+  try {
+    const response = await handler.prepareBookingShipping({
+      ...shippingPaymentFields(),
+      user_id: resolveFanUserId(),
+      billing_email: billingEmail.value,
+      register_email: billingEmail.value,
+    });
+    // A successful address update confirms these edits. Card/amount refreshes
+    // must not replace unfinished address edits with the old order address.
+    quotedShippingAddress.value = shippingSignature(shippingAddress.value);
+    applyCheckoutDetails(response.booking_checkout);
+    await reloadCardForm({
+      ...response,
+      order_id: currentOrderId.value,
+      payment_content: response.payment_cards,
+      check_cart_product_types: response.custom_checkout_params,
+    });
+    shippingExpanded.value = false;
+  } catch (error) {
+    shippingError.value = error?.message || t('fan_booking_shipping_update_failed');
+  } finally {
+    isUpdatingShipping.value = false;
+  }
+}
+
+function shippingPaymentFields() {
+  if (!requiresShipping.value) return {};
+  return {
+    show_shipping_address: 1,
+    save_shipping_address: saveShippingAddress.value ? 1 : 0,
+    shipping_address_id: shippingAddressId.value,
+    ...Object.fromEntries(Object.entries(shippingAddress.value).map(([key, value]) => [`shipping_${key}`, value || ''])),
+    // Normal merch checkout uses the delivery address for its hidden billing
+    // fields. Keep that same mapping for the inline booking checkout.
+    ...Object.fromEntries(Object.entries(shippingAddress.value)
+      .filter(([key]) => key !== 'email')
+      .map(([key, value]) => [`billing_${key}`, value || ''])),
+  };
+}
 
 function resolveFanUserId() {
-  return props.fanId || Number(window?.userData?.userID) || 0;
+  return checkoutUserId.value;
 }
 function resolveCreatorId() {
   return props.creatorId || 0;
 }
 
+function tokenCheckoutParams() {
+  return {
+    user_id:           resolveFanUserId(),
+    creator_id:        resolveCreatorId(),
+    is_topup_and_call: 1,
+    ordered_from:      'vue',
+    register_email:    billingEmail.value,
+    billing_email:     billingEmail.value,
+  };
+}
+
 function normalizeAuthPayload(response = {}) {
-  const userId = response?.user_id
-    ?? response?.userId
-    ?? response?.userData?.userID
-    ?? response?.userData?.user_id
-    ?? response?.data?.user_id
-    ?? response?.data?.userId
-    ?? null;
-  const backendJwtToken = response?.backendJwtToken
-    ?? response?.jwtToken
-    ?? response?.backend_jwt_token
-    ?? response?.jwt_token
-    ?? response?.token
-    ?? response?.data?.backendJwtToken
-    ?? response?.data?.jwtToken
-    ?? response?.userData?.jwtToken
-    ?? '';
+  const { userId, backendJwtToken } = normalizeBackendAuthContext(response);
 
   return {
     userId,
     backendJwtToken,
+    order_id: response?.order_id ?? response?.orderId ?? null,
+    receipt_url: response?.receipt_url ?? response?.order_received_url ?? '',
+    prerequisite_order_id: response?.prerequisite_order_id ?? null,
+    token_order_id: response?.token_order_id ?? null,
     response,
   };
 }
@@ -182,13 +434,10 @@ async function initHandler() {
   handler = new window.AxcessGatewayFormHandler({
     ajaxUrl:    resolveAjaxUrl(),
     container,
+    checkoutMode: isPrerequisiteCheckout.value ? 'booking-prerequisite' : 'token',
     extraParams: {
-      user_id:           resolveFanUserId(),
-      creator_id:        resolveCreatorId(),
-      is_topup_and_call: 1,
-      ordered_from:      'vue',
-      register_email: billingEmail.value,
-      billing_email:  billingEmail.value,
+      ...tokenCheckoutParams(),
+      ...(isPrerequisiteCheckout.value ? checkoutRequestParams() : {}),
     },
     onSuccess: handlePaymentSuccess,
     onError:   handlePaymentError,
@@ -199,7 +448,7 @@ async function initHandler() {
   // so clamp here to ensure form loads and recovers properly once config is available
   // Clamp initial amount up to min_purchase now that config is available
   const minAllowed = pricingConfig.value?.min_purchase ?? 10;
-  if (selectedAmount.value < minAllowed) {
+  if (!isPrerequisiteCheckout.value && selectedAmount.value < minAllowed) {
     selectedAmount.value = minAllowed;
     amountInput.value    = minAllowed;
   }
@@ -211,9 +460,10 @@ async function initHandler() {
 
   isFormLoading.value = true;
   try {
-    const { orderId } = await handler.renderForm(selectedAmount.value, null, 'token');
+    const { orderId, checkout } = await handler.renderForm(selectedAmount.value, null, 'token');
     console.error('[TopUpForm] Initial renderForm result:', { orderId });
     currentOrderId.value = orderId ?? null;
+    applyCheckoutDetails(checkout);
     cardFormRef.value?.syncSavedCards();
   } catch (err) {
     console.error('[TopUpForm] renderForm failed during init:', err);
@@ -250,9 +500,13 @@ async function selectAmount(amount) {
   currentOrderId.value = null;
   isFormLoading.value = true;
   try {
-    const { orderId } = await handler.renderForm(amount, existingOrderId, 'token');
+    if (isPrerequisiteCheckout.value) {
+      handler.extraParams = { ...handler.extraParams, ...checkoutRequestParams(), booking_topup_tokens: amount };
+    }
+    const { orderId, checkout } = await handler.renderForm(amount, existingOrderId, 'token');
     console.error('[TopUpForm] renderForm result from selectAmount:', { orderId });
     currentOrderId.value = orderId ?? null;
+    applyCheckoutDetails(checkout);
     cardFormRef.value?.syncSavedCards();
   } catch (err) {
     console.error('[TopUpForm] renderForm failed during selectAmount:', err);
@@ -297,13 +551,28 @@ async function handlePaymentSuccess(_response) {
     cardFormRef.value?.setProcessingPayment(true, 'balance-sync');
     let successResponse = _response;
 
-    // guestCheckout.checkGuestAuthAfterPayment
-    if( !isLoggedIn.value && window?.parent?.guestCheckout ) {
+    // Finish the existing paid-order login even when the parent profile has
+    // not loaded the separate WooCommerce popup's guest helper.
+    if( !isLoggedIn.value || (isPrerequisiteCheckout.value && checkoutDetails.value?.guest_checkout) ) {
       window.parent.preventReloadOnCheckoutClose = true;
       try {
-        const apiresponse = await window.parent.guestCheckout.checkGuestAuthAfterPayment(_response.order_id);
+        const orderKey = isPrerequisiteCheckout.value
+          ? checkoutDetails.value?.order_key || ''
+          : handler?.currentOrderKey || '';
+        const guestHelper = window.parent?.guestCheckout;
+        // A guest product order may already expose its newly created account
+        // in the payment fragment. That is not proof the browser is signed in.
+        const apiresponse = !isPrerequisiteCheckout.value && guestHelper?.checkGuestAuthAfterPayment
+          ? await guestHelper.checkGuestAuthAfterPayment(_response.order_id, orderKey)
+          : await fetch('/wp-json/api/checkout/after-payment', {
+              method: 'POST', credentials: 'same-origin',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ order_id: _response.order_id, order_key: orderKey, profile_user_id: props.creatorId }),
+            }).then((response) => response.json());
         console.warn('checkGuestAuthAfterPayment response:', apiresponse);
         if (apiresponse?.success) {
+          checkoutUserId.value = normalizeBackendAuthContext(apiresponse).userId || 0;
+          if (apiresponse.userData) window.userData = { ...window.userData, ...apiresponse.userData };
           successResponse = {
             ..._response,
             ...apiresponse,
@@ -322,7 +591,31 @@ async function handlePaymentSuccess(_response) {
       }
     }
 
-    emit('success', normalizeAuthPayload(successResponse));
+    if (isPrerequisiteCheckout.value) {
+      const prerequisitePayload = normalizeAuthPayload(successResponse);
+      const prerequisiteReady = props.afterPrerequisitePayment
+        ? await props.afterPrerequisitePayment(prerequisitePayload)
+        : true;
+
+      if (prerequisiteReady === false) {
+        isProcessing.value = false;
+        cardFormRef.value?.setProcessingPayment(false);
+        return;
+      }
+
+      prerequisitePaymentResult.value = successResponse;
+    }
+
+    const prerequisiteOrderId = prerequisitePaymentResult.value?.order_id
+      || prerequisitePaymentResult.value?.orderId
+      || null;
+    emit('success', normalizeAuthPayload({
+      ...successResponse,
+      prerequisite_order_id: prerequisiteOrderId,
+      token_order_id: successResponse?.token_order_id
+        || successResponse?.booking_checkout?.token_order_id
+        || null,
+    }));
   } else {
     handlePaymentError(_response?.error_message || '');
   }
@@ -347,6 +640,10 @@ function handlePaymentError(message) {
 }
 
 async function handlePayNow() {
+  if (prerequisiteReview.value) {
+    openPrerequisiteReview();
+    return;
+  }
   console.error('handlePayNow clicked with state:', {
     isProcessing: isProcessing.value,
     handlerReady: Boolean(handler),
@@ -359,6 +656,11 @@ async function handlePayNow() {
     return;
   }
   if (props.beforeSubmit && props.beforeSubmit() === false) return;
+  if (isPrerequisiteCheckout.value && (!shippingAddressComplete.value || shippingNeedsUpdate.value || isUpdatingShipping.value)) {
+    shippingExpanded.value = true;
+    shippingError.value = t('fan_booking_shipping_address_required');
+    return;
+  }
 
   // If renderForm failed silently on init, attempt to recover before blocking the user
   if (!handler.currentOrderId) {
@@ -378,6 +680,7 @@ async function handlePayNow() {
     await handler.submitPayment({
       billing_email:  billingEmail.value,
       register_email: billingEmail.value,
+      ...shippingPaymentFields(),
       ...(cardFormRef.value?.getPaymentExtraFields() ?? {}),
     });
   } catch (err) {
@@ -390,6 +693,7 @@ async function handlePayNow() {
 
 async function reloadCardForm(res = null) {
   if (!handler) return;
+  if (!isPrerequisiteCheckout.value) handler.extraParams = { ...handler.extraParams, ...tokenCheckoutParams() };
   handler.destroyForm();
   cardFormRef.value?.resetCardValidity();
   const existingOrderId = res?.order_id ?? currentOrderId.value;
@@ -399,8 +703,9 @@ async function reloadCardForm(res = null) {
   try {
     const responseArgs = res ? { ...res } : {};
     responseArgs.order_id = responseArgs.order_id || existingOrderId; // Ensure order_id is passed to renderForm for proper recovery
-    const { orderId } = await handler.renderForm(selectedAmount.value, existingOrderId, 'token', responseArgs);
+    const { orderId, checkout } = await handler.renderForm(selectedAmount.value, existingOrderId, 'token', responseArgs);
     currentOrderId.value = orderId ?? null;
+    applyCheckoutDetails(checkout);
     cardFormRef.value?.syncSavedCards();
   } catch (err) {
     console.error('[TopUpForm] renderForm failed during reloadCardForm:', err);
@@ -411,12 +716,167 @@ async function reloadCardForm(res = null) {
 }
 
 async function handleGuestLogin(res = null) {
-  emit('auth-updated', normalizeAuthPayload(res || {}));
+  checkoutUserId.value = normalizeBackendAuthContext(res || {}).userId || 0;
+  if (hasPrerequisite.value && props.afterAuthUpdate) {
+    isUpdatingAccount.value = true;
+    accountCheckFailed.value = false;
+    try {
+      // Login may reveal ownership or an existing subscription tier. Refresh
+      // before rendering another order so the fan is not charged to buy it again.
+      window.custom_checkout_params = { ...window.custom_checkout_params, ...res?.custom_checkout_params };
+      authenticatedCheckoutPayload.value = normalizeAuthPayload(res || {});
+      const detail = await props.afterAuthUpdate(authenticatedCheckoutPayload.value);
+      await nextTick();
+      if (!detail) {
+        accountCheckFailed.value = true;
+        paymentError.value = t('fan_booking_prerequisite_check_failed');
+        return;
+      }
+      if (detail.eligible || detail.action === 'switch') {
+        // Keep the account check separate from the fan's acknowledgement. An
+        // owned item or a tier change must never be silently paid for again.
+        handler?.destroy();
+        currentOrderId.value = null;
+        checkoutDetails.value = null;
+        prerequisiteReview.value = { detail, afterLogin: true };
+        openPrerequisiteReview();
+        return;
+      }
+      await applyAuthenticatedCheckout(detail);
+    } catch (error) {
+      accountCheckFailed.value = true;
+      paymentError.value = error?.message || t('fan_booking_prerequisite_check_failed');
+    } finally {
+      isUpdatingAccount.value = false;
+    }
+    return;
+  }
+  if (props.afterAuthUpdate) await props.afterAuthUpdate(normalizeAuthPayload(res || {}));
+  else emit('auth-updated', normalizeAuthPayload(res || {}));
   await reloadCardForm(res);
 }
 
+function openPrerequisiteReview() {
+  prerequisiteReviewOpen.value = true;
+  nextTick(() => prerequisiteReviewButton.value?.focus());
+}
+
+async function applyAuthenticatedCheckout(detail) {
+  checkoutPhase.value = detail.eligible ? 'topup' : 'prerequisite';
+  if (detail.eligible && !requiresTopUp.value) {
+    // A login/acknowledgement is not a payment-success event.
+    emit('back');
+    return;
+  }
+  handler?.destroy();
+  currentOrderId.value = null;
+  checkoutDetails.value = null;
+  await initHandler();
+}
+
+async function confirmPrerequisiteReview(previouslyConfirmed = false) {
+  if (!prerequisiteReview.value || isUpdatingAccount.value) return;
+  isUpdatingAccount.value = true;
+  accountCheckFailed.value = false;
+  try {
+    // Recheck after the prompt too: account ownership can change while it is open.
+    let detail = props.afterAuthUpdate
+      ? await props.afterAuthUpdate(authenticatedCheckoutPayload.value || {
+        userId: props.fanId,
+        backendJwtToken: getBackendJwtToken() || window.userData?.jwtToken || '',
+      })
+      : prerequisiteReview.value.detail;
+    await nextTick();
+    if (!detail) throw new Error(t('fan_booking_prerequisite_check_failed'));
+    if (previouslyConfirmed === true && detail.action === 'switch'
+      && props.confirmedSwitch !== subscriptionSwitchReviewKey(detail, props.fanId, props.eventId)) {
+      prerequisiteReview.value = { detail };
+      openPrerequisiteReview();
+      return;
+    }
+    if (!detail.eligible && detail.type === 'subscription' && Number(detail.product?.price) === 0 && props.activateFreePrerequisite) {
+      detail = await props.activateFreePrerequisite();
+      if (!detail?.eligible) throw new Error(t('fan_booking_prerequisite_check_failed'));
+      await nextTick();
+    }
+    prerequisiteReview.value = null;
+    prerequisiteReviewOpen.value = false;
+    await applyAuthenticatedCheckout(detail);
+  } catch (error) {
+    accountCheckFailed.value = true;
+    paymentError.value = error?.message || t('fan_booking_prerequisite_check_failed');
+  } finally {
+    isUpdatingAccount.value = false;
+  }
+}
+
+const reviewDetail = computed(() => prerequisiteReview.value?.detail || {});
+const reviewIsSwitch = computed(() => reviewDetail.value.action === 'switch');
+const reviewIsSubscription = computed(() => reviewDetail.value.type === 'subscription');
+const reviewTiers = computed(() => [{ ...reviewDetail.value.product, ...reviewDetail.value.subscription, label: t('fan_booking_subscribed') }]);
+function tierPriceLabel(tier) {
+  if (Number(tier.price) === 0) return t('fan_booking_tier_free');
+  const period = ['day', 'week', 'month', 'year'].includes(tier.period) ? tier.period : '';
+  const interval = Number(tier.interval) > 1 ? `${Number(tier.interval)} ` : '';
+  return `USD$${Number(tier.price || 0).toFixed(2)}${period ? ` / ${interval}${t(`fan_booking_period_${period}`)}` : ''}`;
+}
+function tierDiscount(tier) {
+  const regular = Number(tier.regular_price);
+  const price = Number(tier.price);
+  return regular > price && price >= 0 ? Math.round((1 - price / regular) * 100) : 0;
+}
+
+function handleReviewKeydown(event) {
+  if (event.key === 'Escape' && reviewIsSwitch.value) prerequisiteReviewOpen.value = false;
+  if (event.key !== 'Tab') return;
+  const buttons = Array.from(event.currentTarget.querySelectorAll('button:not([disabled])'));
+  if (!buttons.length) return;
+  const first = buttons[0];
+  const last = buttons[buttons.length - 1];
+  if ((event.shiftKey && document.activeElement === first) || (!event.shiftKey && document.activeElement === last)) {
+    event.preventDefault();
+    (event.shiftKey ? last : first).focus();
+  }
+}
+
 async function handleGuestLogout(res = null) {
-  emit('auth-updated', { userId: 0, backendJwtToken: '', response: res || {} });
+  checkoutUserId.value = 0;
+  prerequisiteReview.value = null;
+  prerequisiteReviewOpen.value = false;
+  authenticatedCheckoutPayload.value = null;
+  const payload = { userId: 0, backendJwtToken: '', response: res || {} };
+  if (hasPrerequisite.value && props.afterAuthUpdate) {
+    isUpdatingAccount.value = true;
+    accountCheckFailed.value = false;
+    try {
+      window.custom_checkout_params = { ...window.custom_checkout_params, ...res?.custom_checkout_params };
+      await props.afterAuthUpdate(payload);
+      await nextTick();
+      const requiredAmount = Math.max(props.topUpAmount, minPurchase.value);
+      if (selectedAmount.value < requiredAmount) {
+        selectedAmount.value = requiredAmount;
+        amountInput.value = requiredAmount;
+      }
+      checkoutPhase.value = 'prerequisite';
+      handler?.destroy();
+      currentOrderId.value = null;
+      checkoutDetails.value = null;
+      await initHandler();
+    } catch (error) {
+      accountCheckFailed.value = true;
+      paymentError.value = error?.message || t('fan_booking_prerequisite_check_failed');
+    } finally {
+      isUpdatingAccount.value = false;
+    }
+    return;
+  }
+  if (props.afterAuthUpdate) await props.afterAuthUpdate(payload);
+  else emit('auth-updated', payload);
+  const requiredAmount = Math.max(props.topUpAmount, minPurchase.value);
+  if (selectedAmount.value < requiredAmount) {
+    selectedAmount.value = requiredAmount;
+    amountInput.value = requiredAmount;
+  }
   await reloadCardForm(res);
 }
 
@@ -428,7 +888,11 @@ defineExpose({
 });
 
 onMounted(() => {
-  initHandler();
+  if (props.prerequisite?.action === 'switch') {
+    prerequisiteReview.value = { detail: props.prerequisite };
+    if (props.confirmedSwitch === subscriptionSwitchReviewKey(props.prerequisite, props.fanId, props.eventId)) confirmPrerequisiteReview(true);
+    else openPrerequisiteReview();
+  } else initHandler();
 });
 
 onBeforeUnmount(() => {
@@ -441,7 +905,63 @@ onBeforeUnmount(() => {
 <template>
   <div class="flex flex-col w-full h-full gap-3 lg:h-[calc(100dvh-13.2rem)] relative z-[1]">
 
+    <!-- Figma's ownership/tier prompts stay inside the existing booking payment step. -->
+    <div v-if="prerequisiteReviewOpen" class="absolute inset-0 z-[200] flex items-center justify-center overflow-y-auto bg-[#0C111D]/95 p-2" @keydown="handleReviewKeydown">
+      <SubscriptionSwitchConfirmation v-if="reviewIsSwitch" :prerequisite="reviewDetail" :busy="isUpdatingAccount" :error="paymentError"
+        @confirm="confirmPrerequisiteReview" @cancel="prerequisiteReviewOpen = false" />
+      <div v-else role="alertdialog" aria-modal="true" :aria-label="t('fan_booking_prerequisite_review')" data-testid="booking-prerequisite-review"
+        class="flex w-full max-h-full flex-col overflow-y-auto p-4 md:p-5 font-['Poppins'] text-white"
+        :class="reviewIsSubscription ? 'max-w-[510px] gap-3 rounded-[15px] bg-black/50' : 'max-w-[475px] gap-4 rounded-[10px]'"
+        :style="reviewIsSubscription ? null : { background: 'linear-gradient(0deg, rgba(255,255,255,0.1), rgba(255,255,255,0.1)), rgba(12,17,29,0.9)' }">
+        <h3 v-if="!reviewIsSubscription" class="text-lg font-semibold leading-7 text-[#07F468]">{{ t('fan_booking_purchased_items_found') }}</h3>
+        <p class="text-base font-normal leading-6">{{ t('fan_booking_owned_item_prompt') }}</p>
+        <template v-if="reviewIsSubscription">
+          <template v-for="(tier, index) in reviewTiers" :key="tier.id || index">
+            <div class="flex items-center gap-5 py-3">
+              <div class="h-[79px] w-[79px] shrink-0 overflow-hidden rounded-lg bg-white/10">
+                <img v-if="tier.image_url" :src="tier.image_url" :alt="tier.title || ''" class="h-full w-full object-cover" />
+              </div>
+              <div class="flex min-w-0 flex-col gap-1">
+                <span class="text-sm font-semibold leading-5 text-[#07F468]">{{ tier.label }}</span>
+                <span class="break-words text-lg font-semibold leading-7">{{ tier.variation_title || tier.title }}</span>
+                <div class="flex flex-wrap items-center gap-1">
+                  <span class="text-xl font-bold leading-[30px] text-[#FCE40D]">{{ tierPriceLabel(tier) }}</span>
+                  <span v-if="tierDiscount(tier)" class="text-xs leading-[18px] line-through">${{ Number(tier.regular_price).toFixed(2) }}</span>
+                  <span v-if="tierDiscount(tier)" class="relative flex items-center rounded bg-[#FF0066] py-[2px] pl-3 pr-[6px] text-[10px] font-semibold leading-[15px]">
+                    <img :src="bookingFlowLightningIcon" alt="" class="absolute -left-1 top-0" />{{ t('fan_booking_shipping_discount', { percent: tierDiscount(tier) }) }}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </template>
+        </template>
+        <div v-else class="flex items-center gap-2 p-2">
+          <img v-if="reviewDetail.product?.image_url" :src="reviewDetail.product.image_url" :alt="reviewDetail.product.title" class="h-[74px] w-[74px] md:h-12 md:w-12 shrink-0 rounded-lg object-cover" />
+          <div class="flex min-w-0 flex-1 flex-col gap-2 md:flex-row md:items-center">
+          <div class="flex min-w-0 flex-1 flex-col gap-1">
+            <span class="break-words text-base font-semibold leading-6">{{ reviewDetail.product?.title }}</span>
+            <span v-if="creator?.name" class="flex items-center gap-1 text-xs font-medium leading-[18px] text-[#98A2B3]">
+              <img v-if="creator.avatar" :src="creator.avatar" alt="" class="h-6 w-6 rounded-full object-cover" />{{ creator.name }}
+              <img v-if="creator.isVerified" :src="bookingFlowAccountVerifiedIcon" alt="" class="h-3 w-3" />
+            </span>
+          </div>
+          <span class="flex items-center gap-1 text-xs leading-[18px] text-[#07F468]"><img :src="bookingFlowCalendarCheckIcon" alt="" class="h-4 w-4" />{{ t('fan_booking_already_in_library') }}</span>
+          </div>
+        </div>
+        <button ref="prerequisiteReviewButton" type="button" data-testid="booking-prerequisite-review-confirm" :disabled="isUpdatingAccount" @click="confirmPrerequisiteReview"
+          class="flex min-h-10 w-full items-center justify-center px-6 py-2 text-base font-medium leading-6 disabled:opacity-50"
+          :class="reviewIsSubscription ? 'bg-[#FF0066] text-white' : 'bg-[#07F468] text-[#0C111D]'">
+          {{ t('fan_booking_continue_booking') }}
+        </button>
+        <p v-if="reviewIsSubscription && reviewDetail.subscription?.next_payment_date" class="text-center text-sm leading-5 text-[#EAECF0]">
+          {{ t('fan_booking_next_billing_date', { date: reviewDetail.subscription.next_payment_date }) }}
+        </p>
+        <p v-if="paymentError" role="alert" class="text-xs text-red-400 font-medium">{{ paymentError }}</p>
+      </div>
+    </div>
+
     <div 
+      :inert="prerequisiteReviewOpen || undefined"
       class="inline-flex justify-start items-center gap-1 cursor-pointer"
       @click="emit('back')"
     >
@@ -453,10 +973,12 @@ onBeforeUnmount(() => {
       </div>
     </div>
 
-    <div class="flex flex-col gap-4 md:gap-8 py-2 lg:py-3 md:!pb-[6rem] md:overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none]">
+    <div :inert="prerequisiteReviewOpen || undefined" class="flex flex-col gap-4 md:gap-8 py-2 lg:py-3 md:!pb-[6rem] md:overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none]">
+
+      <button v-if="prerequisiteReview && !prerequisiteReviewOpen" type="button" @click="openPrerequisiteReview" class="min-h-10 bg-[#FF0066] px-6 py-2 text-base font-medium leading-6 text-white">{{ t('fan_booking_prerequisite_review') }}</button>
 
       <!-- Amount display + presets -->
-      <div class="flex flex-col gap-1">
+      <div v-if="requiresTopUp" class="flex flex-col gap-1">
         <div class="opacity-70 justify-start text-white text-sm font-medium font-['Poppins'] leading-5">
           {{ t("fan_booking_top_up_amount") }}
         </div>
@@ -533,6 +1055,7 @@ onBeforeUnmount(() => {
         ref="guestFormRef"
         :initial-email="billingEmail"
         :order-id="currentOrderId"
+        :checkout-context="prerequisiteGuestCheckoutContext"
         @update:email="billingEmail = $event"
         @login="handleGuestLogin"
         @logout="handleGuestLogout"
@@ -580,18 +1103,50 @@ onBeforeUnmount(() => {
       <!-- /Balance summary -->
 
       <!-- Shipping Address -->
-      <div v-if="1!=1" class="flex flex-col">
+      <div v-if="isPrerequisiteCheckout && requiresShipping" class="flex flex-col gap-3">
           <div class="inline-flex justify-between items-center gap-2">
             <div class="flex items-center gap-2">
               <div class="w-5 h-5 relative overflow-hidden">
                 <img :src="bookingFlowMapsTravelsIcon" alt="">
               </div>
-              <div class="justify-center text-[#F9FAFB] text-base font-semibold leading-5">SHIPPING ADDRESS</div>
+              <div class="justify-center text-[#F9FAFB] text-sm font-semibold leading-5">{{ t('fan_booking_shipping_address') }}</div>
             </div>
-            <div>
+            <button type="button" class="cursor-pointer" data-testid="booking-shipping-toggle" @click="shippingExpanded = !shippingExpanded">
               <img :src="bookingFlowArrowsDownIcon" alt="">
-            </div>
+            </button>
           </div>
+          <div v-if="shippingExpanded" class="grid grid-cols-2 gap-2">
+            <select v-if="savedShippingAddresses.length" v-model="shippingAddressId" :aria-label="t('fan_booking_saved_shipping_address')" data-testid="booking-saved-shipping" class="col-span-2 h-10 px-3 rounded-md border border-white/20 bg-[#0C111D] text-sm text-white" @change="selectShippingAddress">
+              <option value="">{{ t('fan_booking_new_shipping_address') }}</option>
+              <option v-for="address in savedShippingAddresses" :key="address.id" :value="String(address.id)">{{ address.first_name }} {{ address.last_name }} — {{ address.address_1 }}, {{ address.city }}</option>
+            </select>
+            <input v-model.trim="shippingAddress.first_name" type="text" :placeholder="t('fan_booking_first_name')" class="col-span-1 h-10 px-3 rounded-md border border-white/20 bg-transparent text-sm text-white focus:outline-none focus:border-[#22CCEE]" />
+            <input v-model.trim="shippingAddress.last_name" type="text" :placeholder="t('fan_booking_last_name')" class="col-span-1 h-10 px-3 rounded-md border border-white/20 bg-transparent text-sm text-white focus:outline-none focus:border-[#22CCEE]" />
+            <input v-model.trim="shippingAddress.address_1" type="text" :placeholder="t('fan_booking_address_line_1')" class="col-span-2 h-10 px-3 rounded-md border border-white/20 bg-transparent text-sm text-white focus:outline-none focus:border-[#22CCEE]" />
+            <input v-model.trim="shippingAddress.address_2" type="text" :placeholder="t('fan_booking_address_line_2')" class="col-span-2 h-10 px-3 rounded-md border border-white/20 bg-transparent text-sm text-white focus:outline-none focus:border-[#22CCEE]" />
+            <input v-model.trim="shippingAddress.city" type="text" :placeholder="t('fan_booking_city')" class="col-span-1 h-10 px-3 rounded-md border border-white/20 bg-transparent text-sm text-white focus:outline-none focus:border-[#22CCEE]" />
+            <select v-if="Object.keys(shippingStates).length" v-model="shippingAddress.state" :aria-label="shippingFields.state?.label || t('fan_booking_state')" data-testid="booking-shipping-state" class="col-span-1 h-10 px-3 rounded-md border border-white/20 bg-[#0C111D] text-sm text-white">
+              <option value="">{{ shippingFields.state?.label || t('fan_booking_state') }}</option>
+              <option v-for="(label, code) in shippingStates" :key="code" :value="code">{{ label }}</option>
+            </select>
+            <input v-else-if="shippingAddress.country && !shippingFields.state?.hidden" v-model.trim="shippingAddress.state" type="text" :placeholder="shippingFields.state?.label || t('fan_booking_state')" class="col-span-1 h-10 px-3 rounded-md border border-white/20 bg-transparent text-sm text-white focus:outline-none focus:border-[#22CCEE]" />
+            <input v-if="!shippingFields.postcode?.hidden" v-model.trim="shippingAddress.postcode" type="text" :placeholder="shippingFields.postcode?.label || t('fan_booking_postcode')" class="col-span-1 h-10 px-3 rounded-md border border-white/20 bg-transparent text-sm text-white focus:outline-none focus:border-[#22CCEE]" />
+            <select v-model="shippingAddress.country" :aria-label="t('fan_booking_country')" data-testid="booking-shipping-country" class="col-span-1 h-10 px-3 rounded-md border border-white/20 bg-[#0C111D] text-sm text-white" @change="shippingAddress.state = ''; shippingAddress.postcode = ''; shippingError = ''">
+              <option value="">{{ t('fan_booking_country') }}</option>
+              <option v-for="(label, code) in checkoutDetails?.shipping_countries" :key="code" :value="code">{{ label }}</option>
+            </select>
+            <label class="col-span-2 flex items-center gap-2 text-sm text-white"><input v-model="saveShippingAddress" type="checkbox" />{{ t('fan_booking_save_shipping_address') }}</label>
+            <button
+              type="button"
+              :disabled="!shippingAddressComplete || isUpdatingShipping"
+              class="col-span-2 h-10 rounded-md bg-[#22CCEE] text-[#0C111D] text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+              @click="updateShippingAddress"
+            >
+              {{ isUpdatingShipping ? t('fan_booking_updating_shipping') : t('fan_booking_update_shipping') }}
+            </button>
+          </div>
+          <p v-if="shippingWarning" role="alert" class="text-xs text-red-400 font-medium">{{ shippingWarning }}</p>
+          <div v-if="!shippingExpanded" class="text-sm text-white whitespace-pre-line">{{ shippingAddress.first_name }} {{ shippingAddress.last_name }}<br />{{ shippingAddress.address_1 }} {{ shippingAddress.address_2 }}<br />{{ shippingAddress.city }}, {{ shippingStates[shippingAddress.state] || shippingAddress.state }} {{ shippingAddress.postcode }}<br />{{ checkoutDetails?.shipping_countries?.[shippingAddress.country] }}</div>
       </div>
       <!-- /Shipping Address -->
 
@@ -666,6 +1221,7 @@ onBeforeUnmount(() => {
           <div v-show="isPaymentSummaryOpen" class="flex flex-col gap-4">
             <div class="flex flex-col gap-2">
               <div class="flex flex-col gap-2">
+                <template v-if="requiresTopUp">
                 <div class="flex flex-row justify-between items-center text-white">
                   <div class="flex items-center">
                     <p class="text-sm font-normal text-white">{{ t("fan_booking_original_balance") }}</p>
@@ -715,30 +1271,41 @@ onBeforeUnmount(() => {
                     <p data-testid="top-up-balance-after-booking" class="text-lg font-semibold text-white">{{ balanceAfterBooking.toLocaleString() }}</p>
                   </div>
                 </div>
+                </template>
                 <!-- Mandatory purchase -->
-                <div class="_flex hidden flex-col gap-2 border-t border-[#98A2B3]/50 pt-2">
+                <div v-if="hasPrerequisite && prerequisiteProduct" class="flex flex-col gap-2 border-t border-[#98A2B3]/50 pt-2">
                   <div class="flex gap-2 items-center">
-                    <h4 class="text-sm font-medium text-white">MANDATORY PURCHASE</h4>
+                    <h4 class="text-sm font-medium text-white">{{ prerequisiteLabel }}</h4>
                     <TooltipIcon 
                     class="!w-4 !h-4 relative !mt-0"
-                    :text="'Dummy text'" side="right" />
+                    :text="t('fan_booking_mandatory_purchase_help')" side="right" />
                   </div>
                   <!-- Content -->
                   <div class="flex items-center gap-2">
                     <div class="w-[2.625rem] h-[2.625rem] rounded-[4px] overflow-hidden">
-                      <img src="https://media.istockphoto.com/id/1364991519/photo/feet-in-modern-finger-socks.jpg?s=1024x1024&w=is&k=20&c=yTa5WXlblYuJi2Hu_e2XJzNm8kvFovig_4vzKbFunJs=" alt="token-icon" />
+                      <img :src="prerequisiteProduct.image_url" :alt="prerequisiteProductTitle" class="w-full h-full object-cover" />
                     </div>
                     <div class="flex-1 flex flex-col gap-1">
                       <div class="flex items-center justify-between">
-                        <span class="text-sm font-semibold text-white">Worn sock available</span>
-                        <span class="text-sm font-semibold text-white text-right">USD$ 25.99</span>
+                          <span class="text-sm font-semibold text-white">{{ prerequisiteProductTitle }}</span>
+                          <span class="text-sm font-semibold text-white text-right">
+                            {{ isPrerequisitePaid ? t('fan_booking_paid') : `USD$ ${prerequisitePrice.toFixed(2)}` }}
+                          </span>
                       </div>
+                      <p v-if="prerequisite?.action === 'switch'" class="text-xs text-[#FCE40D] text-right" data-testid="booking-payment-recurring-plan-price">{{ t('fan_booking_recurring_plan_price', { amount: Number(prerequisiteProduct.price || 0).toFixed(2) }) }}</p>
                       <div class="flex items-center justify-between">
                         <div class="flex items-center gap-1">
-                          <span><img :src="bookingFlowTruckIcon" alt=""></span>
-                          <span class="text-xs text-[#FCE40D]">Ships to <a href="#" class="text-xs text-[#FCE40D] underline">Taiwan</a> only</span>
+                          <span v-if="requiresShipping"><img :src="bookingFlowTruckIcon" alt=""></span>
+                          <span v-if="requiresShipping" class="text-xs text-[#FCE40D]" data-testid="booking-payment-shipping-destination">
+                            <template v-if="prerequisite?.shipping?.is_merch && prerequisite.shipping.international">{{ t('fan_booking_ships_internationally') }}</template>
+                            <template v-else>
+                              {{ t('fan_booking_ships_to') }}
+                              <button type="button" class="text-xs text-[#FCE40D] underline" @click="shippingExpanded = true">{{ prerequisite?.shipping?.is_merch ? prerequisite.shipping.country : checkoutDetails?.shipping_countries?.[shippingAddress.country] || t('fan_booking_checkout_address') }}</button>
+                              <template v-if="prerequisite?.shipping?.is_merch && prerequisite.shipping.international === false">{{ ' ' + t('fan_booking_shipping_only') }}</template>
+                            </template>
+                          </span>
                         </div>
-                        <span class="text-sm text-[#FCE40D] text-right">Free shipping</span>
+                        <span v-if="requiresShipping" class="text-sm text-[#FCE40D] text-right" data-testid="booking-payment-shipping-cost">{{ shippingCostLabel }}</span>
                       </div>
                     </div>
                   </div>
@@ -746,14 +1313,20 @@ onBeforeUnmount(() => {
                 </div>
                 <!-- /Mandatory purchase -->
                 <hr class="border-[#F2F4F7] opacity-50" />
-                <div class="flex flex-row justify-between items-start text-white">
-                  <p class="text-xl font-semibold text-white">{{ t("fan_booking_amount_due_today_title") }}</p>
-                  <div class="flex flex-col">
-                    <div class="flex justify-end items-center gap-0.5">
-                      <div class="w-4 h-4 flex justify-center items-center"><img :src="bookingFlowTokenIcon" alt="token-icon" /></div>
-                      <p class="text-xl font-semibold">{{ selectedAmount.toLocaleString() }}</p>
+                <div data-testid="top-up-amount-due-today" class="flex flex-row justify-between items-start gap-2 text-white">
+                  <p class="text-lg leading-7 font-bold text-white uppercase">{{ t("fan_booking_amount_due_today_title") }}</p>
+                  <div class="flex flex-1 min-w-0 flex-col items-end gap-0.5">
+                    <div class="flex flex-wrap justify-end items-center gap-0.5 text-lg leading-7 font-semibold">
+                      <div v-if="requiresTopUp" class="flex items-center gap-0.5 whitespace-nowrap">
+                        <div class="w-4 h-4 flex justify-center items-center"><img :src="bookingFlowTokenIcon" alt="token-icon" /></div>
+                        <p>{{ selectedAmount.toLocaleString() }}</p>
+                      </div>
+                      <template v-if="isPrerequisiteCheckout">
+                        <span v-if="requiresTopUp">+</span>
+                        <p class="whitespace-nowrap">USD${{ prerequisiteOrderUsd.toFixed(2) }}</p>
+                      </template>
                     </div>
-                    <span class="text-sm font-normal text-[#98A2B3] whitespace-nowrap hidden">=USD$ {{ topUpUSD }}</span>
+                    <span data-testid="top-up-amount-due-usd" class="text-sm leading-5 font-normal text-[#FCE40D] whitespace-nowrap">=USD$ {{ amountDueUsd.toFixed(2) }}</span>
                   </div>
                 </div>
               </div>
@@ -767,7 +1340,7 @@ onBeforeUnmount(() => {
       </div>
     </div>
     <!-- Submit button -->
-       <div class="flex-none flex justify-end z-[99] fixed bottom-0 left-0 w-full">
+       <div v-show="!prerequisiteReviewOpen" :inert="prerequisiteReviewOpen || undefined" class="flex-none flex justify-end z-[99] fixed bottom-0 left-0 w-full">
         <button
             type="button"
             :disabled="!canSubmit"
@@ -777,7 +1350,7 @@ onBeforeUnmount(() => {
           >
           <div class="relative h-full px-4 lg:rounded-br-[20px] flex justify-center items-center gap-2 after:content-[''] after:absolute after:right-full after:top-0 after:w-0 after:h-16 after:border-t-[4rem] after:border-t-transparent after:border-b-0 bg-[#07F468] after:border-r-[1rem] after:border-r-[#07F468]"
           :class="canSubmit ? 'bg-[#07F468] text-black cursor-pointer' : 'bg-[#6c7280] text-black/60 cursor-not-allowed after:border-r-[#6c7280]'">
-            <span class="whitespace-nowrap text-lg font-medium text-[#0C111D]">{{ isProcessing ? t('fan_booking_processing') : isFormLoading ? t('fan_booking_loading_form') : t('fan_booking_top_up_complete_booking_spaced') }}</span>
+            <span class="whitespace-nowrap text-lg font-medium text-[#0C111D]">{{ isProcessing ? t('fan_booking_processing') : isFormLoading ? t('fan_booking_loading_form') : paymentButtonLabel }}</span>
             <img :src="bookingFlowArrowRightIcon" alt="" class="w-4 h-4" />
           </div>
           </button>

@@ -5,6 +5,7 @@ import { useBookingTranslations } from '@/i18n/bookingTranslations.js';
 const props = defineProps({
   initialEmail: { type: String, default: '' },
   orderId:      { type: [Number, String], default: 0 },
+  checkoutContext: { type: Object, default: null },
 });
 
 const emit = defineEmits(['update:email', 'login', 'logout']);
@@ -14,7 +15,7 @@ const parentUserData  = window?.userData || window?.parent?.userData || null;
 const guestSection    = ref((Number(parentUserData?.userID) && Number(parentUserData?.userID) > 0) ? 'loggedin' : 'guest-register');
 const userData        = ref(parentUserData);
 const userExists      = ref(false);
-const guestEmail      = ref(props.initialEmail || window?.custom_checkout_params?.user?.email);
+const guestEmail      = ref(props.initialEmail || window?.custom_checkout_params?.user?.email || '');
 const guestPassword   = ref('');
 const isCheckingEmail = ref(false);
 const isLoggingIn     = ref(false);
@@ -83,6 +84,11 @@ async function login() {
     body.append('is_has_merch',            0);
     body.append('items',                   '');
     body.append('from',                    'vue');
+    if (props.checkoutContext) {
+      Object.entries(props.checkoutContext).forEach(([key, value]) => {
+        body.set(key, typeof value === 'object' ? JSON.stringify(value) : String(value ?? ''));
+      });
+    }
     const res = await fetch('/wp-admin/admin-ajax.php?action=fs_guest_checkout_login', {
       method: 'POST',
       body,
@@ -103,6 +109,8 @@ async function login() {
     guestSection.value = 'loggedin';
     emit('update:email', window.userData.userEmail || guestEmail.value);
     emit('login', res);
+  } catch {
+    guestError.value = t('fan_booking_guest_login_failed');
   } finally {
     isLoggingIn.value = false;
   }
@@ -120,6 +128,11 @@ async function logout() {
     body.append('is_call_checkout',        0);
     body.append('is_has_merch',            0);
     body.append('from',                    'vue');
+    if (props.checkoutContext) {
+      Object.entries(props.checkoutContext).forEach(([key, value]) => {
+        body.set(key, typeof value === 'object' ? JSON.stringify(value) : String(value ?? ''));
+      });
+    }
     const res = await fetch('/wp-admin/admin-ajax.php?action=fs_guest_checkout_logout', {
       method: 'POST',
       body,
@@ -138,6 +151,8 @@ async function logout() {
     guestSection.value = 'guest-register';
     emit('update:email', '');
     emit('logout', res);
+  } catch {
+    guestError.value = t('fan_booking_guest_logout_failed');
   } finally {
     isLoggingOut.value = false;
   }
@@ -145,7 +160,8 @@ async function logout() {
 
 defineExpose({
   requiresLogin: computed(() =>
-    guestSection.value === 'login' || guestSection.value === 'forgot-password'
+    isCheckingEmail.value || isLoggingIn.value || isLoggingOut.value
+    || guestSection.value === 'login' || guestSection.value === 'forgot-password'
     || (guestSection.value === 'guest-register' && userExists.value)
   ),
 });

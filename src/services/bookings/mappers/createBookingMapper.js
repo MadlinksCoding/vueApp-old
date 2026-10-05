@@ -8,6 +8,7 @@ import {
 import { formatLocalDateIso } from "@/services/bookings/utils/bookingSlotUtils.js";
 
 const DEFAULT_FAN_TIMEZONE = "Asia/Hong_Kong";
+export const MAX_EVENT_GOAL_CONTRIBUTION_TOKENS = 14000;
 
 function safeNumber(value, fallback = 0) {
   const parsed = Number(value);

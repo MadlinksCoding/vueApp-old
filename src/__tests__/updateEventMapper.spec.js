@@ -107,6 +107,19 @@ describe("updateEventMapper", () => {
     expect(mapped.offHourSurchargePercent).toBeUndefined();
   });
 
+  it("clears a previously selected prerequisite when access changes to everyone", () => {
+    const mapped = updateEventMapper(makeGroupEditPayload({
+      spendingRequirement: "none",
+      requiredProducts: [{ id: 5594, type: "subscription" }],
+    }), {
+      creatorId: 1407,
+    });
+
+    expect(mapped.whoCanBook).toBe("everyone");
+    expect(mapped.spendingRequirement).toBe("none");
+    expect(mapped.requiredProducts).toEqual([]);
+  });
+
   it("always includes enabled reminder and buffer settings in edit payloads", () => {
     const mapped = updateEventMapper(makeGroupEditPayload({
       setReminders: false,

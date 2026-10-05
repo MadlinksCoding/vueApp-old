@@ -75,6 +75,7 @@ function productToProduct(row = {}) {
   return {
     id: toNumericId(row?.id),
     type: "product",
+    subscriberExclusive: asBoolean(row?.subscriber_exclusive),
     title: toStringValue(row?.title, "Untitled Product"),
     buyPrice: buyPrice > 0 ? buyPrice : null,
     subscribePrice: subscribePrice > 0 ? subscribePrice : null,

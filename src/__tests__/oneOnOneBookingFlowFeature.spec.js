@@ -8,6 +8,7 @@ let availableEvents;
 let chatSocketInit;
 const callFlow = vi.fn();
 const showToast = vi.fn();
+const stepOneMounted = vi.fn();
 
 function setByPath(target, path, value) {
   const segments = String(path).split(".");
@@ -133,15 +134,16 @@ vi.mock("@/components/ui/toast/ToastHost.vue", () => ({
 vi.mock("@/components/FanBookingFlow/OneOnOneBookingFlow/BookingFlowStep1.vue", () => ({
   default: {
     name: "BookingFlowStep1",
-    props: ["step1PrimaryAction"],
+    mounted: stepOneMounted,
+    props: ["step1PrimaryAction", "requestEventBooking"],
     emits: ["edit-schedule"],
     template: `
-      <button
+      <div><button data-test="step-1-book" @click="requestEventBooking?.()">Book call</button><button
         data-test="step-1"
         @click="$emit('edit-schedule', { eventId: 'evt_step1_edit', title: 'Step 1 Edit' })"
       >
         Step 1 {{ step1PrimaryAction }}
-      </button>
+      </button></div>
     `,
   },
 }));
@@ -188,6 +190,7 @@ describe("OneOnOneBookingFlowFeature", () => {
     availableEvents = [];
     chatSocketInit = vi.fn();
     showToast.mockReset();
+    stepOneMounted.mockReset();
     callFlow.mockReset();
 
     engine = createMockEngine();
@@ -212,6 +215,173 @@ describe("OneOnOneBookingFlowFeature", () => {
 
   afterEach(() => {
     vi.unstubAllGlobals();
+  });
+
+  function domesticMerchValidation(overrides = {}) {
+    return {
+      must_own_products_ok: false,
+      prerequisite: {
+        eligible: false, action: 'buy', type: 'product',
+        product: { id: 39393, title: 'Local merch', price: 25, regular_price: 50, image_url: '/merch.jpg' },
+        shipping: { required: true, is_merch: true, international: false, country_code: 'TW', country: 'Taiwan' },
+        ...overrides,
+      },
+    };
+  }
+
+  async function mountMerchBooking(validation, { eventId = 'evt_merch', spendingRequirement = 'mustOwnProducts' } = {}) {
+    availableEvents = [{ eventId: 'evt_merch', title: 'Merch call', spendingRequirement, requiredProducts: [{ id: 39393, type: 'product' }] }];
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => validation });
+    vi.stubGlobal('fetch', fetchMock);
+    const { default: Feature } = await import('@/components/FanBookingFlow/OneOnOneBookingFlow/OneOnOneBookingFlowFeature.vue');
+    const wrapper = mount(Feature, { props: { creatorId: 1407, fanId: 2615, eventId, creatorData: { name: 'Creator' } } });
+    await flushPromises();
+    await nextTick();
+    return { wrapper, fetchMock };
+  }
+
+  it('keeps the payment step and booking selection when inline login refreshes the fan', async () => {
+    const { wrapper } = await mountMerchBooking(domesticMerchValidation({ eligible: true, action: 'none' }));
+    try {
+      engine.step = 3;
+      engine.substep = 'topup';
+      engine.state.bookingDetails = { selectedDate: '2026-10-21', selectedTime: { value: '01:00' }, addons: [{ title: 'Keep addon' }] };
+      engine.goToStep.mockClear();
+      engine.forceSubstep.mockClear();
+      await wrapper.setProps({ fanId: 8136 });
+      await flushPromises();
+      expect(engine.step).toBe(3);
+      expect(engine.substep).toBe('topup');
+      expect(engine.goToStep).not.toHaveBeenCalled();
+      expect(engine.forceSubstep).not.toHaveBeenCalled();
+      expect(engine.state.fanBooking.context.selectedEventId).toBe('evt_merch');
+      expect(engine.state.bookingDetails).toMatchObject({ selectedDate: '2026-10-21', selectedTime: { value: '01:00' }, addons: [{ title: 'Keep addon' }] });
+    } finally { wrapper.unmount(); }
+  });
+
+  it('shows domestic merch shipping confirmation before the calendar and continues without creating an order', async () => {
+    const { wrapper, fetchMock } = await mountMerchBooking(domesticMerchValidation());
+    expect(engine.step).toBe(1);
+    expect(wrapper.find('[data-test="step-2"]').exists()).toBe(false);
+    const prompt = wrapper.get('[data-testid="merch-shipping-confirmation"]');
+    expect(prompt.text()).toContain('Local merch');
+    expect(prompt.text()).toContain('USD$25.00');
+    expect(prompt.text()).toContain('50% off');
+    expect(prompt.text()).toContain('Taiwan');
+    expect(prompt.get('img[alt="Local merch"]').attributes('src')).toBe('/merch.jpg');
+    expect(prompt.classes()).toEqual(expect.arrayContaining(['max-w-[510px]', 'md:p-5', 'gap-3', 'rounded-[15px]', 'bg-black/90']));
+    expect(fetchMock).toHaveBeenCalledWith('/wp-json/api/bookings/validate', expect.objectContaining({
+      credentials: 'same-origin', body: JSON.stringify({ user_id: 2615, must_own_products: [{ id: 39393, type: 'product' }], include_checkout_details: true }),
+    }));
+    await wrapper.get('[data-testid="merch-shipping-confirm"]').trigger('click');
+    expect(engine.step).toBe(2);
+    expect(wrapper.find('[data-testid="merch-shipping-confirmation"]').exists()).toBe(false);
+    expect(engine.state.fanBooking.prerequisite.validation.prerequisite.product.id).toBe(39393);
+    expect(callFlow.mock.calls.every(([flow]) => flow === 'bookings.fetchCreatorBookingContext')).toBe(true);
+    wrapper.unmount();
+  });
+
+  it('goes back to the profile without advancing or purchasing when shipping is declined', async () => {
+    const { wrapper } = await mountMerchBooking(domesticMerchValidation());
+    await wrapper.get('[data-testid="merch-shipping-cancel"]').trigger('click');
+    await flushPromises();
+    expect(engine.step).toBe(1);
+    expect(wrapper.emitted('close-request')).toHaveLength(1);
+    wrapper.unmount();
+  });
+
+  it.each(['upgrade', 'downgrade'])('shows the %s notice at booking entry before choosing a slot', async (switchType) => {
+    const validation = domesticMerchValidation({
+      type: 'subscription', action: 'switch', shipping: { required: false },
+      product: { id: 39393, title: 'Generic subscription', variation_title: 'Required Tier', price: 25, regular_price: 50, image_url: '/new-tier.jpg' },
+      subscription: { period: 'month', next_payment_date: 'November 1, 2026', current_tier: { id: 91, title: 'Generic current', variation_title: 'Current Tier Name', price: 10, image_url: '/current-tier.jpg' } },
+      checkout: { subscription_id: 9000, switch_type: switchType },
+    });
+    const { wrapper, fetchMock } = await mountMerchBooking(validation);
+    const prompt = wrapper.get('[data-testid="booking-prerequisite-review"]');
+    expect(engine.step).toBe(1);
+    expect(prompt.text()).toContain('Current Tier Name');
+    expect(prompt.text()).toContain('Required Tier');
+    expect(prompt.text()).toContain('USD$25.00');
+    expect(prompt.text()).toContain('50% off');
+    expect(prompt.text()).toContain('November 1, 2026');
+    expect(prompt.text()).toContain(switchType === 'downgrade' ? 'next billing cycle' : 'next billing date');
+    expect(prompt.get('img[alt="Required Tier"]').attributes('src')).toBe('/new-tier.jpg');
+    await wrapper.get('[data-testid="booking-prerequisite-review-confirm"]').trigger('click');
+    expect(engine.step).toBe(2);
+    expect(engine.state.fanBooking.prerequisite.confirmedSwitch).toContain('39393');
+    expect(fetchMock.mock.calls.filter(([url]) => url === '/wp-json/api/bookings/validate')).toHaveLength(1);
+    // The notice acknowledges the required switch; it does not execute one.
+    expect(callFlow.mock.calls.every(([flow]) => flow === 'bookings.fetchCreatorBookingContext')).toBe(true);
+    wrapper.unmount();
+  });
+
+  it('returns to the profile when the required tier switch is declined', async () => {
+    const { wrapper } = await mountMerchBooking(domesticMerchValidation({ type: 'subscription', action: 'switch', shipping: { required: false } }));
+    await wrapper.get('[data-testid="booking-prerequisite-review-cancel"]').trigger('click');
+    expect(engine.step).toBe(1);
+    expect(engine.state.fanBooking.prerequisite.confirmedSwitch).toBeUndefined();
+    expect(wrapper.emitted('close-request')).toHaveLength(1);
+    wrapper.unmount();
+  });
+
+  it('checks subscription-typed requirements and prompts on a Step 1 booking click', async () => {
+    const { wrapper } = await mountMerchBooking(domesticMerchValidation({ type: 'subscription', action: 'switch', shipping: { required: false } }), { eventId: null });
+    availableEvents[0].requiredProducts[0].type = 'subscription';
+    engine.setState('fanBooking.context.selectedEvent', availableEvents[0]);
+    await wrapper.get('[data-test="step-1-book"]').trigger('click');
+    await flushPromises();
+    expect(wrapper.find('[data-testid="booking-prerequisite-review"]').exists()).toBe(true);
+    await wrapper.get('[data-testid="booking-prerequisite-review-cancel"]').trigger('click');
+    expect(engine.step).toBe(1);
+    expect(wrapper.emitted('close-request')).toBeUndefined();
+    wrapper.unmount();
+  });
+
+  it.each([
+    ['existing owner', { eligible: true, action: 'none' }],
+    ['international merch', { shipping: { required: true, is_merch: true, international: true, country: 'Taiwan' } }],
+    ['virtual product', { shipping: { required: false, is_merch: true, international: false } }],
+    ['non-merch product', { shipping: { required: true, is_merch: false, international: false } }],
+  ])('does not interrupt booking for %s', async (_name, overrides) => {
+    const { wrapper } = await mountMerchBooking(domesticMerchValidation(overrides));
+    expect(engine.step).toBe(2);
+    expect(wrapper.find('[data-testid="merch-shipping-confirmation"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('uses the same confirmation for a Book call click inside step 1 and returns to that card', async () => {
+    const { wrapper } = await mountMerchBooking(domesticMerchValidation(), { eventId: null });
+    engine.setState('fanBooking.context.selectedEvent', availableEvents[0]);
+    await wrapper.get('[data-test="step-1-book"]').trigger('click');
+    await flushPromises();
+    expect(wrapper.find('[data-testid="merch-shipping-confirmation"]').exists()).toBe(true);
+    await wrapper.get('[data-testid="merch-shipping-cancel"]').trigger('click');
+    expect(engine.step).toBe(1);
+    expect(wrapper.emitted('close-request')).toBeUndefined();
+    wrapper.unmount();
+  });
+
+  it('ignores stale attached products when the event now permits everyone', async () => {
+    const { wrapper, fetchMock } = await mountMerchBooking(domesticMerchValidation(), { spendingRequirement: 'everyone' });
+    expect(engine.step).toBe(2);
+    expect(fetchMock.mock.calls.some(([url]) => url === '/wp-json/api/bookings/validate')).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('stays on the selected card when the shipping check fails and permits a retry', async () => {
+    const { wrapper, fetchMock } = await mountMerchBooking(domesticMerchValidation(), { eventId: null });
+    engine.setState('fanBooking.context.selectedEvent', availableEvents[0]);
+    fetchMock.mockResolvedValueOnce({ ok: false, json: async () => ({ message: 'Please try again.' }) });
+    await wrapper.get('[data-test="step-1-book"]').trigger('click');
+    await flushPromises();
+    expect(engine.step).toBe(1);
+    expect(wrapper.find('[data-testid="merch-shipping-confirmation"]').exists()).toBe(false);
+    expect(showToast).toHaveBeenCalledWith(expect.objectContaining({ type: 'error', message: 'Please try again.' }));
+    await wrapper.get('[data-test="step-1-book"]').trigger('click');
+    await flushPromises();
+    expect(wrapper.find('[data-testid="merch-shipping-confirmation"]').exists()).toBe(true);
+    wrapper.unmount();
   });
 
   it("loads booking context from explicit creator and fan props and forwards apiBaseUrl", async () => {
@@ -301,6 +471,39 @@ describe("OneOnOneBookingFlowFeature", () => {
       isVerified: true,
     });
     expect(engine.state.fanBooking.context.creatorPresentationLoading).toBe(false);
+  });
+
+  it.each(['prop', 'query'])('never mounts Step 1 during a direct card open while catalog and prerequisite checks are pending (%s)', async (entry) => {
+    let resolveCatalog;
+    let resolveEligibility;
+    const originalUrl = window.location.href;
+    if (entry === 'query') window.history.replaceState({}, '', '?eventId=evt_selected');
+    callFlow.mockImplementationOnce(() => new Promise((resolve) => { resolveCatalog = resolve; }));
+    vi.stubGlobal('fetch', vi.fn(() => new Promise((resolve) => { resolveEligibility = resolve; })));
+    const { default: Feature } = await import('@/components/FanBookingFlow/OneOnOneBookingFlow/OneOnOneBookingFlowFeature.vue');
+    const wrapper = mount(Feature, { props: {
+      creatorId: 1407, fanId: 12, creatorData: { name: 'Creator' },
+      ...(entry === 'prop' ? { eventId: 'evt_selected' } : {}),
+    } });
+    try {
+      expect(wrapper.find('[data-test="step-1"]').exists()).toBe(false);
+      await flushPromises();
+      expect(wrapper.find('[data-test="booking-flow-step-loading-skeleton"]').exists()).toBe(true);
+      expect(wrapper.find('[data-test="booking-flow-close-button"]').exists()).toBe(true);
+      engine.state.fanBooking.catalog.events = [{ eventId: 'evt_selected', requiredProducts: [{ id: 42, type: 'media' }] }];
+      resolveCatalog({ ok: true });
+      await flushPromises();
+      expect(wrapper.find('[data-test="booking-flow-step-loading-skeleton"]').exists()).toBe(true);
+      expect(wrapper.find('[data-test="step-1"]').exists()).toBe(false);
+      resolveEligibility({ ok: true, json: async () => ({ prerequisite: { eligible: false, action: 'buy', shipping: { required: false } } }) });
+      await flushPromises();
+      expect(wrapper.find('[data-test="step-2"]').exists()).toBe(true);
+      expect(wrapper.find('[data-test="booking-flow-step-loading-skeleton"]').exists()).toBe(false);
+      expect(stepOneMounted).not.toHaveBeenCalled();
+    } finally {
+      wrapper.unmount();
+      window.history.replaceState({}, '', originalUrl);
+    }
   });
 
   it("starts on step 2 when a valid eventId prop matches the loaded catalog", async () => {
