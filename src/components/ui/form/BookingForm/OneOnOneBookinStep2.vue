@@ -21,7 +21,7 @@ import OrangeMinusIcon from "@/assets/images/icons/minus-square.webp";
 import ArrowDownIcon from '@/assets/images/icons/arrows-down.svg';
 import FaceWinkIcon from "@/assets/images/icons/face-wink.svg"
 import XIcon from "@/assets/images/icons/X.svg"
-import User3Icon from "@/assets/images/icons/users-03.svg"
+import User3Icon from "@/assets/images/icons/users-03-new.svg"
 import SettingsIcon from "@/assets/images/icons/settings-02.svg"
 import { showToast } from "@/utils/toastBus.js";
 import {
@@ -2044,7 +2044,7 @@ const createEvent = async () => {
 
     <div v-if="!isGroupBooking" class="w-full bg-[#D0D5DD] h-[1px]"></div>
 
-    <BookingSectionsWrapper :title="t('booking_audience_settings')" :leftIcon=User3Icon
+    <BookingSectionsWrapper :title="t('booking_audience_settings')" :leftIcon=User3Icon leftIconClass="h-5.5 w-5.5"
       :accordionIcon=ArrowDownIcon :is-open="sectionsState.audienceSettings"
       @toggle="toggleSection('audienceSettings')">
       <div v-show="sectionsState.audienceSettings" class="flex flex-col gap-5 mt-5">

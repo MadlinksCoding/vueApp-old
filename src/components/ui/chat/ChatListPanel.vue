@@ -264,7 +264,7 @@ function getLastMessageText(chat) {
 <template>
   <div
     v-bind="$attrs"
-    class="absolute w-[28.125rem] z-[9999] rounded-[0.625rem] flex flex-col overflow-hidden py-1.5"
+    class="absolute w-[28.125rem] z-[9999] shadow-[0px_0px_14px_-4px_rgba(0,0,0,0.64)] rounded-[0.625rem] flex flex-col overflow-hidden py-1.5"
     :class="[
       (hideFloatingButton || isEmbedded) && hostWidth >= 768 ? 'h-[37.5rem]' : 'h-[35.5rem]',
       hostWidth < 768 ? '!fixed !bottom-0 !top-auto !left-0 !right-0 !w-full  !mb-0 !mt-0 !rounded-t-[0.625rem] !rounded-b-none' : '',

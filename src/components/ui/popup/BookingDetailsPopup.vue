@@ -244,7 +244,7 @@
 
           <div v-if="showMenu && !canReviewBooking" class="right-4 top-[16px] absolute z-20 inline-flex items-start gap-1">
             <div data-svg-wrapper class="relative">
-              <button type="button" class="flex h-8 w-8 cursor-pointer items-center justify-center rounded hover:bg-black/20" :aria-label="t('fan_event_details_booking_actions')" :aria-expanded="menuOpen" data-test="event-details-fan-menu" @click.stop="toggleMenu">
+              <button type="button" class="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full bg-[rgba(29,29,29,0.5)]" :aria-label="t('fan_event_details_booking_actions')" :aria-expanded="menuOpen" data-test="event-details-fan-menu" @click.stop="toggleMenu">
                 <img :src="DotsWhiteIcon" alt="" class="cursor-pointer" />
               </button>
               <div v-if="menuOpen" class="absolute right-0 top-9 z-[1200] w-[14rem] rounded-[0.375rem] border border-[#EAECF0] bg-white shadow-[0_10px_20px_rgba(0,0,0,0.15)] overflow-hidden" data-test="event-details-fan-menu-dropdown" @click.stop>
@@ -260,11 +260,11 @@
                 </button>
               </div>
             </div>
-            <button type="button" data-svg-wrapper class="flex h-8 w-8 cursor-pointer items-center justify-center rounded hover:bg-black/20" :aria-label="t('common_close')" data-test="event-details-fan-close" @click.stop="closePanel">
+            <button type="button" data-svg-wrapper class="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full bg-[rgba(29,29,29,0.5)]" :aria-label="t('common_close')" data-test="event-details-fan-close" @click.stop="closePanel">
               <img :src="CloseIcon" alt="" class="h-6 w-6" />
             </button>
           </div>
-          <button v-else type="button" data-svg-wrapper class="right-4 top-[16px] absolute z-20 cursor-pointer" :aria-label="t('common_close')" data-test="event-details-fan-close" @click="closePanel">
+          <button v-else type="button" data-svg-wrapper class="right-4 top-[16px] flex items-center justify-center rounded-full h-8 w-8 absolute z-20 cursor-pointer bg-[rgba(29,29,29,0.5)]" :aria-label="t('common_close')" data-test="event-details-fan-close" @click="closePanel">
             <img :src="CloseIcon" alt="" class="cursor-pointer h-6 w-6" />
           </button>
         </div>
