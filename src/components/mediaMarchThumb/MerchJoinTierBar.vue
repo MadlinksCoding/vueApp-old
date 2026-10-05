@@ -14,12 +14,12 @@
       </svg>
     </span>
       <!-- Top Row: JOIN + Icon + Tier Name -->
-      <div class="flex items-center justify-center gap-1.5 flex-wrap">
+      <div class="flex items-center justify-center gap-1.5">
         <span class="text-white text-base sm:text-xl font-extrabold italic tracking-wide uppercase">
           JOIN
         </span>
         <span class="text-base sm:text-lg">{{ tierIcon }}</span>
-        <span class="text-white text-base sm:text-xl font-extrabold italic tracking-wide">
+        <span class="text-white text-base sm:text-xl font-extrabold italic tracking-wide line-clamp-1">
           {{ formattedTierName }}
         </span>
       </div>

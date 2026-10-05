@@ -21,7 +21,7 @@
     ></div>
 
     <!-- Top Overlay Badges -->
-    <div class="absolute top-3 left-3 right-3 flex items-start justify-between gap-1 pointer-events-none z-20">
+    <div class="absolute top-3 left-3 right-3 flex items-start justify-between gap-1 pointer-events-none z-30">
       <div class="flex flex-wrap items-center gap-1">
         <span
           v-if="item.badgePreorder"
@@ -40,18 +40,25 @@
 
     <!-- Merch Image Container -->
     <div class="w-full aspect-square relative bg-slate-900 overflow-hidden">
-      <img
+      <!-- Background Image -->
+        <div class="absolute inset-0 bg-cover bg-center bg-no-repeat" :style="{ backgroundImage: `url(${item.image})` }">
+        </div>
+        <!-- Blur Overlay -->
+        <div class="w-full h-full backdrop-blur-[24px] absolute inset-0 z-10"></div>
+      <div class="w-full h-full relative z-20">
+        <img
         :src="item.image"
         :alt="item.title"
         class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
         @load="onImageLoad"
       />
+      </div>
     </div>
 
     <!-- Bottom Content: Title, Price, Buy Now button -->
-    <div class="w-full absolute bottom-0 left-0 z-10 flex flex-col gap-2">
+    <div class="w-full absolute bottom-0 left-0 z-30 flex flex-col gap-0">
       <!-- Title & Price Content -->
-      <div class="p-2.5 pb-4 sm:px-3 sm:pt-3 sm:pb-4 flex flex-col gap-2 flex-1 justify-between">
+      <div class="p-2.5 pb-4 sm:px-3 sm:pt-3 sm:pb-2 flex flex-col gap-2 flex-1 justify-between">
         <h3 class="text-[#F5F5F4] text-xs sm:text-sm font-semibold line-clamp-1 leading-snug" :title="item.title">
           {{ item.title }}
         </h3>
