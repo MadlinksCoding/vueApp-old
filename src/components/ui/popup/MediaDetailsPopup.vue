@@ -1,6 +1,6 @@
 <template>
-    <PopupHandler :modelValue="modelValue" @update:modelValue="(val) => emit('update:modelValue', val)"
-      :config="mediaDetailsPopupConfig">
+    <!-- <PopupHandler :modelValue="modelValue" @update:modelValue="(val) => emit('update:modelValue', val)"
+      :config="mediaDetailsPopupConfig"> -->
       <div
         class="h-full w-full [background:linear-gradient(180deg,rgba(255,255,255,0.00)_0%,rgba(255,255,255,0.10)_50%,rgba(255,255,255,0.02)_100%),#0C111D] 
         md:[0px_0px_10px_-10px_#00000080] font-sans p-0 m-0 box-border overflow-x-hidden overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none]">
@@ -55,7 +55,7 @@
                   </div>
   
                   <!-- Custom Play Button (Mobile) -->
-                  <div class="absolute inset-0 flex justify-center items-center z-[10] cursor-pointer"
+                  <div class="absolute inset-0 hidden justify-center items-center z-[10] cursor-pointer"
                     @click="isMobileVideoActive = true">
                     <div
                       class="p-5 sm:p-11 bg-black/10 rounded-[107.65px] backdrop-blur-[10.23px] inline-flex justify-start items-center gap-2.5">
@@ -97,10 +97,31 @@
                   </div>
   
                   <!-- overlay-items__bottom -->
-                  <div class="flex justify-end items-center">
-                    <!-- logo -->
-                    <img src="https://i.ibb.co.com/wr75MHTr/logo.webp" alt="logo" class="h-16" />
+                  <!-- <div class="flex flex-col items-end gap-1.5 p-2 pr-4">
+                    <img src="https://i.ibb.co.com/wr75MHTr/logo.webp" alt="logo" class="h-16 portrait:hidden" />
+                  </div> -->
+                </div>
+              </div>
+            </div>
+            <div class="fixed bottom-40 sm:bottom-auto sm:absolute sm:top-20 right-0 md:right-5 z-[3]">
+              <div class="flex flex-col items-end gap-1.5">
+                <div class="flex items-center gap-1.5 relative">
+                  <div class="w-[5.563rem] md:w-[8.375rem] overflow-hidden flex flex-col gap-2 backdrop-blur-[10px] rounded-l-lg md:rounded-md bg-[rgba(255,0,102,0.5)] p-2 relative">
+                    <div class="relative h-[4.375rem] w-[4.375rem] md:h-[7.375rem] md:w-[7.375rem] rounded-lg overflow-hidden">
+                      <img :src="merchSlides[0].image" alt="" class="h-full w-full object-cover rounded-lg" />
+                      <div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-1 pb-1 pt-3 text-white">
+                        <div class="text-[0.5rem] leading-3 hidden md:block">{{ merchSlides[0].title }}</div>
+                        <div class="text-[0.5rem] font-semibold leading-3">USD$25</div>
+                      </div>
+                    </div>
+                    <div class="text-center text-xs font-medium uppercase text-white">5+ Exclusive Merch in this tier</div>
                   </div>
+                  <button type="button" class="absolute hidden md:flex h-7 w-7 top-[-0.5rem] right-[-0.5rem]  items-center justify-center rounded-full bg-[#F06] text-white" aria-label="Open exclusive merch">
+                    <svg viewBox="0 0 16 16" class="h-3.5 w-3.5" fill="none" aria-hidden="true"><path d="M4 12L12 4M12 4H6M12 4V10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  </button>
+                  <button type="button" class="absolute flex md:hidden h-5 w-5 top-[-0.5rem] left-[-0.5rem]  items-center justify-center rounded-full bg-[#F06] text-white" aria-label="close exclusive merch">
+                    <img :src="CloseIcon" class="w-4 h-4"/>
+                  </button>
                 </div>
               </div>
             </div>
@@ -129,7 +150,7 @@
   
   
                 <!-- Custom Controls -->
-                <div class="absolute bottom-0 left-0 w-full px-6 py-4 flex flex-col gap-2 z-[20]">
+                <div class="absolute bottom-0 left-0 w-full px-6 py-4 hidden flex-col gap-2 z-[20]">
                   <!-- Progress Bar -->
                   <div class="w-full h-1 bg-white/30 rounded-full cursor-pointer relative" @click="seek">
                     <div class="h-full bg-[#07f468] rounded-full relative" :style="{ width: progress + '%' }">
@@ -173,14 +194,67 @@
   
               <!-- media-details-wrapper (desktop) -->
               <div
-                class="hidden w-full aspect-[16/9] flex-col justify-between gap-4 h-full p-4 md:flex lg:h-screen lg:p-6">
+                class="relative hidden w-full aspect-[16/9] flex-col justify-between gap-4 h-full p-4 md:flex lg:h-screen lg:p-6">
+                <div class="flex justify-between items-center">
                 <!-- close-button -->
                 <div
                   class="flex justify-center items-center w-12 h-12 rounded-full bg-black/30 backdrop-blur-[20px] cursor-pointer">
                   <img @click="emit('update:modelValue', false)" src="https://i.ibb.co.com/bMbk5v87/x-close.webp"
-                    alt="back" class="w-8 h-8 block lg:hidden" />
+                    alt="back" class="w-8 h-8 hidden" />
                   <img @click="emit('update:modelValue', false)" src="https://i.ibb.co.com/HLCwss7q/arrow-left.webp"
-                    alt="back" class="w-8 h-8 hidden lg:block" />
+                    alt="back" class="w-8 h-8 hidden md:block" />
+                </div>
+
+                <div class="flex justify-center items-center w-12 h-12 rounded-full bg-black/30 backdrop-blur-[20px] cursor-pointer">
+                  <img :src="MuteIcon" alt="mute" class="w-9 h-9" />
+                </div>
+                </div>
+                <div class="absolute top-4 right-4 z-[3] hidden w-[32.375rem] overflow-hidden backdrop-blur-xs rounded-lg shadow-[0_8px_30px_rgba(0,0,0,0.45)] [background:linear-gradient(0deg,rgba(255,0,102,0.5)_0%,rgba(255,0,102,0.5)_100%),rgba(0,0,0,0.5)] lg:flex lg:top-24 lg:right-6 [@media(orientation:portrait)_and_(max-width:677px)]:!hidden">
+                  <div class="relative min-h-[10rem] xl:min-h-[12.5rem] w-[10rem] xl:w-[12.5rem] shrink-0 self-stretch">
+                    <div class="relative h-full">
+                      <Splide class="merch-media h-full" :options="merchSliderOptions" aria-label="Member exclusive merch">
+                        <SplideSlide v-for="(slide, index) in merchSlides" :key="index">
+                          <div class="relative h-full min-h-[9.5rem]">
+                            <img :src="slide.image" alt="" class="absolute inset-0 h-full w-full object-cover" />
+                            <div class="absolute inset-x-0 flex justify-center items-end bottom-0 top-0 px-2 xl:px-4 pb-5 xl:pb-8 pt-2 xl:pt-4 [background:linear-gradient(180deg,rgba(0,0,0,0)_50%,rgba(0,0,0,0)_100%),rgba(0,0,0,0.05)]">
+                              <div class="flex items-start justify-between text-white flex-1">
+                                <span class="text-sm xl:text-base font-semibold self-stretch mt-[2px]">{{ slide.title }}</span>
+                                <div class="flex gap-1 items-center">
+                                  <span class="text-sm xl:text-base">USD</span>
+                                  <span class="text-xl xl:text-2xl font-semibold">$25</span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </SplideSlide>
+                      </Splide>
+                      <div class="pointer-events-none absolute right-0 top-0 bg-[#F06] py-0.5 pl-5 pr-2 text-xs font-semibold uppercase tracking-wide text-white [clip-path:polygon(0_0,100%_0,100%_100%,13%_100%)]">Member Exclusive</div>
+                    </div>
+                  </div>
+                  <div class="flex flex-col">
+                    <div class="flex flex-1 flex-col justify-between p-3 text-white">
+                      <p class="text-base">Buy member exclusive merch like ‘原味內衣’ and 10 more when you subscribe to <span class="font-semibold">‘Close Circle’</span> or 1 other tier.</p>
+                    </div>
+                    <button type="button" class="flex items-end justify-between h-[4.5rem] text-white">
+                      <div class="bg-[#F06] px-3 py-1.5 text-left h-full flex-1 flex items-center justify-center flex-col gap-0.5" >
+                        <span class="block text-xl font-bold italic">SUBSCRIBE</span>
+                        <div class="flex gap-1">
+                          <span class="block text-sm ">starting</span>
+                          <span class="block text-sm font-semibold ">USD$29.9/mo</span>
+                        </div>
+                      </div>
+                      <div class="bg-[#0C111D] h-full pl-10 py-2 pr-6 flex items-center justify-center relative">
+                        <div class="absolute left-0 h-full">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="72" viewBox="0 0 24 64" fill="none">
+                            <path d="M0.000102997 68H9.92033H10.0026H9.99193L0.000102997 32H20.677C22.1036 32 22.8181 32.0008 23.2482 31.6766C23.6236 31.3929 23.8743 30.9532 23.9414 30.4637C24.0182 29.9027 23.6982 29.2106 23.0594 27.8305L9.0611 -2.40742C8.86552 -2.84183 8.74239 -3.11294 8.60544 -3.31094L8.46224 -3.48672C8.28613 -3.67299 8.07353 -3.81454 7.8406 -3.90156C7.58396 -3.99718 7.29278 -3.99992 6.7275 -4H0.000102997V68Z" fill="#FF0066"/>
+                          </svg>
+                        </div>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none">
+                        <path d="M9.33325 22.6666L22.6666 9.33325M22.6666 22.6666V9.33325H9.33325" stroke="#FF0066" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                      </svg>
+                      </div>
+                    </button>
+                  </div>
                 </div>
   
                 <!-- media-details-container -->
@@ -196,25 +270,17 @@
                       <!-- user-info -->
                       <div class="flex flex-col">
                         <!-- name & verified-tick -->
-                        <div class="flex items-center gap-1 lg:hidden">
+                        <div class="flex items-center gap-1">
                           <span class="text-xs leading-normal font-semibold text-white">Princess Carrot Pop</span>
-                          <img src="https://i.ibb.co.com/nMhY8CpS/svgviewer-png-output-22.webp" alt="verified-tick"
+                          <img :src="VerifiedIcon" alt="verified-tick"
                             class="w-2.5 h-2.5" />
                         </div>
   
-                        <!-- username -->
-                        <div class="flex items-center gap-2">
-                          <span
-                            class="text-xs leading-normal font-medium text-[#EAECF0] dark:text-[#dddad5] lg:text-sm lg:leading-normal lg:font-semibold lg:text-[#E7E5E4]">@sammisjelly187</span>
-                          <img src="https://i.ibb.co.com/KxpZRPLz/check-verified-03-filled.webp" alt="verified-filled"
-                            class="w-4 h-4 hidden lg:block" />
-                        </div>
-  
                         <!-- followers & likes -->
-                        <div class="flex items-center gap-3 lg:hidden">
+                        <div class="flex items-center gap-3">
                           <!-- followers -->
                           <div class="flex items-center gap-1 h-[1.125rem]">
-                            <img src="https://i.ibb.co.com/MkhnCTJK/user-02.webp" alt="followers"
+                            <img :src="UserIcon" alt="followers"
                               class="w-3.5 h-3.5 [filter:brightness(100%)_saturate(0)]" />
                             <span
                               class="text-xs leading-normal text-[#EAECF0] dark:text-[#dddad5] align-middle">15.2K</span>
@@ -222,7 +288,7 @@
   
                           <!-- likes -->
                           <div class="flex items-center gap-1 h-[1.125rem]">
-                            <img src="https://i.ibb.co.com/YFwpWQnM/heart.webp" alt="likes" class="h-3.5" />
+                            <img :src="HeartNewIcon" alt="likes" class="h-3.5" />
                             <span
                               class="text-xs leading-normal text-[#EAECF0] dark:text-[#dddad5] align-middle">99K</span>
                           </div>
@@ -231,17 +297,17 @@
                     </div>
   
                     <!-- text-container -->
-                    <div class="flex flex-col gap-2 pl-6 border-l-[0.5px] mb-10 border-white lg:gap-5">
+                    <div class="flex flex-col gap-2 pl-6 border-l-[0.5px] border-white lg:gap-5">
                       <p
                         class="text-base font-semibold line-clamp-2 text-white lg:text-[1.75rem] lg:leading-normal lg:line-clamp-3">
                         {{ media.title || 'Record breaking fried chicken eating ! See my attempt to break world’s record!  Watch now!' }}
                       </p>
   
                       <!-- date -->
-                      <div
+                      <!-- <div
                         class="flex justify-center items-center py-1 px-[0.3125rem] rounded-sm h-[1.375rem] w-max min-w-[3rem] max-w-[9.375rem] bg-white/20 cursor-pointer">
                         <span class="text-xs leading-normal capitalize tracking-[0.01875rem] text-white">11/12/23</span>
-                      </div>
+                      </div> -->
   
                       <p class="text-xs leading-loose tracking-[0.0075rem] text-white lg:text-base">
                         Lorem Ipsum I hate the color orange so much I have to close
@@ -282,16 +348,21 @@
                       <!-- likes & upload -->
                       <div class="flex items-center gap-2">
                         <div
-                          class="flex justify-center items-center w-6 h-6 border-[0.5px] border-[#E9E5D340] rounded-full bg-[#E9E5D30D] cursor-pointer">
-                          <img src="https://i.ibb.co.com/2wTKJq2/like-normal.webp" alt="like" class="h-4" />
+                          class="flex justify-center items-center p-2 border-[0.5px] border-[#E9E5D340] rounded-full bg-[#E9E5D30D] cursor-pointer">
+                          <img :src="Heat1Icon" alt="like" class="h-4" />
                         </div>
   
                         <div
-                          class="flex justify-center items-center w-6 h-6 border-[0.5px] border-[#E9E5D340] rounded-full bg-[#E9E5D30D] cursor-pointer">
-                          <img src="https://i.ibb.co.com/pjr9G8tn/upload.webp" alt="upload" class="h-4" />
+                          class="flex justify-center items-center p-2 border-[0.5px] border-[#E9E5D340] rounded-full bg-[#E9E5D30D] cursor-pointer">
+                          <img :src="ShareIcon" alt="upload" class="h-4" />
                         </div>
                       </div>
                     </div>
+                  </div>
+
+                  <!-- Buy & Subscribe buttons -->
+                  <div class="hidden lg:flex">
+                    <BuySubscribeBar />
                   </div>
   
                   <!-- buttons-wrapper -->
@@ -368,6 +439,38 @@
                   </div> -->
   
                 </div>
+
+                <div class="absolute right-5 bottom-8 z-[3] hidden mobile-landscape:block">
+                  <button type="button" class="flex items-center gap-1.5 relative bg-white/25 rounded-r-full py-3 px-4" @click="scrollToMoreFrom">
+                    <span class="absolute left-[-6.5rem] h-14 w-[6.25rem] overflow-hidden rounded [box-shadow:2px_2px_0_0_#F06,5px_5px_0_0_#95003C]">
+                      <img src="/images/ai-art.png" alt="" class="h-full w-full object-cover" />
+                      <span class="absolute inset-0 flex items-center justify-center">
+                        <span class="flex h-4 w-4 items-center justify-center rounded-full bg-[#F06]">
+                          <svg viewBox="0 0 16 16" class="ml-px h-2 w-2" fill="white" aria-hidden="true"><path d="M4 2.5v11l10-5.5-10-5.5z"/></svg>
+                        </span>
+                      </span>
+                    </span>
+                    <span class="text-xs font-medium uppercase tracking-wide text-white">5+ Media in this tier</span>
+                    <img :src="ChevronDownIcon" alt="chevron-right" class="w-3.5 h-3.5" />
+                  </button>
+                </div>
+
+                <button type="button" class="absolute bottom-0 right-4 z-[3] hidden flex-col items-stretch lg:flex lg:bottom-0 lg:right-6 [@media(orientation:portrait)_and_(max-width:677px)]:!hidden" @click="scrollToMoreFrom">
+                  <span class="relative z-[1] mx-auto mb-[-0.5rem] xl:mb-[-1.35rem] w-[196px] h-[110px] self-center">
+                    <span class="relative block overflow-hidden rounded-xl [box-shadow:6px_6px_0_0_#F06,12px_12px_0_0_#95003C]">
+                      <img src="/images/ai-art.png" alt="" class="aspect-video w-full object-cover" />
+                      <span class="absolute inset-0 flex items-center justify-center">
+                        <span class="flex h-10 w-10 items-center justify-center rounded-full bg-[#FF2D87] shadow-[0_4px_12px_rgba(0,0,0,0.35)]">
+                          <svg viewBox="0 0 16 16" class="ml-0.5 h-5 w-5" fill="white" aria-hidden="true"><path d="M4 2.5v11l10-5.5-10-5.5z"/></svg>
+                        </span>
+                      </span>
+                    </span>
+                  </span>
+                  <span class="flex items-center justify-center gap-2 rounded-t-3xl bg-white/25 px-5 xl:px-10 pb-3 xl:pb-5 pt-10 text-base font-medium text-white">
+                    More Media from this Tier
+                    <img :src="ChevronDownIcon" alt="chevron-down" class="h-5 w-5" />
+                  </span>
+                </button>
               </div>
             </div>
   
@@ -618,10 +721,13 @@
   
   
             </div>
+            <div class="px-2 p-2 sm:px-4 block lg:hidden fixed bottom-0 left-0 right-0 z-10">
+              <BuySubscribeBar />
+            </div>
           </div>
   
           <!-- popup__more-media-section -->
-          <div class="flex my-4 w-full px-2 overflow-x-hidden">
+          <div ref="moreFromSection" class="flex my-4 w-full px-2 overflow-x-hidden">
             <div class="flex flex-col gap-2 w-full">
               <!-- title-container -->
               <div class="flex justify-between items-center py-1 gap-4 min-[580px]:justify-start">
@@ -642,13 +748,24 @@
           </div>
         </div>
       </div>
-    </PopupHandler>
+    <!-- </PopupHandler> -->
   </template>
   
   <script setup>
   import PopupHandler from "./PopupHandler.vue";
+  import BuySubscribeBar from "@/components/ui/BuySubscribeBar.vue";
   import { ref, onMounted, onBeforeUnmount } from "vue";
-  
+  import { Splide, SplideSlide } from "@splidejs/vue-splide";
+  import "@splidejs/vue-splide/css";
+  import CloseIcon from "@/assets/images/icons/x-close-white.svg"; 
+  import UserIcon from "@/assets/images/icons/user-021.svg";
+  import HeartNewIcon from "@/assets/images/icons/heart-new.svg";
+  import ShareIcon from "@/assets/images/icons/share01.svg";
+  import Heat1Icon from "@/assets/images/icons/heart-1.svg";
+  import ChevronDownIcon from "@/assets/images/icons/chevron-down-double.svg";
+  import VerifiedIcon from "@/assets/images/icons/verified-tick-blue.svg";
+  import MuteIcon from "@/assets/images/icons/volume-x.svg";
+   
   // Video Player Logic
   const videoPlayer = ref(null);
   const isPlaying = ref(false);
@@ -751,13 +868,35 @@
     closeOnOutside: true,
     lockScroll: false,
     escToClose: true,
-    width: { default: "90%", "<768": "100%" },
+    width: "100%",
     height: { default: "100%", "<768": "100%" },
     scrollable: false,
     closeSpeed: "250ms",
     closeEffect: "cubic-bezier(0.4, 0, 0.2, 1)",
   };
   
+  const merchSlides = [
+    { title: "原味內衣", price: "USD $25", image: "/images/ai-art.png" },
+    { title: "原味內衣", price: "USD $25", image: "https://i.ibb.co.com/jk1F8MqJ/featured-media-bg.webp" },
+    { title: "原味內衣", price: "USD $25", image: "/images/ai-art.png" },
+  ];
+
+  const moreFromSection = ref(null);
+
+  function scrollToMoreFrom() {
+    moreFromSection.value?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  const merchSliderOptions = {
+    type: "loop",
+    perPage: 1,
+    perMove: 1,
+    arrows: true,
+    pagination: true,
+    drag: true,
+    speed: 400,
+  };
+
   const gridMediaList = ref([
     {
       id: 101,
@@ -817,3 +956,55 @@
     },
   ]);
   </script>
+
+  <style scoped>
+  .merch-media {
+    height: 100%;
+  }
+
+  .merch-media :deep(.splide__track),
+  .merch-media :deep(.splide__list),
+  .merch-media :deep(.splide__slide) {
+    height: 100%;
+  }
+
+  .merch-media :deep(.splide__arrow) {
+    width: 1.5rem;
+    height: 1.5rem;
+    background: transparent;
+    opacity: 1;
+  }
+
+  .merch-media :deep(.splide__arrow svg) {
+    fill: #F06;
+    width: 1rem;
+    height: 1rem;
+  }
+
+  .merch-media :deep(.splide__arrow--prev) {
+    left: 0.25rem;
+  }
+
+  .merch-media :deep(.splide__arrow--next) {
+    right: 0.25rem;
+  }
+  .merch-media :deep(.splide__pagination) {
+    bottom: 1rem;
+  }
+  @media screen and (min-width: 1024px) and (max-width: 1365px) {
+    .merch-media :deep(.splide__pagination) {
+    bottom: 0.5rem;
+  }  
+  }
+
+  .merch-media :deep(.splide__pagination__page) {
+    width: 0.5rem;
+    height: 0.5rem;
+    background: #EAECF0;
+  }
+
+  .merch-media :deep(.splide__pagination__page.is-active) {
+    background: #F06;
+    transform: none;
+  }
+  </style>

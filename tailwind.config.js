@@ -22,6 +22,9 @@ export default {
         lg: "960px",
         xl: "1365px",
         'lg-small': '934px',
+        'mobile-landscape': { 
+          raw: '(max-width: 932px) and (max-height: 500px) and (orientation: landscape)' 
+        },
         'ipad-portrait': {
           raw: '(max-width: 1366px) and (orientation: portrait)',
         },
