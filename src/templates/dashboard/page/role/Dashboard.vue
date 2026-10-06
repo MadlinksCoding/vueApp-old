@@ -173,6 +173,11 @@
 
     <br />
 
+    <ButtonComponent text="Subscription Popup Reminder" variant="mediaBtn"
+      @click="isSubscriptionPopupOpen = true" />
+
+    <br />
+
     <ButtonComponent text="Avatar upload popup" variant="mediaBtn" @click="avatarPopupOpen = true" />
 
     <br />
@@ -338,6 +343,7 @@
     <AcceptNewPrice v-model="acceptNewPriceOpen" />
     <MediaMerchThumbPopup v-model="isMediaMerchPopupOpen" />
     <MerchDetailPopup v-model="isMerchDetailPopupOpen" />
+    <SubscriptionPopupReminder v-model="isSubscriptionPopupOpen" />
 
     <PremiumOrdersPage/>
   </DashboardWrapperTwoColContainer>
@@ -355,6 +361,7 @@ import ProfileViewAllPopup from "@/components/ui/popup/ProfileViewAllPopup.vue";
 import ProfileMediaDetailsPopup from "@/components/ui/popup/ProfileMediaDetailsPopup.vue";
 import MediaMerchThumbPopup from "@/components/mediaMarchThumb/MediaMerchThumbPopup.vue";
 import MerchDetailPopup from "@/components/mediaMarchThumb/MerchDetailPopup.vue";
+import SubscriptionPopupReminder from "@/components/subscriptionPopupReminder/SubscriptionPopupReminder.vue";
 import AvatarUploadPopup from "@/components/ui/popup/AvatarUploadPopup.vue";
 import { onMounted, ref } from "vue";
 import ImageCropperModal from "@/components/editProfilePageComponents/ImageCropperModal.vue";
@@ -424,6 +431,7 @@ function saveToLocalStorage() {
 const isViewAllPopupOpen = ref(false);
 const isMediaMerchPopupOpen = ref(false);
 const isMerchDetailPopupOpen = ref(false);
+const isSubscriptionPopupOpen = ref(false);
 const profileMediaDetailsPopupOpen = ref(false);
 const avatarPopupOpen = ref(false);
 const imageCropPopupOpen = ref(false);

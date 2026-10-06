@@ -2,7 +2,7 @@
   <div class="w-full rounded-lg min-h-[4.375rem] overflow-hidden items-stretch select-none fixed z-10 w-full bottom-2 left-0 px-6 lg:relative lg:bottom-0 lg:px-0 hidden md:flex">
     <div class="w-full flex items-stretch select-none rounded-lg min-h-[4.375rem] overflow-hidden">
       <!-- Left Section: Price Display -->
-      <div class="flex-1 bg-[rgba(12,17,29,0.50)] h-16 px-4 sm:px-6 py-3.5 flex items-baseline justify-center gap-1 shrink-0 mt-auto">
+      <div class="flex-1 bg-[rgba(12,17,29,0.50)] h-16 px-4 sm:px-6 py-3.5 rounded-l-lg flex items-baseline justify-center gap-1 shrink-0 mt-auto">
         <span class="text-xs sm:text-sm text-[#FCE40D] tracking-wider uppercase">
           {{ currency }}
         </span>

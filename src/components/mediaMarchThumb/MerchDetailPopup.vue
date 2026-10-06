@@ -14,12 +14,10 @@
           <button
             @click="close"
             type="button"
-            class="absolute top-3 right-3 sm:top-4 sm:right-4 z-50 w-8 h-8 rounded-full flex items-center justify-center transition-all cursor-pointer backdrop-blur-sm border border-slate-700/50"
+            class="absolute top-3 right-3 sm:top-4 sm:right-4 z-50 w-8 h-8 rounded-full flex items-center justify-center transition-all cursor-pointer"
             aria-label="Close Modal"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none">
-  <path d="M24 8L8 24M8 8L24 24" stroke="#D0D5DD" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-</svg>
+            <img src="https://fansocial.app/wp-content/plugins/fansocial/assets/icons/svg/x-close.svg" alt="Close" class="w-6 h-6 sm:w-7 sm:h-7 brightness-0 invert pointer-events-none" />
           </button>
 
           <!-- Scrollable Modal Content Grid -->
@@ -42,8 +40,8 @@
                   >
                     <div class="flex flex-col">
                       <div class="flex items-center gap-1">
-                        <span>{{ item.tierType === 'free' ? '💫' : (item.tierType === 'tier-2' ? '🔥' : '🌸') }}</span>
-                        <span class="truncate">{{ item.tier }}</span>
+                        <span>{{ merchData.tierType === 'free' ? '💫' : (merchData.tierType === 'tier-2' ? '🔥' : '🌸') }}</span>
+                        <span class="truncate">{{ merchData.tier }}</span>
                       </div>
                     </div>
                   </div>
