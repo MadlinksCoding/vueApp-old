@@ -969,6 +969,7 @@ export const bookingMessages = {
   fan_booking_wallet_balance: "Wallet Balance",
   fan_booking_contribution_bounds: "Minimum {min} tokens, maximum {max} tokens.",
   fan_booking_contribution_invalid: "Contribution must be between {min} and {max} tokens.",
+  fan_booking_contribution_below_minimum: "Minimum contribution is {min} tokens. Please input {min} or more.",
   fan_booking_contribution_insufficient_balance: "Wallet balance is below the minimum contribution of {min} tokens.",
   fan_booking_contribution_insufficient_goal_remaining: "The remaining event goal is below the minimum contribution of {min} tokens.",
   fan_booking_other_request: "PERSONAL REQUEST",

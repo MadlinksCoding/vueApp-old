@@ -607,8 +607,11 @@ describe("BookingFlowStep2", () => {
     expect(range.element.value).toBe('500');
     await input.setValue('10');
     await flushStep2();
-    expect(input.element.value).toBe('20');
-    expect(engine.state.bookingDetails.contributionTokens).toBe(20);
+    expect(input.element.value).toBe('10');
+    expect(engine.state.bookingDetails.contributionTokens).toBe(10);
+    expect(wrapper.get('[data-testid="step2-event-goal-contribution-error"]').text())
+      .toBe('Minimum contribution is 20 tokens. Please input 20 or more.');
+    expect(wrapper.get('[data-testid="group-booking-action"]').element.disabled).toBe(true);
     expect(engine.goToStep).not.toHaveBeenCalled();
     wrapper.unmount();
   });
@@ -618,7 +621,7 @@ describe("BookingFlowStep2", () => {
     { goal: 1000, balance: 50000 },
     { goal: 1000, balance: 5000 },
     { goal: 1000, balance: 0 },
-  ])("caps goal contribution at 14,000 with goal $goal and balance $balance", async ({ goal, balance }) => {
+  ])("blocks goal contribution above 14,000 with goal $goal and balance $balance", async ({ goal, balance }) => {
     setFixedStepClock();
     const { engine, wrapperPromise } = createMountedStep({
       dateIso: '2030-01-16',
@@ -643,9 +646,58 @@ describe("BookingFlowStep2", () => {
     expect(engine.state.bookingDetails.contributionTokens).toBe(14000);
     await input.setValue('14001');
     await flushStep2();
-    expect(input.element.value).toBe('14000');
-    expect(engine.state.bookingDetails.contributionTokens).toBe(14000);
-    expect(engine.state.fanBooking.selection.contributionTokens).toBe(14000);
+    expect(input.element.value).toBe('14001');
+    expect(engine.state.bookingDetails.contributionTokens).toBe(14001);
+    expect(engine.state.fanBooking.selection.contributionTokens).toBe(14001);
+    expect(wrapper.get('[data-testid="group-booking-action"]').element.disabled).toBe(true);
+    expect(wrapper.get('[data-testid="step2-event-goal-contribution-error"]').text())
+      .toBe('Contribution must be between 20 and 14000 tokens.');
+    wrapper.unmount();
+  });
+
+  it("allows typing a new contribution digit by digit and preserves invalid edits through refresh", async () => {
+    setFixedStepClock();
+    const selectedEvent = createGroupEvent('2030-01-16', { raw: {
+      priceSetting: 'eventGoal', eventGoalTokens: 1000, minContributionPerUser: 10,
+    } });
+    const refreshBookingContext = vi.fn();
+    const { engine, wrapperPromise } = createMountedStep({
+      dateIso: '2030-01-16', selectedEvent,
+      componentProps: { refreshBookingContext },
+    });
+    const wrapper = await wrapperPromise;
+    await flushStep2();
+    const input = wrapper.get('#step2-event-goal-contribution');
+    const action = wrapper.get('[data-testid="group-booking-action"]');
+    expect(input.element.value).toBe('10');
+
+    refreshBookingContext.mockImplementation(async () => {
+      engine.state.fanBooking.context.selectedEvent = { ...selectedEvent };
+      await wrapper.setProps({ engine: { ...engine } });
+      return { ok: true };
+    });
+    for (const value of ['', '2', '9.5']) {
+      await input.setValue(value);
+      await flushStep2();
+      expect(input.element.value).toBe(value);
+      expect(action.element.disabled).toBe(true);
+      expect(input.attributes('aria-invalid')).toBe('true');
+      expect(wrapper.get('[data-testid="step2-event-goal-contribution-error"]').text())
+        .toBe('Minimum contribution is 10 tokens. Please input 10 or more.');
+      await vi.advanceTimersByTimeAsync(15000);
+      await flushStep2();
+      expect(input.element.value).toBe(value);
+      expect(action.element.disabled).toBe(true);
+    }
+
+    for (const value of ['2', '25', '250', '10']) {
+      await input.setValue(value);
+      await flushStep2();
+      expect(input.element.value).toBe(value);
+      expect(action.element.disabled).toBe(Number(value) < 10);
+    }
+    expect(wrapper.find('[data-testid="step2-event-goal-contribution-error"]').exists()).toBe(false);
+    expect(engine.state.bookingDetails.contributionTokens).toBe(10);
     wrapper.unmount();
   });
 

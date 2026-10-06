@@ -829,27 +829,16 @@ const contributionThumbStyle = computed(() => ({
 
 const contributionInvalid = computed(() => {
   if (!isEventGoalGroupEvent.value) return false;
-  const amount = normalizedContributionTokens.value;
+  const amount = Number(contributionTokens.value);
   const max = eventGoalMaximumTokens.value;
-  return max <= 0 || amount < eventGoalMinimumTokens.value || amount > max;
+  return !Number.isFinite(amount) || max <= 0 || amount < eventGoalMinimumTokens.value || amount > max;
 });
 
-function ensureContributionDefault() {
-  if (!isEventGoalGroupEvent.value) {
-    contributionTokens.value = '';
-    return;
-  }
-
-  const min = eventGoalMinimumTokens.value;
-  const max = eventGoalMaximumTokens.value;
-  const existing = toWholeTokens(contributionTokens.value);
-  if (max >= min) {
-    contributionTokens.value = String(Math.min(Math.max(existing || min, min), max));
-    return;
-  }
-
-  contributionTokens.value = String(min);
-}
+const contributionErrorMessage = computed(() => (
+  Number(contributionTokens.value) > eventGoalMaximumTokens.value
+    ? t('fan_booking_contribution_invalid', { min: eventGoalMinimumTokens.value, max: eventGoalMaximumTokens.value })
+    : t('fan_booking_contribution_below_minimum', { min: eventGoalMinimumTokens.value })
+));
 
 function resolveTotalPriceWithoutBookingFee(preview = null) {
   const payment = preview?.payment && typeof preview.payment === 'object'
@@ -919,7 +908,6 @@ async function refreshWalletBalance() {
         silent: true,
       });
     }
-    ensureContributionDefault();
     return;
   }
 
@@ -930,7 +918,6 @@ async function refreshWalletBalance() {
   });
   const parsedBalance = parseTokenBalance(response, creatorId);
   if (!Number.isFinite(parsedBalance)) {
-    ensureContributionDefault();
     return;
   }
 
@@ -939,7 +926,6 @@ async function refreshWalletBalance() {
     reason: 'step2-token-balance-refresh',
     silent: true,
   });
-  ensureContributionDefault();
 }
 
 const timeSlots = computed(() => {
@@ -1817,10 +1803,12 @@ function hydrateFromState() {
     });
   }
 
-  contributionTokens.value = existing.contributionTokens
-    ?? props.engine.getState('fanBooking.selection.contributionTokens')
-    ?? '';
-  ensureContributionDefault();
+  // Default only when opening the event. Keep the fan's edits for validation.
+  contributionTokens.value = isEventGoalGroupEvent.value
+    ? (existing.contributionTokens
+      ?? props.engine.getState('fanBooking.selection.contributionTokens')
+      ?? String(eventGoalMinimumTokens.value))
+    : '';
 
   if (!isGroupEvent.value && Array.isArray(existing.addons) && existing.addons.length > 0) {
     existing.addons.forEach(savedAddon => {
@@ -2056,32 +2044,14 @@ watch(
       && getEventIdentity(nextEvent) === getEventIdentity(previousEvent)
     );
     if (sameEventRefresh) {
-      ensureContributionDefault();
       return;
     }
 
     hydrateAddons();
     hydrateFromState();
-    ensureContributionDefault();
     refreshWalletBalance();
   },
   { immediate: true },
-);
-
-watch(
-  () => [isEventGoalGroupEvent.value, eventGoalMinimumTokens.value, eventGoalMaximumTokens.value],
-  () => {
-    ensureContributionDefault();
-  },
-  { immediate: true },
-);
-
-watch(
-  () => contributionTokens.value,
-  () => {
-    if (!isEventGoalGroupEvent.value) return;
-    ensureContributionDefault();
-  },
 );
 
 watch(
@@ -2492,10 +2462,11 @@ onBeforeUnmount(() => {
                     <div class="w-full flex items-center gap-1">
                       <img :src="bookingFlowTokenIcon" alt="token-icon" class="w-10 h-10 shrink-0" />
                       <div class="px-1 flex-1 min-w-0 h-[44px] border-b flex items-center gap-1" :class="contributionInvalid ? 'border-[#FF5CA8]' : 'border-[#98A2B3]'">
-                        <input id="step2-event-goal-contribution" v-model="contributionTokens" type="number" inputmode="numeric" :min="eventGoalMinimumTokens" :max="contributionRangeMax" class="w-full min-w-0 bg-transparent text-white text-[1.875rem] font-normal leading-[2.375rem] focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                        <input id="step2-event-goal-contribution" v-model="contributionTokens" type="number" inputmode="numeric" :min="eventGoalMinimumTokens" :max="contributionRangeMax" :aria-invalid="contributionInvalid" :aria-describedby="contributionInvalid ? 'step2-event-goal-contribution-error' : undefined" class="w-full min-w-0 bg-transparent text-white text-[1.875rem] font-normal leading-[2.375rem] focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
                         <span class="text-base">{{ t('common_tokens') }}</span>
                       </div>
                     </div>
+                    <p v-if="contributionInvalid" id="step2-event-goal-contribution-error" role="alert" class="text-xs text-[#F04438]" data-testid="step2-event-goal-contribution-error">{{ contributionErrorMessage }}</p>
                   </div>
                   <div class="w-full relative flex items-center py-2 select-none">
                     <div class="w-full h-2.5 bg-white rounded-full overflow-hidden relative shadow-inner"><div class="h-full bg-[#07F468] rounded-full transition-all duration-75" :style="contributionSliderStyle"></div></div>
@@ -2506,7 +2477,6 @@ onBeforeUnmount(() => {
                     <span>{{ t('fan_booking_contribution_bounds', { min: eventGoalMinimumTokens, max: eventGoalMaximumTokens }) }}</span>
                     <span>{{ t('fan_booking_event_goal_remaining', { tokens: formatTokens(Math.max(0, eventGoalTokens - eventGoalReachedTokens)) }) }}</span>
                   </div>
-                  <p v-if="contributionInvalid" class="text-xs text-[#FF99C9]" data-testid="step2-event-goal-contribution-error">{{ t('fan_booking_contribution_invalid', { min: eventGoalMinimumTokens, max: eventGoalMaximumTokens }) }}</p>
                 </div>
                 <BookingFlowStep3
                   group-review
