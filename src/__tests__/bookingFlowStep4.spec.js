@@ -6,6 +6,7 @@ import BookingFlowStep4 from "@/components/FanBookingFlow/OneOnOneBookingFlow/Bo
 const bridgeMocks = vi.hoisted(() => ({
   requestFanBookingOpenChat: vi.fn(),
   requestFanBookingOpenDetails: vi.fn(),
+  requestFanBookingOpenPurchase: vi.fn(),
 }));
 
 vi.mock("@/embeds/fanBooking/bridge.js", () => bridgeMocks);
@@ -139,7 +140,7 @@ describe("BookingFlowStep4", () => {
     ]);
   });
 
-  it("renders translated group event type and event-goal policies as confirmed", () => {
+  it("renders translated fundraising type and event-goal policies without a misleading approval badge", () => {
     const state = createState({
       approvalStatus: "",
       event: {
@@ -150,9 +151,9 @@ describe("BookingFlowStep4", () => {
     });
     const translations = {
       fan_booking_video: "Vídeo",
-      fan_booking_group_call_type: "Grupo {media}",
+      fan_booking_fundraising_event: "Evento de recaudación",
       fan_booking_instant_approval: "CONFIRMADO",
-      fan_booking_group_event_policy_title: "Reglas del evento",
+      fan_booking_group_event_policy_title_new: "Reglas del evento",
       fan_booking_group_policy_hold_contribution: "Aporte retenido",
       fan_booking_group_policy_goal_not_reached: "Meta no alcanzada",
       fan_booking_group_policy_host_late: "Host {creator} ausente",
@@ -160,10 +161,10 @@ describe("BookingFlowStep4", () => {
     };
     const { wrapper } = mountStep4(state, { locale: "es", translations });
 
-    expect(wrapper.get("[data-testid='step4-event-type-desktop']").text()).toBe("Grupo Vídeo");
-    expect(wrapper.get("[data-testid='step4-approval-desktop']").text()).toBe("CONFIRMADO");
+    expect(wrapper.get("[data-testid='step4-event-type-desktop']").text()).toBe("Evento de recaudación");
+    expect(wrapper.find("[data-testid='step4-approval-desktop']").exists()).toBe(false);
     expect(wrapper.get("[data-testid='step4-policy']").text()).toContain("Reglas del evento");
-    expect(wrapper.findAll("[data-testid='step4-policy-item']").map((item) => item.text())).toEqual([
+    expect(wrapper.get("[data-testid='step4-policy']").findAll("[data-testid='step4-policy-item']").map((item) => item.text())).toEqual([
       "Aporte retenido",
       "Meta no alcanzada",
       "Host Dynamic Creator ausente",
@@ -243,6 +244,39 @@ describe("BookingFlowStep4", () => {
     });
   });
 
+  it("uses subscription order details when a media prerequisite is fulfilled by a tier", async () => {
+    const state = createState();
+    state.fanBooking.prerequisite = {
+      validation: {
+        prerequisite: {
+          eligible: true,
+          type: "media",
+          product: {
+            title: "Variable Subscription Product - Tier 3",
+            variation_title: "Creator Photo Set",
+            is_subscription_variation: true,
+            image_url: "/photo-set.webp",
+            price: "25.00",
+          },
+        },
+      },
+      purchaseResult: {
+        orderId: 987,
+        orderReceiptUrl: "https://fansocial.local/checkout/order-received/987/",
+      },
+    };
+    const { wrapper } = mountStep4(state);
+
+    expect(wrapper.text()).toContain("Creator Photo Set");
+    expect(wrapper.text()).toContain("SUBSCRIBED");
+    expect(wrapper.text()).not.toContain("Variable Subscription Product - Tier 3");
+    expect(wrapper.get("[data-testid='step4-purchase-action-card']").text()).toContain("View order details");
+    await wrapper.get("[data-testid='step4-purchase-action-desktop']").trigger("click");
+    expect(bridgeMocks.requestFanBookingOpenPurchase).toHaveBeenCalledWith({
+      view: 'purchases',
+    });
+  });
+
   it("hides booking detail actions for guest bookings", () => {
     const state = createState();
     state.fanBooking.context.fanId = 0;
@@ -250,5 +284,114 @@ describe("BookingFlowStep4", () => {
 
     expect(wrapper.find("[data-testid='step4-calendar-action-desktop']").exists()).toBe(false);
     expect(wrapper.find("[data-testid='step4-calendar-action-mobile']").exists()).toBe(false);
+  });
+
+  it.each(['fixedPrice', 'eventGoal'])("matches the %s group confirmation without inventing subscription perks", priceSetting => {
+    const { wrapper } = mountStep4(createState({ event: { type: 'group-event', priceSetting } }));
+    expect(wrapper.get("[data-testid='step4-status-title']").text()).toBe(priceSetting === 'eventGoal' ? 'Thanks for your contribution!' : 'You’re in!');
+    expect(wrapper.get("[data-testid='step4-status-icon']").attributes('src')).toContain(priceSetting === 'eventGoal' ? 'booking-group-contribution' : 'booking-group-confirmed');
+    for (const suffix of ['desktop', 'mobile']) {
+      expect(wrapper.get(`[data-testid='step4-event-type-${suffix}']`).text()).toBe(priceSetting === 'eventGoal' ? 'Fundraising Event' : 'Group Event');
+      expect(wrapper.find(`[data-testid='step4-benefits-action-${suffix}']`).exists()).toBe(false);
+      expect(wrapper.find(`[data-testid='step4-calendar-action-${suffix}']`).exists()).toBe(true);
+    }
+    expect(wrapper.find("[data-testid='step4-subscription-perks']").exists()).toBe(false);
+    expect(wrapper.find("[data-testid='step4-goal-progress-desktop']").exists()).toBe(false);
+  });
+
+  it.each([false, true])("includes the successful contribution once when catalog already includes it: %s", alreadyIncluded => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2030-01-10T00:00:00Z'));
+    try {
+      const state = createState({ event: { type: 'group-event', priceSetting: 'eventGoal', eventGoalTokens: 1000 } });
+      const booking = state.fanBooking.booking.result.item;
+      booking.payment = { total: 120, lines: [{ code: 'event_goal_contribution', amount: 100 }] };
+      booking.startAtIso = '2030-01-15T00:00:00Z';
+      state.fanBooking.catalog = { bookedSlotsIndex: { evt_private: { '2030-01-15': [
+        { bookingId: 'other', contributionTokens: 400, status: 'confirmed' },
+        { bookingId: 'cancelled', contributionTokens: 900, status: 'cancelled' },
+        ...(alreadyIncluded ? [booking] : []),
+      ] } } };
+      const { wrapper } = mountStep4(state);
+      for (const suffix of ['desktop', 'mobile']) {
+        const progress = wrapper.get(`[data-testid='step4-goal-progress-${suffix}']`);
+        expect(progress.text()).toContain('5 DAYS LEFT');
+        expect(progress.text()).toContain('50% FUNDED');
+        expect(progress.text()).toContain('500 / 1,000');
+        expect(progress.get('[role="progressbar"]').attributes('aria-valuenow')).toBe('50');
+      }
+    } finally { vi.useRealTimers(); }
+  });
+
+  it("caps the progress bar but shows the actual amount when funding exceeds the goal", () => {
+    const state = createState({ event: { type: 'group-event', raw: { priceSetting: 'eventGoal', eventGoalTokens: 100 } } });
+    state.fanBooking.booking.result.item.payment = { total: 150 };
+    const { wrapper } = mountStep4(state);
+    const progress = wrapper.get("[data-testid='step4-goal-progress-desktop']");
+    expect(progress.text()).toContain('150 / 100');
+    expect(progress.get('[role="progressbar"]').attributes('aria-valuenow')).toBe('100');
+    expect(progress.text()).not.toContain('DAYS LEFT');
+  });
+
+  it("shows funding for the confirmed group session, not contributions to other dates", () => {
+    const state = createState({ event: { type: 'group-event', priceSetting: 'eventGoal', eventGoalTokens: 1000 } });
+    const startMs = Date.parse('2030-01-15T10:00:00Z');
+    const endMs = Date.parse('2030-01-15T10:30:00Z');
+    Object.assign(state.fanBooking.booking.result.item, { startAtIso: new Date(startMs).toISOString(), endAtIso: new Date(endMs).toISOString(), payment: { total: 100 } });
+    state.fanBooking.catalog = { bookedSlotsIndex: { evt_private: { '2030-01-15': [
+      { bookingId: 'same-slot', contributionTokens: 400, startMs, endMs },
+      { bookingId: 'other-date', contributionTokens: 900, startMs: startMs + 86400000, endMs: endMs + 86400000 },
+    ] } } };
+    const { wrapper } = mountStep4(state);
+    expect(wrapper.get("[data-testid='step4-goal-progress-desktop']").text()).toContain('500 / 1,000');
+  });
+
+  it.each([false, true])("shows membership benefits for an eligible subscription with a new order: %s", hasOrder => {
+    const state = createState({ event: { type: 'group-event', priceSetting: 'fixedPrice' } });
+    state.fanBooking.prerequisite = {
+      validation: { prerequisite: { eligible: true, type: 'subscription', product: {
+        title: 'Parent subscription name', variation_title: 'Close Circle', is_subscription_variation: true,
+        price: 25, regular_price: 50, image_url: '/subscription.webp',
+      } } },
+      purchaseResult: hasOrder ? { orderId: 987, orderReceiptUrl: '/receipt/987/' } : {},
+    };
+    const { wrapper } = mountStep4(state);
+    expect(wrapper.text()).toContain('Close Circle');
+    expect(wrapper.text()).not.toContain('Parent subscription name');
+    expect(wrapper.get("[data-testid='step4-subscription-perks']").text()).toContain('your subscription');
+    for (const suffix of ['desktop', 'mobile']) expect(wrapper.get(`[data-testid='step4-benefits-action-${suffix}']`).text()).toBe('See Member Benefits');
+    expect(wrapper.get("[data-testid='step4-purchase-action-summary']").text()).toContain('View membership');
+    expect(wrapper.find("[data-testid='step4-purchase-action-desktop']").exists()).toBe(hasOrder);
+  });
+
+  it.each(['desktop', 'mobile'])("opens subscriptions from the %s benefits button while keeping other actions separate", async suffix => {
+    const state = createState({ event: { type: 'group-event', priceSetting: 'eventGoal' } });
+    state.fanBooking.prerequisite = {
+      validation: { prerequisite: { eligible: true, type: 'subscription', product: { title: 'Circle', price: 25 } } },
+      purchaseResult: { orderId: 987, orderReceiptUrl: '/receipt/987/' },
+    };
+    const { wrapper } = mountStep4(state);
+    await wrapper.get(`[data-testid='step4-benefits-action-${suffix}']`).trigger('click');
+    expect(bridgeMocks.requestFanBookingOpenPurchase).toHaveBeenLastCalledWith({ view: 'subscriptions' });
+    expect(wrapper.emitted('close-popup')).toHaveLength(1);
+    await wrapper.get("[data-testid='step4-purchase-action-desktop']").trigger('click');
+    expect(bridgeMocks.requestFanBookingOpenPurchase).toHaveBeenLastCalledWith({ view: 'purchases' });
+    await wrapper.get("[data-testid='step4-calendar-action-desktop']").trigger('click');
+    expect(bridgeMocks.requestFanBookingOpenDetails).toHaveBeenCalledWith({ bookingId: 'booking_123' });
+  });
+
+  it.each(['product', 'subscription', 'media'])("routes every order-detail button to the correct dashboard for %s", async type => {
+    const state = createState();
+    state.fanBooking.prerequisite = {
+      validation: { prerequisite: { eligible: true, type, product: { title: 'Purchased item', price: 25 } } },
+      purchaseResult: { orderId: 987, orderReceiptUrl: '/receipt/987/' },
+    };
+    const { wrapper } = mountStep4(state);
+    for (const suffix of ['desktop', 'mobile', 'card', 'summary']) {
+      await wrapper.get(`[data-testid='step4-purchase-action-${suffix}']`).trigger('click');
+      expect(bridgeMocks.requestFanBookingOpenPurchase).toHaveBeenLastCalledWith({
+        view: type === 'media' ? 'purchased-media' : 'purchases',
+      });
+    }
   });
 });

@@ -21,6 +21,10 @@ const showAllPlatformLiability = ref(false);
 const { t, locale } = useBookingTranslations();
 
 const props = defineProps({
+  prerequisite: {
+    type: Object,
+    default: null,
+  },
   isPreviewMode: {
     type: Boolean,
     default: false,
@@ -147,6 +151,17 @@ function normalizePerformer(value, index = 0) {
 }
 
 const isEventGoalGroup = computed(() => String(props.priceSetting || "").toLowerCase() === "eventgoal");
+const prerequisiteProductTitle = computed(() => {
+  const product = props.prerequisite?.product || {};
+  const subscription = props.prerequisite?.type === 'subscription'
+    || normalizeBoolean(product.is_subscription_variation);
+  return normalizeText(subscription && product.variation_title)
+    || normalizeText(product.title || product.name);
+});
+const prerequisitePrice = computed(() => new Intl.NumberFormat(locale.value, {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+}).format(Number(props.prerequisite?.product?.price) || 0));
 
 const selectedEventRaw = computed(() => props.selectedEvent?.raw || {});
 
@@ -300,7 +315,7 @@ const normalizedEventGoalReachedTokens = computed(() => Math.min(
 ));
 const normalizedEventGoalPercent = computed(() => {
   const explicit = Number(props.eventGoalPercent);
-  if (Number.isFinite(explicit)) return Math.min(100, Math.max(0, Math.floor(explicit)));
+  if (props.eventGoalPercent != null && Number.isFinite(explicit)) return Math.min(100, Math.max(0, Math.floor(explicit)));
   const goal = normalizedEventGoalTokens.value;
   if (goal <= 0) return 0;
   return Math.min(100, Math.max(0, Math.floor((normalizedEventGoalReachedTokens.value / goal) * 100)));
@@ -347,7 +362,7 @@ const groupPolicyItems = computed(() => {
   >
     <template v-if="props.isGroupEvent">
       <div class="absolute inset-0 bg-[#7A174A]/70 pointer-events-none"></div>
-      <div class="relative z-10 flex h-full flex-col justify-between text-white">
+      <div class="relative z-10 flex h-full flex-col justify-between gap-5 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden text-white">
         <div class="flex flex-col gap-5 px-4 pt-8 md:px-4 lg:px-4">
           <div class="absolute top-0 left-0 flex flex-row items-center">
             <div class="bg-[#FF0066] rounded-br-[4px] md:rounded-br-md px-4 py-1 w-fit h-[28px] flex justify-center items-center">
@@ -375,6 +390,8 @@ const groupPolicyItems = computed(() => {
               <span>{{ timeDisplay }}</span>
             </div>
 
+            <p v-if="eventField('description')" class="text-sm text-white whitespace-pre-line" data-testid="group-sidebar-description">{{ eventField('description') }}</p>
+
             <div v-if="isEventGoalGroup" class="flex flex-col gap-2 pt-5" data-testid="group-sidebar-event-goal-progress">
               <div class="h-1.5 w-full rounded-full bg-white/35">
                 <div class="h-full rounded-full bg-[#FFED29]" :style="eventGoalProgressStyle"></div>
@@ -384,11 +401,37 @@ const groupPolicyItems = computed(() => {
                 <span class="text-white">{{ t("fan_booking_event_goal_percent_reached", { percent: normalizedEventGoalPercent }) }}</span>
               </div>
             </div>
+            <div class="flex flex-col gap-2" data-testid="group-sidebar-event-cost">
+              <h3 class="text-sm font-semibold text-[#FB5BA2]">{{ t('fan_booking_event_cost') }}</h3>
+              <div class="flex items-center gap-0.5 text-white">
+                <img :src="bookingFlowTokenIcon" alt="token-icon" class="w-5 h-5" />
+                <span class="text-base font-medium">{{ formatTokens(isEventGoalGroup ? positiveNumber(eventField('minContributionPerUser'), 1) : baseSessionPriceTokens) }}</span>
+                <span class="text-sm font-normal uppercase">{{ t(isEventGoalGroup ? 'fan_booking_minimum_contribution' : 'fan_booking_fixed_ticket_price') }}</span>
+              </div>
+            </div>
+            <!-- Reuse the previously hidden mandatory-purchase card for groups. -->
+            <div v-if="prerequisite?.product && !prerequisite.eligible" class="w-full flex" data-testid="group-sidebar-prerequisite">
+              <div class="flex w-full items-center rounded-[0.625rem] bg-[rgba(255,0,102,0.75)] overflow-hidden">
+                <div class="w-[3.5rem] aspect-square shrink-0 overflow-hidden bg-white">
+                  <img :src="prerequisite.product.image_url" :alt="prerequisiteProductTitle" class="w-full h-full object-cover" />
+                </div>
+                <div class="flex p-[0.5rem] flex-col items-start gap-2 flex-1 min-w-0">
+                  <div class="flex items-center gap-2 self-stretch justify-between">
+                    <span class="flex-1 truncate text-white text-sm font-semibold leading-5 max-w-[19ch]">{{ prerequisiteProductTitle }}</span>
+                    <span class="text-[#FCE40D] text-sm font-semibold leading-5">USD${{ prerequisitePrice }}</span>
+                  </div>
+                  <div class="flex items-center gap-1">
+                    <img :src="bookingFlowInfoCircleIcon" alt="" class="w-3 h-3" />
+                    <span class="text-[#FCE40D] text-xs font-medium leading-[1.125rem]">{{ t(prerequisite.type === 'subscription' ? 'fan_booking_mandatory_subscription' : 'fan_booking_mandatory_purchase') }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
         <div class="flex flex-col w-full gap-3 px-4 pb-5">
-          <h3 class="text-sm text-[#EAECF0]">{{ t("fan_booking_group_event_policy_title") }}</h3>
+          <h3 class="text-sm font-medium text-[#FB5BA2]">{{ t("fan_booking_group_event_policy_title") }}</h3>
           <ul class="text-sm pl-1 text-[#EAECF0] w-full list-outside wrap leading-5">
             <li v-for="item in groupPolicyItems" :key="item" class="flex items-start gap-2">
               <span class="flex-none w-1 h-1 bg-[#EAECF0] rounded-full mt-2"></span>
@@ -579,27 +622,6 @@ const groupPolicyItems = computed(() => {
           </div>
           <!-- /Date and Time -->
 
-          <!-- mandatory Purchase -->
-          <div class="w-full _flex hidden px-3 lg:px-0">
-            <div class="flex w-full items-center rounded-[0.625rem] bg--gd--blue-51-251 overflow-hidden">
-              <div class="w-[3.5rem] h-full aspect-square overflow-hidden bg-white">
-                <img src="https://i.ibb.co/d0B63B18/image.png" alt="" class="w-full h-full object-cover">
-              </div>
-              <div class="flex p-[0.5rem] flex-col items-start gap-2 flex-1">
-                <div class="flex items-center gap-2 self-stretch justify-between">
-                  <span class="flex-1 overflow-hidden text-ellipsis whitespace-nowrap text-white text-[0.875rem] font-semibold leading-[1.25rem] max-w-[19ch]">Worn Socks (3 days)</span>
-                  <span class="text-[#FCE40D] text-shadow-[0_0_10px_rgba(0,0,0,0.1)] font-poppins text-[0.875rem] font-semibold leading-[1.25rem]">USD$25 <span class="font-normal">$50</span></span>
-                </div>
-                <div class="flex items-center gap-1">
-                  <span class="w-3 h-3">
-                    <img :src="bookingFlowInfoCircleIcon" alt="">
-                  </span>
-                  <span class="text-[#FCE40D] text-[0.75rem] font-medium leading-[1.125rem] whitespace-nowrap">MANDATORY PURCHASE</span>
-                </div>
-            </div>
-            </div>
-          </div>
-          <!-- /Mandatory Purchase -->
         </div>
 
         <div class="flex flex-col w-full gap-1 md:gap-3 px-3 pb-2 md:p-0 lg:p-0">

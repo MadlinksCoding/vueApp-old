@@ -18,6 +18,9 @@ import {
 } from "./creatorPresentation.js";
 import { fetchUserProfileData } from "@/services/users/userProfileApi.js";
 import { useBookingTranslations } from "@/i18n/bookingTranslations.js";
+import { getBookingRequiredProducts, fetchBookingPrerequisiteEligibility } from '@/services/bookings/bookingsApiUtils.js';
+import MerchShippingConfirmation from '../HelperComponents/MerchShippingConfirmation.vue';
+import SubscriptionSwitchConfirmation, { subscriptionSwitchReviewKey } from '../HelperComponents/SubscriptionSwitchConfirmation.vue';
 
 import BookingFlowStep1 from "./BookingFlowStep1.vue";
 import BookingFlowStep2 from "./BookingFlowStep2.vue";
@@ -131,6 +134,10 @@ const emit = defineEmits([
 ]);
 const { t, locale } = useBookingTranslations();
 const isReleasingHold = ref(false);
+const shippingConfirmation = ref(null);
+const switchConfirmation = ref(null);
+const isCheckingShipping = ref(false);
+const isOpeningRequestedEvent = ref(!props.previewMode && Boolean(resolveRequestedEventId()));
 const hasScheduledStep3Prefetch = ref(false);
 const hasScheduledStep4Prefetch = ref(false);
 let creatorProfileAbortController = null;
@@ -586,7 +593,7 @@ async function loadBookingContext({ forceRefresh = false, silent = false, preser
     });
 
     if (requestedEventId && !preserveSelectedEvent) {
-      await engine.forceStep(2, { intent: "feature-open-with-event-id" });
+      await requestEventBooking();
       await engine.forceSubstep(null, { intent: "feature-open-with-event-id" });
     }
   }
@@ -604,6 +611,62 @@ async function refreshBookingContext({ silent = true, preserveSelectedEvent = tr
     silent,
     preserveSelectedEvent,
   });
+}
+
+async function requestEventBooking() {
+  if (isCheckingShipping.value || shippingConfirmation.value || switchConfirmation.value) return;
+  const event = engine.getState('fanBooking.context.selectedEvent');
+  const requirements = getBookingRequiredProducts(event);
+  // Guest presentation is public; ownership and checkout still use the real
+  // account once the fan signs in. Creator previews do not buy products.
+  if (!props.previewMode && requirements.length) {
+    isCheckingShipping.value = true;
+    try {
+      const validation = await fetchBookingPrerequisiteEligibility(resolveFanId(), requirements);
+      engine.setState('fanBooking.prerequisite.validation', validation, { reason: 'shipping-confirmation', silent: true });
+      engine.setState('fanBooking.prerequisite.eventId', event.eventId || event.id, { reason: 'shipping-confirmation', silent: true });
+      const detail = validation.prerequisite;
+      if (detail && !detail.eligible && detail.action === 'switch') {
+        switchConfirmation.value = detail;
+        return;
+      }
+      if (detail && !detail.eligible && detail.shipping?.required && detail.shipping?.is_merch && detail.shipping?.international === false) {
+        shippingConfirmation.value = detail;
+        return;
+      }
+    } catch (error) {
+      showToast({ type: 'error', title: t('fan_booking_prerequisite_check_failed_title'), message: error?.message || t('fan_booking_prerequisite_check_failed') });
+      return;
+    } finally {
+      isCheckingShipping.value = false;
+    }
+  }
+  await engine.goToStep(2);
+}
+
+async function confirmMerchShipping() {
+  shippingConfirmation.value = null;
+  await engine.goToStep(2);
+}
+
+async function confirmSubscriptionSwitch() {
+  const event = engine.getState('fanBooking.context.selectedEvent');
+  engine.setState('fanBooking.prerequisite.confirmedSwitch', subscriptionSwitchReviewKey(
+    switchConfirmation.value, resolveFanId(), event?.eventId || event?.id,
+  ), { reason: 'subscription-switch-review', silent: true });
+  switchConfirmation.value = null;
+  await engine.goToStep(2);
+}
+
+function cancelSubscriptionSwitch() {
+  switchConfirmation.value = null;
+  if (resolveRequestedEventId()) requestClose();
+}
+
+function cancelMerchShipping() {
+  shippingConfirmation.value = null;
+  // A profile-card entry goes back to that card, not a checkout or another event.
+  if (resolveRequestedEventId()) requestClose();
 }
 
 async function loadPreviewContext() {
@@ -835,17 +898,21 @@ onMounted(async () => {
   });
   engine.initialize();
 
-  if (props.previewMode) {
-    await loadPreviewContext();
-    return;
+  try {
+    if (props.previewMode) {
+      await loadPreviewContext();
+      return;
+    }
+
+    initializeChatSocketSafely(resolveFanId());
+
+    await engine.forceStep(1, { intent: "feature-mount" });
+    await engine.forceSubstep(null, { intent: "feature-mount" });
+    clearSelectedEvent("feature-mount");
+    await loadBookingContext();
+  } finally {
+    isOpeningRequestedEvent.value = false;
   }
-
-  initializeChatSocketSafely(resolveFanId());
-
-  await engine.forceStep(1, { intent: "feature-mount" });
-  await engine.forceSubstep(null, { intent: "feature-mount" });
-  clearSelectedEvent("feature-mount");
-  await loadBookingContext();
 });
 
 watch(
@@ -857,7 +924,10 @@ watch(
     initializeChatSocketSafely(nextFanId);
 
     if (Number(nextFanId) > 0) {
-      await loadBookingContext({ forceRefresh: true });
+      // Inline checkout authentication refreshes ownership, not the current
+      // booking step. Reopening the profile-card event would unmount payment
+      // while its purchase-to-booking continuation is still running.
+      await loadBookingContext({ forceRefresh: true, preserveSelectedEvent: true });
     }
   },
 );
@@ -915,6 +985,9 @@ watch(
 );
 
 const currentStepComponent = computed(() => {
+  // Direct card opens already chose an event. Do not mount the event picker
+  // while its catalog and prerequisite checks are still resolving.
+  if (isOpeningRequestedEvent.value && engine.step === 1) return BookingFlowStepLoading;
   switch (engine.step) {
     case 1:
       return BookingFlowStep1;
@@ -942,7 +1015,7 @@ function handleBookingCreated(payload = {}) {
 }
 
 const showStepOnePreviewCloseButton = computed(() => props.previewMode && engine.step === 1);
-const showWrapperCloseButton = computed(() => engine.step === 2 || engine.step === 3);
+const showWrapperCloseButton = computed(() => isOpeningRequestedEvent.value || engine.step === 2 || engine.step === 3);
 </script>
 
 <template>
@@ -971,13 +1044,29 @@ const showWrapperCloseButton = computed(() => engine.step === 2 || engine.step =
       >
         <img :src="bookingFlowCrossWhiteIcon" :alt="t('fan_booking_close_popup')" class="w-4 h-4" />
       </div>
+    <MerchShippingConfirmation
+      v-if="shippingConfirmation"
+      :prerequisite="shippingConfirmation"
+      auto-focus
+      @confirm="confirmMerchShipping"
+      @cancel="cancelMerchShipping"
+    />
     <component
+      v-else-if="switchConfirmation"
+      :is="SubscriptionSwitchConfirmation"
+      :prerequisite="switchConfirmation"
+      @confirm="confirmSubscriptionSwitch"
+      @cancel="cancelSubscriptionSwitch"
+    />
+    <component
+      v-else
       :is="currentStepComponent"
       :engine="engine"
       :embedded="embedded"
       :step1-primary-action="step1PrimaryAction"
       :api-base-url="apiBaseUrl"
       :refresh-booking-context="refreshBookingContext"
+      :request-event-booking="requestEventBooking"
       @close-popup="requestClose"
       @retry-catalog="previewMode ? loadPreviewContext() : loadBookingContext({ forceRefresh: true })"
       @balance-changed="handleBalanceChanged"

@@ -252,6 +252,9 @@ function normalizeRequiredProducts(value) {
     const id = Number.isFinite(parsedId) ? parsedId : null;
     const type = String(item.type || "").trim().toLowerCase();
     if (id === null || !type) return;
+    const variationTitle = type === "subscription"
+      ? String(item.variation_title || item.variationTitle || item.raw?.variation_title || "").trim()
+      : "";
 
     const key = `${type}:${id}`;
     if (deduped.has(key)) return;
@@ -259,11 +262,13 @@ function normalizeRequiredProducts(value) {
     deduped.set(key, {
       id,
       type,
-      title: String(item.title || "").trim(),
+      title: variationTitle || String(item.title || "").trim(),
+      variation_title: variationTitle,
       buyPrice: Number.isFinite(Number(item.buyPrice)) ? Number(item.buyPrice) : null,
       subscribePrice: Number.isFinite(Number(item.subscribePrice)) ? Number(item.subscribePrice) : null,
       canBuy: Boolean(item.canBuy),
       canSubscribe: Boolean(item.canSubscribe),
+      subscriberExclusive: item.subscriberExclusive === true,
       thumbnailUrl: String(item.thumbnailUrl || "").trim(),
       tags: Array.isArray(item.tags) ? item.tags.filter(Boolean).map(String) : [],
     });
@@ -2611,6 +2616,8 @@ const createEvent = async () => {
     v-model="spendingProductPopupOpen"
     :items="spendingRequirementProductItems"
     :selected-items="formData.requiredProducts"
+    :max-selections="1"
+    :exclude-subscriber-exclusive-merch="true"
     :loading-by-type="spendingRequirementLoadingByType"
     :has-more-by-type="spendingRequirementHasMoreByType"
     :error-by-type="spendingRequirementErrorByType"

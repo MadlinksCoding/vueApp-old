@@ -41,6 +41,7 @@ class AxcessGatewayFormHandler {
     this.container         = config.container;
     this._successCallback  = config.onSuccess || (() => {});
     this._errorCallback    = config.onError   || (() => {});
+    this.checkoutMode      = config.checkoutMode || 'token';
     this.extraParams  = config.extraParams || {
       user_id:      window?.userData?.userID || null,
       tip_amount:   0,
@@ -48,6 +49,7 @@ class AxcessGatewayFormHandler {
     };
 
     this.currentOrderId = null;
+    this.bookingCheckoutData = null;
     this._renderParams  = {}; // params from the last renderForm() call, reused by submitPayment()
     this._paymentAbort  = null; // AbortController for in-flight requests
 
@@ -117,7 +119,22 @@ class AxcessGatewayFormHandler {
         return;
       }
 
-      console.error('Received message from unknown origin:', event.origin, event.data);
+      if (this.checkoutMode === 'booking-prerequisite') {
+        // Only our WooCommerce receipt inside the booking's payment frame may
+        // finish this checkout. Eligibility is still verified on the server.
+        const frameWindow = document.getElementById('checkoutCustomIframe')?.contentWindow;
+        let source = event.source;
+        try {
+          for (let depth = 0; source && source !== frameWindow && depth < 8; depth++) {
+            if (source === source.parent) break;
+            source = source.parent;
+          }
+        } catch (_) { return; }
+        const receiptOrderId = event.data?.data?.order_id || event.data?.data?.id;
+        if (!frameWindow || source !== frameWindow
+            || event.origin !== new URL(this.ajaxUrl, document.baseURI).origin
+            || (receiptOrderId && Number(receiptOrderId) !== this.currentOrderId)) return;
+      }
       // ── handle-payment-status.php postMessage ─────────────────────────────
       if (event.data?.type === 'checkoutThankYouPage') {
         this._hide3DS();
@@ -220,6 +237,10 @@ class AxcessGatewayFormHandler {
    * @returns {Promise<{orderId: number, savedCards: Array}>}
    */
   async renderForm(amount, existingOrderId = null, tip_type = 'token', responseArgs = null) {
+    if (this.checkoutMode === 'booking-prerequisite') {
+      return this._renderBookingPrerequisiteForm(amount, existingOrderId, responseArgs);
+    }
+
     // Build and cache the base payload — submitPayment() will reuse these exact params
     this._renderParams = {
       ...AxcessGatewayFormHandler._defaults,
@@ -231,8 +252,8 @@ class AxcessGatewayFormHandler {
 
     // Apply user/email from login-logout response so submitPayment() uses correct values
     if (responseArgs) {
-      const resUserId = responseArgs.userData?.userID || responseArgs.userData?.user_id;
-      if (resUserId)                         this._renderParams.user_id        = resUserId;
+      const resUserId = responseArgs.userData?.userID ?? responseArgs.userData?.user_id ?? responseArgs.user_id;
+      if (resUserId !== undefined && resUserId !== null) this._renderParams.user_id = Number(resUserId) || 0;
       if (responseArgs.userData?.userEmail) {
         this._renderParams.register_email  = responseArgs.userData.userEmail;
         this._renderParams.billing_email   = responseArgs.userData.userEmail;
@@ -261,6 +282,7 @@ class AxcessGatewayFormHandler {
     }
 
     this.currentOrderId = response.order_id;
+    this.currentOrderKey = response.order_key || '';
 
     // Sync check_cart_product_types into the global custom_checkout_params (mirrors renderPaymentContent)
     if (response.check_cart_product_types ) {
@@ -304,6 +326,19 @@ class AxcessGatewayFormHandler {
    * Call this before re-rendering with a different amount.
    */
   destroyForm() {
+    // Match the existing WooCommerce checkout teardown. COPYandPAY retains
+    // iframe state beyond the form DOM unless it is unloaded before retry.
+    if (typeof window.wpwl?.unload === 'function') {
+      try { window.wpwl.unload(); }
+      catch (error) { console.warn('Could not unload booking payment widget:', error); }
+    }
+    // COPYandPAY also requires removing its runtime script before reloading.
+    // Otherwise old widget instances keep communicating after cancellation.
+    document.querySelectorAll('script[src]').forEach(script => {
+      const url = new URL(script.src, document.baseURI);
+      if (['https://eu-test.oppwa.com', 'https://eu-prod.oppwa.com'].includes(url.origin)
+          && url.pathname.endsWith('/static.min.js')) script.remove();
+    });
     this.container.innerHTML = '';
     this.currentOrderId = null;
     this._hide3DS();
@@ -341,13 +376,24 @@ class AxcessGatewayFormHandler {
       throw new Error('No active order. Call renderForm() first.');
     }
 
-    const params = {
-      action:   'create_tip_order',
-      step:     'payment',
-      order_id: this.currentOrderId,
-      ...this._renderParams, // same base params used when the form was rendered
-      ...extraFields,
-    };
+    const params = this.checkoutMode === 'booking-prerequisite'
+      ? {
+          ...this._renderParams,
+          ...extraFields,
+          action: 'create_order',
+          checkout_step: 2,
+          terms: 1,
+          'terms-field': 1,
+          order_id: this.currentOrderId,
+          payment_method: extraFields.payment_method || window?.custom_checkout_params?.payment_method || 'new_card',
+        }
+      : {
+          action:   'create_tip_order',
+          step:     'payment',
+          order_id: this.currentOrderId,
+          ...this._renderParams, // same base params used when the form was rendered
+          ...extraFields,
+        };
 
     // Page global takes precedence over the static default (needed for GCash detection server-side)
     if (window?.custom_checkout_params?.active_payment_method) {
@@ -364,8 +410,13 @@ class AxcessGatewayFormHandler {
       }
     });
 
-    // Validate new-card form fields before submitting (mirrors custom-checkout.js:1391-1431)
-    const cardErrors = this._validateCardForm();
+    // The visible card selector is authoritative. Reloaded gateway markup or
+    // checkout globals can still contain a different default payment mode.
+    if (extraFields.payment_method) params.payment_method = extraFields.payment_method;
+    if (Object.hasOwn(extraFields, 'token_id')) params.token_id = extraFields.token_id;
+
+    // Validate the same payment mode that will be sent to the server.
+    const cardErrors = this._validateCardForm(params.payment_method || window?.custom_checkout_params?.payment_method);
     if (cardErrors) {
       const firstMessage = Object.entries(cardErrors)
         .filter(([, v]) => typeof v === 'string')
@@ -379,6 +430,121 @@ class AxcessGatewayFormHandler {
     return response;
   }
 
+  // The normal merch checkout prepares the address before rendering payment.
+  // Use that same action; this step never submits a card or charges the order.
+  async prepareBookingShipping(extraFields = {}) {
+    if (this.checkoutMode !== 'booking-prerequisite' || !this.currentOrderId) {
+      throw new Error('No active prerequisite order.');
+    }
+    const response = await this._post({
+      ...this._renderParams,
+      ...extraFields,
+      action: 'create_order',
+      order_id: this.currentOrderId,
+      checkout_step: 1,
+      payment_method: 'new_card',
+      token_id: '',
+      show_shipping_address: 1,
+    });
+    if (!response?.success || response.error) {
+      const messages = Object.values(response?.errors || {}).filter(value => typeof value === 'string');
+      throw new Error(messages.join(' ') || response?.message || 'Could not update shipping.');
+    }
+    return response;
+  }
+
+  async _renderBookingPrerequisiteForm(amount, existingOrderId = null, responseArgs = null) {
+    const requestParams = {
+      ...this.extraParams,
+      action: 'get_checkout_template',
+      buy_now: 1,
+      is_buy_now: 1,
+      is_call_checkout: 1,
+      booking_prerequisite_checkout: 1,
+      prevent_payment_redirect: 1,
+      ordered_from: 'vue',
+      // Product/subscription and token purchases must remain separate orders.
+      booking_topup_tokens: Number(this.extraParams.booking_topup_tokens || 0),
+      user_id: this.extraParams.user_id || window?.userData?.userID || 0,
+    };
+    if (existingOrderId) {
+      requestParams.order_id = existingOrderId;
+      requestParams.order_key = this.bookingCheckoutData?.order_key || '';
+    }
+
+    this._showSkeleton();
+    const response = responseArgs?.payment_content
+      ? responseArgs
+      : await this._post(requestParams);
+
+    // get_checkout_template historically sets `error` from the live cart total.
+    // Buy-now checkout clears/restores that cart after creating the order, so a
+    // valid order + payment fragment can arrive with error=true. Treat the
+    // concrete checkout payload as authoritative and reserve `error` for
+    // responses that cannot actually render a payment form.
+    const paymentContent = response?.payment_content || response?.payment_cards || '';
+    const hasRenderableCheckout = Boolean(response?.success && response?.order_id && paymentContent);
+    if ((!hasRenderableCheckout && response?.error) || !response?.order_id) {
+      this._hideSkeleton();
+      const message = response?.message || 'Failed to load booking checkout';
+      this._handleError(message);
+      throw new Error(message);
+    }
+
+    const checkoutParams = response.check_cart_product_types
+      || response.custom_checkout_params
+      || {};
+    this.currentOrderId = Number(response.order_id);
+    this.bookingCheckoutData = response.booking_checkout || this.bookingCheckoutData || null;
+    this._renderParams = {
+      ...requestParams,
+      order_id: this.currentOrderId,
+      order_key: this.bookingCheckoutData?.order_key || '',
+      user_id: checkoutParams.user_id || requestParams.user_id,
+      // The normal checkout includes these switch fields in hidden inputs.
+      // Its compact item response omits them, so restore the same fields from
+      // the server's switch details for the embedded payment submission.
+      items: (checkoutParams.items || []).map(item => {
+        const change = checkoutParams.subscription_switch;
+        return change?.subscription_id ? {
+          ...item,
+          subscription_id: change.subscription_id,
+          subscription_switch: JSON.stringify(change),
+        } : item;
+      }),
+      show_shipping_address: response.booking_checkout?.requires_shipping ? 1 : 0,
+      save_billing_address: 1,
+      save_shipping_address: 1,
+    };
+
+    if (window.custom_checkout_params === undefined) window.custom_checkout_params = {};
+    window.custom_checkout_params = {
+      ...window.custom_checkout_params,
+      ...checkoutParams,
+      order_id: this.currentOrderId,
+      payment_method: checkoutParams.payment_method || 'new_card',
+    };
+
+    if (paymentContent) {
+      this._injectContent(paymentContent);
+      const contentWrap = this.container.querySelector('.axcess-content-wrap');
+      if (contentWrap) contentWrap.classList.add('axcess-loading');
+      this._reinjectScripts(this.container);
+      this._bindPaymentStep();
+    } else {
+      this._hideSkeleton();
+      throw new Error('Booking checkout did not return a payment form.');
+    }
+
+    return {
+      orderId: this.currentOrderId,
+      savedCards: checkoutParams.payment_details || checkoutParams.payment_detail || [],
+      billing: response.booking_checkout?.billing_address || {},
+      checkout: response.booking_checkout || {},
+      response,
+    };
+  }
+
   // ---------------------------------------------------------------------------
   // Internal success / error handlers
   // ---------------------------------------------------------------------------
@@ -390,6 +556,15 @@ class AxcessGatewayFormHandler {
    * @param {object} response
    */
   _handleSuccess(response) {
+    if (this.checkoutMode === 'booking-prerequisite') {
+      response = {
+        ...response,
+        order_id: response?.order_id || this.currentOrderId,
+        receipt_url: response?.receipt_url || this.bookingCheckoutData?.receipt_url || '',
+        booking_checkout: this.bookingCheckoutData,
+        token_order_id: this.bookingCheckoutData?.token_order_id || null,
+      };
+    }
     console.error('Payment successful:', response);
     
     // SPEEDUP PAYMENT: Drain this order's queued post-payment side effects now
@@ -401,6 +576,9 @@ class AxcessGatewayFormHandler {
     let speedupOrderId = response?.order_id || response?.id || custom_checkout_params.order_id || this.currentOrderId;
     if (speedupOrderId) {
        this.processPaymentSchedule(speedupOrderId);
+    }
+    if (response?.token_order_id) {
+      this.processPaymentSchedule(response.token_order_id);
     }
 
     // TODO: add shared success logic here (e.g. update token balance display)
@@ -425,12 +603,12 @@ class AxcessGatewayFormHandler {
   /**
    * Validates the injected new-card wpwl form fields before submitting.
    * Mirrors custom-checkout.js:pageElementsValidateData (lines 1391-1431).
-   * Only runs when custom_checkout_params.payment_method === 'new_card'.
+   * Only runs when the submitted payment method is 'new_card'.
    *
    * @returns {object|null} Error map (with validate:true) or null when valid.
    */
-  _validateCardForm() {
-    if (window?.custom_checkout_params?.payment_method !== 'new_card') return null;
+  _validateCardForm(paymentMethod = window?.custom_checkout_params?.payment_method) {
+    if (paymentMethod !== 'new_card') return null;
 
     const errors = {};
 
@@ -514,14 +692,36 @@ class AxcessGatewayFormHandler {
     Object.keys(data).forEach(key => {
       const value = data[key];
       if (value !== null && value !== undefined) {
-        formData.append(
-          key,
-          typeof value === 'object' ? JSON.stringify(value) : value
-        );
+        if (this.checkoutMode === 'booking-prerequisite' && key === 'items' && Array.isArray(value)) {
+          value.forEach((item, index) => {
+            Object.entries(item || {}).forEach(([itemKey, itemValue]) => {
+              if (itemValue !== null && itemValue !== undefined) {
+                formData.append(`items[${index}][${itemKey}]`, itemValue);
+              }
+            });
+          });
+        } else {
+          formData.append(
+            key,
+            typeof value === 'object' ? JSON.stringify(value) : value
+          );
+        }
       }
     });
 
-    const res = await fetch(this.ajaxUrl, {
+    // WooCommerce Subscriptions reads switch context from GET while the
+    // checkout action reads POST. Match the existing buy-now checkout request.
+    let requestUrl = this.ajaxUrl;
+    if (this.checkoutMode === 'booking-prerequisite' && data.action === 'get_checkout_template'
+        && data['switch-subscription']) {
+      const url = new URL(requestUrl, window.location.href);
+      ['switch-subscription', 'item', '_wcsnonce'].forEach(key => {
+        if (data[key]) url.searchParams.set(key, data[key]);
+      });
+      requestUrl = url.toString();
+    }
+
+    const res = await fetch(requestUrl, {
       method: 'POST',
       body:   formData,
       signal: setAbort ? this._paymentAbort.signal : null,
@@ -603,6 +803,25 @@ class AxcessGatewayFormHandler {
    * executes them (innerHTML does not execute injected scripts).
    */
   _reinjectScripts(el) {
+    if (typeof window.jQuery !== 'function') {
+      try {
+        if (typeof window.parent?.jQuery === 'function') {
+          window.jQuery = window.parent.jQuery;
+          window.$ = window.parent.jQuery;
+        }
+      } catch (_) { /* parent may be cross-origin outside WordPress */ }
+    }
+
+    // The shared COPYandPAY template historically resolves its active root via
+    // #tip-checkout-popup / #checkout-popup. Embedded booking checkout has no
+    // parent popup, so point that existing hook at the Step 3 card container.
+    // This keeps the gateway's own onReady/show-card behavior unchanged.
+    if (!document.querySelector('#tip-checkout-popup, #checkout-popup')) {
+      window.get_active_checkout_popup = () => (
+        this.container.closest('[data-card-dark-ui]') || this.container
+      );
+    }
+
     const scripts = Array.from(el.querySelectorAll('script'));
     scripts.forEach(oldScript => {
       const newScript = document.createElement('script');
@@ -610,6 +829,16 @@ class AxcessGatewayFormHandler {
         newScript.setAttribute(attr.name, attr.value)
       );
       newScript.textContent = oldScript.textContent;
+      // The profile already has a hidden frame named checkoutCustomIframe.
+      // A named form target can resolve to that ancestor instead of this
+      // booking's visible frame. Keep the shared markup/CSS ID, but isolate
+      // COPYandPAY's payment and receipt targets inside the booking app.
+      if (!newScript.src) {
+        newScript.textContent = newScript.textContent.replace(
+          /((?:paymentTarget|shopperResultTarget)\s*:\s*)(["'])checkoutCustomIframe\2/g,
+          '$1$2fanBookingCheckoutIframe$2'
+        );
+      }
       oldScript.parentNode.replaceChild(newScript, oldScript);
     });
   }
@@ -682,7 +911,7 @@ class AxcessGatewayFormHandler {
 
       iframe = document.createElement('iframe');
       iframe.id          = 'checkoutCustomIframe';
-      iframe.name        = 'checkoutCustomIframe';
+      iframe.name        = 'fanBookingCheckoutIframe';
       iframe.frameBorder = '0';
       iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms');
       iframe.setAttribute('allow', 'fullscreen');
@@ -690,6 +919,7 @@ class AxcessGatewayFormHandler {
       wrapper.appendChild(iframe);
       document.body.appendChild(wrapper);
     }
+    iframe.name = 'fanBookingCheckoutIframe';
     return iframe;
   }
 

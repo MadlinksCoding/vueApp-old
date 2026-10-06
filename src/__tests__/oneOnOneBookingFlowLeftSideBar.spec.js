@@ -28,6 +28,41 @@ async function mountSidebar(props = {}, translations = {}) {
 }
 
 describe("OneOnOneBookingFlowLeftSideBar", () => {
+  it('renders group event cost and reuses the hidden prerequisite card with live subscription data', async () => {
+    const wrapper = await mountSidebar({
+      isGroupEvent: true,
+      priceSetting: 'fixedPricePerUser',
+      selectedEvent: { raw: { basePriceTokens: 500, minContributionPerUser: 20, description: 'Join our group session.' } },
+      prerequisite: { type: 'subscription', eligible: false, product: {
+        title: 'Parent product', variation_title: 'Close Circle', image_url: '/tier.png', price: 25,
+      } },
+    });
+    expect(wrapper.get('[data-testid="group-sidebar-event-cost"]').text()).toContain('500FIXED TICKET PRICE');
+    expect(wrapper.get('[data-testid="group-sidebar-description"]').text()).toBe('Join our group session.');
+    const card = wrapper.get('[data-testid="group-sidebar-prerequisite"]');
+    expect(card.text()).toContain('Close Circle');
+    expect(card.text()).toContain('USD$25.00');
+    expect(card.text()).toContain('MANDATORY SUBSCRIPTION');
+    expect(card.find('img').attributes('src')).toBe('/tier.png');
+    await wrapper.setProps({ priceSetting: 'eventGoal' });
+    expect(wrapper.get('[data-testid="group-sidebar-event-cost"]').text()).toContain('20minimum contribution');
+    await wrapper.setProps({ prerequisite: { ...wrapper.props('prerequisite'), eligible: true } });
+    expect(wrapper.find('[data-testid="group-sidebar-prerequisite"]').exists()).toBe(false);
+  });
+
+  it('keeps the full tier price without a recurring-price section in the group sidebar', async () => {
+    const wrapper = await mountSidebar({ isGroupEvent: true, prerequisite: {
+      type: 'subscription', action: 'switch', eligible: false,
+      product: { title: 'New tier', price: 25 }, subscription: { amount_due_today: 3.49 },
+    } });
+    const card = wrapper.get('[data-testid="group-sidebar-prerequisite"]');
+    expect(card.text()).toContain('USD$25.00');
+    expect(card.text()).not.toContain('USD$3.49');
+    expect(card.find('[data-testid="booking-sidebar-recurring-plan-price"]').exists()).toBe(false);
+    expect(card.text()).not.toContain('Recurring plan price');
+    wrapper.unmount();
+  });
+
   it("keeps the private booking policy layout by default", async () => {
     const wrapper = await mountSidebar({
       titleDisplay: "Private Session",
@@ -287,6 +322,10 @@ describe("OneOnOneBookingFlowLeftSideBar", () => {
     expect(wrapper.text()).toContain("15% event goal reached");
     expect(wrapper.text()).toContain("If funds do not reach the event goal");
     expect(progress.find(".bg-\\[\\#FFED29\\]").attributes("style")).toContain("width: 15%");
+    await wrapper.setProps({ eventGoalPercent: null, eventGoalReachedTokens: 400, eventGoalTokens: 8000 });
+    expect(progress.text()).toContain('5% event goal reached');
+    await wrapper.setProps({ eventGoalPercent: 0 });
+    expect(progress.text()).toContain('0% event goal reached');
   });
 
   it("toggles the session cost details section on click while maintaining desktop visibility class", async () => {
