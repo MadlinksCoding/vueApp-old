@@ -2056,6 +2056,7 @@ const createEvent = async () => {
             <CustomDropdown 
               v-model="audienceSelectionModel" 
               :options="whoCanBookOptions" 
+              :option-factory="() => whoCanBookOptions.filter(option => option.value !== 'inviteOnly')"
             />
             <ValidationInlineWarning
               :messages="fieldEditWarningMessages(['whoCanBook', 'spendingRequirement'])"
