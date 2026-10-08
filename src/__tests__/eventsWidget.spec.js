@@ -1,6 +1,7 @@
 import { mount } from "@vue/test-utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import EventsWidget from "@/components/calendar/EventsWidget.vue";
+import StickyBookingCard from "@/components/calendar/StickyBookingCard.vue";
 import { bookingTranslationSymbol, createBookingTranslator } from "@/i18n/bookingTranslations.js";
 
 let wrapper;
@@ -19,6 +20,25 @@ afterEach(() => {
 });
 
 describe("EventsWidget", () => {
+  it.each([
+    ['creator', true, 'Cancel Group Event'],
+    ['creator', false, 'Cancel Call'],
+    ['fan', true, 'Cancel Call'],
+  ])('uses the cancellation scope for %s viewers (group=%s)', async (role, isGroup, label) => {
+    const sourceEvent = { bookingId: 'booking_1', status: 'confirmed', start: '2099-01-01T10:00:00Z', end: '2099-01-01T11:00:00Z' };
+    const item = { title: 'Session', isGroup, sourceEvent };
+    wrapper = mount(EventsWidget, { props: { userRole: role, sections: [{ title: 'BOOKINGS', items: [item] }] } });
+    await wrapper.get("[data-test='events-widget-menu-trigger']").trigger('click');
+    expect(wrapper.get("[data-test='events-widget-menu']").text()).toBe(label);
+    await wrapper.get("[data-test='events-widget-cancel-call']").trigger('click');
+    expect(wrapper.emitted('menu-action')[0][0].action).toBe('cancel_call');
+    wrapper.unmount();
+
+    wrapper = mount(StickyBookingCard, { props: { userRole: role, menuOpen: true, event: { ...sourceEvent, isGroup } } });
+    expect(wrapper.get("[data-test='mobile-join-card-menu']").text()).toBe(label);
+    await wrapper.get("[data-test='mobile-join-card-cancel']").trigger('click');
+    expect(wrapper.emitted('menu-action')[0][0]).toBe('cancel_call');
+  });
   const menuItem = ({ status, start, end, pendingPriceAdjustment = false }) => ({
     title: `${status} booking`,
     sourceEvent: {

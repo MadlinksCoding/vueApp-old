@@ -5036,7 +5036,8 @@ describe("MainCalendar all events count", () => {
     );
 
     const card = wrapper.get("[data-test='mobile-join-card']");
-    expect(card.text()).toContain("Group event (2)");
+    expect(card.text()).not.toContain("Group event");
+    expect(card.find('[data-test="group-booking-fan-count"]').exists()).toBe(false);
     expect(card.findAll("img[alt='Ava'], img[alt='Ben']")).toHaveLength(2);
     expect(card.get("[data-test='mobile-join-card-type-icon']").exists()).toBe(true);
     expect(fetchMock).not.toHaveBeenCalled();

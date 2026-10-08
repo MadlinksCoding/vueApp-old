@@ -284,7 +284,7 @@ describe("create booking mapper", () => {
     expect(preview.payment.total).toBe(100);
   });
 
-  it("applies group recurring discount once prior confirmed/completed count reaches the minimum", () => {
+  it("charges only the fixed group price even with legacy recurring settings", () => {
     const event = {
       eventId: "evt_group_discount",
       creatorId: 1407,
@@ -306,12 +306,8 @@ describe("create booking mapper", () => {
     expect(below.payment.total).toBe(200);
 
     const preview = buildBookingPaymentPreview(event, 180, [], {}, { priorEventBookingCount: 2 });
-    expect(preview.payment.lines).toContainEqual({
-      code: "recurring_event_discount",
-      label: "Recurring Event Discount (25%)",
-      amount: -50,
-    });
-    expect(preview.payment.total).toBe(150);
+    expect(preview.payment.lines).toEqual([{ code: "base", label: "Base Price", amount: 200 }]);
+    expect(preview.payment.total).toBe(200);
 
     const mapped = mapCreateBookingToRequest({
       fanBooking: {
@@ -339,12 +335,8 @@ describe("create booking mapper", () => {
       },
     });
 
-    expect(mapped.payment.lines).toContainEqual({
-      code: "recurring_event_discount",
-      label: "Recurring Event Discount (25%)",
-      amount: -50,
-    });
-    expect(mapped.payment.total).toBe(150);
+    expect(mapped.payment.lines).toEqual([{ code: "base", label: "Base Price", amount: 200 }]);
+    expect(mapped.payment.total).toBe(200);
   });
 
   it("applies fixed first-time token discounts", () => {
@@ -472,7 +464,7 @@ describe("create booking mapper", () => {
     expect(preview.payment.total).toBe(0);
   });
 
-  it("adds off-hour surcharge when the selected group slot is marked off-hours", () => {
+  it("ignores legacy off-hour charges for group slots", () => {
     const event = {
       eventId: "evt_group_off_hour",
       creatorId: 1407,
@@ -496,12 +488,8 @@ describe("create booking mapper", () => {
       {},
     );
 
-    expect(preview.payment.lines).toContainEqual({
-      code: "off_hour_surcharge",
-      label: "Off-hour Surcharge",
-      amount: 8,
-    });
-    expect(preview.payment.total).toBe(108);
+    expect(preview.payment.lines).toEqual([{ code: "base", label: "Base Price", amount: 100 }]);
+    expect(preview.payment.total).toBe(100);
   });
 
   it("multiplies and ceils fixed off-hour tokens for private base sessions", () => {
@@ -560,9 +548,8 @@ describe("create booking mapper", () => {
     expect(preview.contributionTokens).toBe(250);
     expect(preview.payment.lines).toEqual([
       { code: "event_goal_contribution", label: "Event Goal Contribution", amount: 250 },
-      { code: "off_hour_surcharge", label: "Off-hour Surcharge", amount: 12 },
     ]);
-    expect(preview.payment.total).toBe(262);
+    expect(preview.payment.total).toBe(250);
 
     const mapped = mapCreateBookingToRequest({
       fanBooking: {
@@ -593,9 +580,8 @@ describe("create booking mapper", () => {
     expect(mapped.contributionTokens).toBe(250);
     expect(mapped.payment.lines).toEqual([
       { code: "event_goal_contribution", label: "Event Goal Contribution", amount: 250 },
-      { code: "off_hour_surcharge", label: "Off-hour Surcharge", amount: 12 },
     ]);
-    expect(mapped.payment.total).toBe(262);
+    expect(mapped.payment.total).toBe(250);
   });
 
   it("treats the legacy percent field as the same fixed token amount", () => {

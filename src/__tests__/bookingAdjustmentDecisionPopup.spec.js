@@ -29,6 +29,20 @@ function mountDecision(props = {}) {
 }
 
 describe('BookingAdjustmentDecisionPopup', () => {
+  it('confirms cancellation and refunds for every fan in a creator group session', async () => {
+    const wrapper = mountDecision({ mode: 'cancel', actorRole: 'creator', isGroupEvent: true, fanUsername: 'one_fan' });
+    const heading = wrapper.get('[data-test="booking-adjustment-decision-heading"]').text();
+    expect(heading).toContain('Cows of Lantau');
+    expect(heading).toContain('all fan bookings for this date and time');
+    expect(heading).toContain('All fans will receive a full refund');
+    expect(wrapper.find('[data-test="booking-adjustment-creator-total-refund"]').exists()).toBe(false);
+    expect(wrapper.text()).not.toContain('@one_fan');
+    const primary = wrapper.get('[data-test="booking-adjustment-decision-primary"]');
+    expect(primary.text()).toBe('Cancel Group Event');
+    await primary.trigger('click');
+    expect(wrapper.emitted('confirm')[0][0].mode).toBe('cancel');
+  });
+
   it('renders creator rejection as a full-session refund confirmation', async () => {
     const wrapper = mountDecision({
       mode: 'reject',

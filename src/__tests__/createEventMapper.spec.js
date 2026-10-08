@@ -472,9 +472,9 @@ describe("createEventMapper", () => {
     expect(mapped.enableDiscountForLonger).toBe(false);
     expect(mapped.discountMinSessions).toBeUndefined();
     expect(mapped.discountPercentOfBase).toBeUndefined();
-    expect(mapped.enableDiscountForRecurring).toBe(true);
-    expect(mapped.minEventsForRecurringDiscount).toBe(3);
-    expect(mapped.recurringDiscountPercentOfBase).toBe(20);
+    expect(mapped.enableDiscountForRecurring).toBe(false);
+    expect(mapped.minEventsForRecurringDiscount).toBeUndefined();
+    expect(mapped.recurringDiscountPercentOfBase).toBeUndefined();
     expect(mapped.enableCancellationFee).toBe(true);
     expect(mapped.cancellationFeeTokens).toBe(20);
     expect(mapped.allowAdvanceCancelToAvoidMinCharge).toBe(true);

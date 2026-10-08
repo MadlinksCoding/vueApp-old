@@ -394,22 +394,14 @@ export function buildBookingPaymentPreview(
   );
   const offHourSurchargeTokens = resolveOffHourSurchargeTokens(event);
 
-  if (eventGoalGroup) {
-    if (offHoursSelected && offHourSurchargeEnabled && offHourSurchargeTokens > 0) {
-      lines.push({
-        code: "off_hour_surcharge",
-        label: "Off-hour Surcharge",
-        amount: toSurchargeTokens(offHourSurchargeTokens),
-      });
-    }
-
+  if (isGroupEvent(event)) {
     return {
       payment: withAllocations(lines),
       contributionTokens,
       requestedAddOns: [],
       additionalRequests: {
         recording: false,
-        offHours: offHoursSelected,
+        offHours: false,
       },
       discounts: {
         longerDiscount: { amountTokens: 0, discountTokens: 0 },

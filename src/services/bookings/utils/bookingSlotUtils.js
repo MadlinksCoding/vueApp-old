@@ -228,9 +228,9 @@ function resolveGroupCapacity(event = {}) {
   const enabled = raw?.enableMaxAttendees ?? event?.enableMaxAttendees;
   const capacity = Number(raw?.maxAttendees ?? event?.maxAttendees);
 
-  if (enabled === false || enabled === "false" || enabled === 0 || enabled === "0") return Infinity;
-  if (!Number.isFinite(capacity) || capacity <= 0) return Infinity;
-  return Math.floor(capacity);
+  if (enabled === false || enabled === "false" || enabled === 0 || enabled === "0") return 249;
+  if (!Number.isFinite(capacity) || capacity < 1) return 249;
+  return Math.min(249, Math.floor(capacity));
 }
 
 function resolvePrivateDailyCapacity(event = {}) {

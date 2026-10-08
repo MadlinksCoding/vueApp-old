@@ -624,6 +624,7 @@
       v-model="cancelBookingPopupOpen"
       mode="cancel"
       actor-role="creator"
+      :is-group-event="cancelBookingIsGroupEvent"
       :event-title="cancelBookingCandidateTitle"
       :fan-username="cancelBookingFanUsername"
       :session-refund-tokens="cancelBookingRefundTokens"
@@ -1801,10 +1802,11 @@ function makeAvatar(event) {
     const participants = Array.isArray(event?.raw?.participants) ? event.raw.participants : [];
     const participantAvatars = participants
       .map((participant) => ({
-        src: participant?.avatarUrl || DEFAULT_AVATAR_URL,
+        userId: participant?.userId,
+        src: participant?.avatarUrl || null,
         name: participant?.name || t("calendar_event_guest_fallback"),
       }))
-      .slice(0, 4);
+      .slice(0, 3);
 
     if (participantAvatars.length > 0) return participantAvatars;
   }
@@ -1847,14 +1849,6 @@ function getGroupParticipantCount(event = {}) {
   const explicitCount = Number(raw.participantCount ?? event.participantCount);
   if (Number.isFinite(explicitCount) && explicitCount > 0) return Math.floor(explicitCount);
   return participants.length;
-}
-
-function getWidgetGroupText(event = {}) {
-  const base = t("dashboard_group_event");
-  if (!isCreator.value) return base;
-
-  const count = getGroupParticipantCount(event);
-  return count > 0 ? `${base} (${count})` : base;
 }
 
 function resolveJoinStateForEvent(event = {}, now = currentTime.value) {
@@ -1981,7 +1975,6 @@ function toWidgetItem(event, options = {}) {
     borderClass: styles.borderClass,
     bgClass: "bg-gradient-to-r from-gray-50/50 to-gray-50/20",
     isGroup,
-    groupText: isGroup ? getWidgetGroupText(event) : undefined,
     participantCount,
     showJoin: showJoinButton,
     canJoin: joinState.canJoin,
@@ -3188,6 +3181,12 @@ const confirmDeleteEvent = async () => {
 
 const cancelBookingCandidateTitle = computed(() => cancelBookingCandidate.value?.event?.title || t("common_booking"));
 const cancelBookingCandidateRaw = computed(() => cancelBookingCandidate.value?.event?.raw || cancelBookingCandidate.value?.event || {});
+const cancelBookingIsGroupEvent = computed(() => {
+  const event = cancelBookingCandidate.value?.event || {};
+  const raw = cancelBookingCandidateRaw.value;
+  return event.isGroup === true || raw.isGroupedGroupSlot === true
+    || String(event.type || raw.eventSnapshot?.type || raw.eventSnapshot?.eventType || raw.type || raw.eventType || '').toLowerCase() === 'group-event';
+});
 const cancelBookingFanUsername = computed(() => String(cancelBookingCandidateRaw.value?.fanUsername || cancelBookingCandidateRaw.value?.username || cancelBookingCandidateRaw.value?.fanDisplayName || cancelBookingCandidateRaw.value?.userDisplayName || "fan"));
 const cancelBookingRefundTokens = computed(() => {
   const payment = cancelBookingCandidateRaw.value?.payment || {};

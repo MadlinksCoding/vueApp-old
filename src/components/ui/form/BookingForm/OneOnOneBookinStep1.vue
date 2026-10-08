@@ -9,6 +9,8 @@
   import TooltipIcon from "@/components/ui/tooltip/TooltipIcon.vue";
   import CustomDropdown from "@/components/ui/dropdown/CustomDropdown.vue";
   import SoftDisabledBookingButton from "./HelperComponents/SoftDisabledBookingButton.vue";
+  import BookingDateInput from "./HelperComponents/BookingDateInput.vue";
+  import { bookedScheduleRanges } from "./bookedScheduleRanges.js";
   import ValidationInlineWarning from "./HelperComponents/ValidationInlineWarning.vue";
   import videoIcon from '@/assets/images/icons/video-recorder.webp'
   import phoneIcon from '@/assets/images/icons/phone.webp'
@@ -263,6 +265,7 @@
       default: "private",
       validator: (value) => ["private", "group"].includes(value),
     },
+    confirmedBookings: { type: Array, default: () => [] },
     scheduleLocked: {
       type: Boolean,
       default: false,
@@ -305,7 +308,7 @@
   const isPricingLocked = computed(() => isGroupBooking.value && props.pricingLocked);
   const step1SectionOrder = computed(() => (
     isGroupBooking.value
-      ? ["calendarAvailability", "groupPricing", "offHourSurcharge"]
+      ? ["calendarAvailability", "groupPricing"]
       : ["privatePricing", "offHourSurcharge", "calendarAvailability"]
   ));
 
@@ -763,6 +766,12 @@
     const day = String(today.getDate()).padStart(2, "0");
     return `${year}-${month}-${day}`;
   }
+
+  const confirmedRanges = computed(() => bookedScheduleRanges(props.confirmedBookings, props.engine.state.creatorTimezone || 'Asia/Hong_Kong', {
+    from: formData.value.repeatRule === 'doesNotRepeat' ? '' : formData.value.dateFrom,
+    to: formData.value.repeatRule === 'doesNotRepeat' ? '' : formData.value.dateTo,
+  }));
+  const bookedDates = computed(() => [...new Set(confirmedRanges.value.map(range => range.date))]);
 
   const todayIsoDate = getTodayIsoDate();
 
@@ -1333,10 +1342,10 @@
   }
 
   function getExistingOneTimeRanges(dateEntry = {}, excludeIndex = null) {
-    return (Array.isArray(dateEntry?.slots) ? dateEntry.slots : [])
+    return [...confirmedRanges.value.filter(range => range.date === dateEntry.date), ...(Array.isArray(dateEntry?.slots) ? dateEntry.slots : [])
       .map((slot, index) => ({ index, range: getOneTimeSlotRange(slot) }))
       .filter(({ index, range }) => index !== excludeIndex && range)
-      .map(({ range }) => range)
+      .map(({ range }) => range)]
       .sort((first, second) => first.start - second.start);
   }
 
@@ -1620,7 +1629,7 @@
   }
 
   function getMonthlyExistingRanges(excludeIndex = null) {
-    return getExistingSlotRanges(monthlySlots.value, excludeIndex);
+    return [...getExistingSlotRanges(monthlySlots.value, excludeIndex), ...confirmedRanges.value];
   }
 
   function getMonthlyStartOptions(slotIndex = null) {
@@ -1685,7 +1694,7 @@
   }
 
   function getExistingWeeklyRanges(excludeDayIndex = null, excludeSlotIndex = null) {
-    return (Array.isArray(weekDays.value) ? weekDays.value : [])
+    return [...confirmedRanges.value.map(range => ({ start: range.day * MINUTES_PER_DAY + range.start, end: range.day * MINUTES_PER_DAY + range.end })), ...(Array.isArray(weekDays.value) ? weekDays.value : [])
       .flatMap((day, dayIndex) => {
         if (day?.unavailable) return [];
         return (Array.isArray(day?.slots) ? day.slots : [])
@@ -1698,12 +1707,12 @@
       .filter(({ dayIndex, slotIndex, range }) => (
         range && !(dayIndex === excludeDayIndex && slotIndex === excludeSlotIndex)
       ))
-      .map(({ range }) => range)
+      .map(({ range }) => range)]
       .sort((first, second) => first.start - second.start);
   }
 
   function getExistingWeeklySameDayRanges(dayIndex = -1, excludeSlotIndex = null) {
-    return getExistingSlotRanges(weekDays.value?.[dayIndex]?.slots, excludeSlotIndex);
+    return [...getExistingSlotRanges(weekDays.value?.[dayIndex]?.slots, excludeSlotIndex), ...confirmedRanges.value.filter(range => range.day === resolveWeeklyDayIndex(dayIndex))];
   }
 
   function getShiftedWeeklyRanges(ranges = []) {
@@ -1836,6 +1845,25 @@
       }
     }
 
+    // Keep the preferred duration when it fits, then try a shorter free window.
+    const existingWeeklyRanges = getExistingWeeklyRanges(dayIndex, excludeSlotIndex);
+    const existingSameDayRanges = getExistingWeeklySameDayRanges(dayIndex, excludeSlotIndex);
+    for (const startTime of orderedStarts) {
+      const shorterEnds = endTimeOptionValues.filter((endTime) => {
+        const slotDuration = getSlotDurationMinutesFromTimes(startTime, endTime);
+        return slotDuration !== null
+          && slotDuration >= MIN_AVAILABILITY_SLOT_DURATION_MINUTES
+          && slotDuration < duration;
+      }).reverse();
+      const endTime = shorterEnds.find((candidateEnd) => !doesWeeklySlotConflictWithRanges(
+        dayIndex,
+        { startTime, endTime: candidateEnd },
+        existingWeeklyRanges,
+        existingSameDayRanges,
+      ));
+      if (endTime) return makeSlot(startTime, endTime);
+    }
+
     return null;
   }
 
@@ -1958,16 +1986,27 @@
     return Array.isArray(monthlySlots.value) ? monthlySlots.value.length : 0;
   }
 
+  function showWeeklySlotUnavailableToast(dayIndex) {
+    if (confirmedRanges.value.some((range) => range.day === resolveWeeklyDayIndex(dayIndex))) {
+      showScheduleValidationToast(
+        "booking_validation_weekly_booked_time_unavailable",
+        "No free slot of at least 10 minutes remains for this weekday. Weekly slots cannot overlap confirmed bookings or other slots, including on future dates.",
+      );
+      return;
+    }
+    showScheduleValidationToast(
+      "booking_validation_weekly_slot_unique",
+      "Each weekly time slot must be unique and cannot overlap another weekly slot.",
+    );
+  }
+
   function addDayAvailability(dayIndex) {
     if (isScheduleLocked.value) return;
     const day = weekDays.value[dayIndex];
     if (!day || isWeeklyDayLocked(day.key || day.name)) return;
     const nextSlot = getNextAvailableWeeklySlot(dayIndex);
     if (!nextSlot) {
-      showScheduleValidationToast(
-        "booking_validation_weekly_slot_unique",
-        "Each weekly time slot must be unique and cannot overlap another weekly slot.",
-      );
+      showWeeklySlotUnavailableToast(dayIndex);
       return;
     }
     day.unavailable = false;
@@ -1983,10 +2022,7 @@
     if (!day || isWeeklyDayLocked(day.key || day.name)) return;
     const nextSlot = getNextAvailableWeeklySlot(dayIndex);
     if (!nextSlot) {
-      showScheduleValidationToast(
-        "booking_validation_weekly_slot_unique",
-        "Each weekly time slot must be unique and cannot overlap another weekly slot.",
-      );
+      showWeeklySlotUnavailableToast(dayIndex);
       return;
     }
     day.unavailable = false;
@@ -2711,7 +2747,7 @@
             <div class="inline-flex justify-start items-center gap-2">
               <div class="w-6 h-6" />
               <BaseInput type="number" placeholder="" v-model="formData.maxAttendees"
-                data-booking-validation-input-field="maxAttendees"
+                data-booking-validation-input-field="maxAttendees" :min="1" :max="249"
                 :disabled="!formData.enableMaxAttendees"
                 inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed" />
             </div>
@@ -3177,7 +3213,7 @@
               />
             </div>
 
-            <div class="self-stretch flex flex-col justify-center items-start gap-3">
+            <div v-if="!isGroupBooking" class="self-stretch flex flex-col justify-center items-start gap-3">
               <CheckboxGroup v-model="formData.enableLongerDiscount" :label="t('booking_enable_discount_recurring')"
                 :disabled="isPricingLocked"
                 checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.35rem] checked:[&::after]:top-[0.2rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[0.125rem] checked:[&::after]:border-b-[0.125rem] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
@@ -3260,6 +3296,11 @@
                   inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed" />
                 <div class="text-black text-base font-medium leading-normal">{{ t("common_tokens") }}</div>
               </div>
+              <ValidationInlineWarning
+                :messages="t('booking_group_contribution_limit_notice')"
+                purpose="info"
+                spacing-class="-mt-1"
+              />
               <ValidationInlineWarning
                 :messages="fieldValidationMessages('minContributionPerUser')"
                 field="minContributionPerUser"
@@ -3444,15 +3485,7 @@
                     <div v-if="!formData.dateFrom" class="absolute inset-y-0 left-10 flex items-center pointer-events-none text-gray-900">
                      From
                     </div>
-                    <input
-                      type="date"
-                      v-model="formData.dateFrom"
-                      data-booking-validation-input-field="dateFrom"
-                      :min="todayIsoDate"
-                      :max="getDateFromMax()"
-                      class="bg-transparent h-10 w-full pl-10 pr-3 py-2 outline-none relative [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer"
-                      :class="[!formData.dateFrom ? 'text-transparent [&::-webkit-datetime-edit]:text-transparent' : 'text-gray-900 [&::-webkit-datetime-edit]:text-gray-900']"
-                    />
+                    <BookingDateInput v-model="formData.dateFrom" data-booking-validation-input-field="dateFrom" :min="todayIsoDate" :max="getDateFromMax()" :blocked-dates="bookedDates" />
                   </div>
                 </div>
               </div>
@@ -3469,13 +3502,7 @@
                     <div v-if="!formData.dateTo" class="absolute inset-y-0 left-10 flex items-center pointer-events-none text-gray-900">
                      To
                     </div>
-                    <input
-                      type="date"
-                      v-model="formData.dateTo"
-                      :min="getDateToMin()"
-                      class="bg-transparent h-10 w-full pl-10 pr-3 py-2 outline-none relative [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer"
-                      :class="[!formData.dateTo ? 'text-transparent [&::-webkit-datetime-edit]:text-transparent' : 'text-gray-900 [&::-webkit-datetime-edit]:text-gray-900']"
-                    />
+                    <BookingDateInput v-model="formData.dateTo" :min="getDateToMin()" :blocked-dates="bookedDates" />
                   </div>
                 </div>
               </div>
@@ -3603,14 +3630,14 @@
                           <img :src="plusIcon" alt="" />
                         </button>
                       </TooltipIcon>
-                      <span v-if="isScheduleLocked && formData.repeatRule === 'weekly'" class="flex items-center justify-center">
+                      <span v-if="!isGroupBooking && isScheduleLocked && formData.repeatRule === 'weekly'" class="flex items-center justify-center">
                         <button type="button"
                           class="w-6 h-6 rounded-full flex items-center justify-center opacity-40 cursor-not-allowed hover:bg-transparent"
                           disabled>
                           <img :src="slot.offHours ? cloudMoonPinkIcon : cloudMoonIcon" alt="" />
                         </button>
                       </span>
-                      <TooltipIcon v-else-if="formData.repeatRule === 'weekly'" :text="t('booking_mark_off_hours')" wrapperClass="flex items-center justify-center" tooltipClass="top-4 !translate-x-[-80%]">
+                      <TooltipIcon v-else-if="!isGroupBooking && formData.repeatRule === 'weekly'" :text="t('booking_mark_off_hours')" wrapperClass="flex items-center justify-center" tooltipClass="top-4 !translate-x-[-80%]">
                         <button type="button" @click="toggleSlotOffHours(index, sIdx)"
                           class="w-6 h-6 rounded-full flex items-center justify-center"
                           :disabled="isWeeklyDayLocked(day.key || day.name)"
@@ -3716,7 +3743,7 @@
                   <img :src="plusIcon" alt="" />
                 </button>
                 </TooltipIcon>
-                <span v-if="isScheduleLocked" class="flex items-center justify-center">
+                <span v-if="!isGroupBooking && isScheduleLocked" class="flex items-center justify-center">
                 <button
                   type="button"
                   class="w-6 h-6 rounded-full flex items-center justify-center opacity-40 cursor-not-allowed hover:bg-transparent"
@@ -3725,7 +3752,7 @@
                   <img :src="slot.offHours ? cloudMoonPinkIcon : cloudMoonIcon" alt="" />
                 </button>
                 </span>
-                <TooltipIcon v-else :text="t('booking_mark_off_hours')" wrapperClass="flex items-center justify-center" tooltipClass="top-4 !translate-x-[-80%]">
+                <TooltipIcon v-else-if="!isGroupBooking" :text="t('booking_mark_off_hours')" wrapperClass="flex items-center justify-center" tooltipClass="top-4 !translate-x-[-80%]">
                 <button
                   type="button"
                   @click="toggleMonthlySlotOffHours(slotIndex)"
@@ -3753,13 +3780,7 @@
                   <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
                     <img :src="calendarIcon" alt="" class="w-5 h-5" />
                   </div>
-                  <input
-                    type="date"
-                    v-model="entry.date"
-                    @change="onOneTimeDateChanged(entryIndex)"
-                    :min="getOneTimeDateMin()"
-                    class="bg-white/75 w-full pl-10 pr-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 relative [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-datetime-edit]:text-gray-900"
-                  />
+                  <BookingDateInput v-model="entry.date" @change="onOneTimeDateChanged(entryIndex)" :min="getOneTimeDateMin()" :blocked-dates="bookedDates" />
                 </div>
                 <button v-if="oneTimeDates.length > 1" type="button" @click="removeOneTimeDate(entryIndex)"
                   class="w-7 h-7 rounded text-red-500 hover:bg-red-50 flex-shrink-0 flex items-center justify-center">
@@ -3815,7 +3836,7 @@
                     class="w-6 h-6 rounded-full text-gray-600 hover:bg-gray-100">
                     <img :src="plusIcon" alt="" />
                   </button>
-                  <span v-if="isScheduleLocked" class="flex items-center justify-center">
+                  <span v-if="!isGroupBooking && isScheduleLocked" class="flex items-center justify-center">
                     <button
                       type="button"
                       class="w-6 h-6 rounded-full flex items-center justify-center opacity-40 cursor-not-allowed hover:bg-transparent"
@@ -3824,7 +3845,7 @@
                       <img :src="slot.offHours ? cloudMoonPinkIcon : cloudMoonIcon" alt="" />
                     </button>
                   </span>
-                  <TooltipIcon v-else :text="t('booking_mark_off_hours')" wrapperClass="flex items-center justify-center" tooltipClass="top-4 !translate-x-[-80%]">
+                  <TooltipIcon v-else-if="!isGroupBooking" :text="t('booking_mark_off_hours')" wrapperClass="flex items-center justify-center" tooltipClass="top-4 !translate-x-[-80%]">
                     <button
                       type="button"
                       @click="toggleOneTimeSlotOffHours(entryIndex, slotIndex)"

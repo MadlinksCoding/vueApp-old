@@ -74,6 +74,11 @@ function mountOptions(translations = {}) {
         props: ["title"],
         template: "<section><h2>{{ title }}</h2><slot /></section>",
       },
+      BookingDateInput: {
+        props: ["modelValue", "min", "max", "blockedDates"],
+        emits: ["update:modelValue", "change"],
+        template: `<input type="date" :value="modelValue" :min="min" :max="max" @input="$emit('update:modelValue', $event.target.value)" @change="$emit('change', $event.target.value)" />`,
+      },
       BaseInput: {
         props: ["placeholder", "disabled", "min", "modelValue", "type"],
         template: "<input :type='type' :placeholder='placeholder' :disabled='disabled' :min='min' :value='modelValue' :modelvalue='modelValue' />",
@@ -156,6 +161,34 @@ async function settleValidation() {
 }
 
 describe("one-on-one booking step translations", () => {
+  it('shows the cyan contribution limit notice below the goal input', async () => {
+    const { default: Step1 } = await import('@/components/ui/form/BookingForm/OneOnOneBookinStep1.vue');
+    const wrapper = shallowMount(Step1, { props: { engine: createEngine({ eventType: 'group-event', priceSetting: 'eventGoal' }), bookingType: 'group' }, global: mountOptions() });
+    const notice = wrapper.get('[data-booking-info-notice="true"]');
+    expect(notice.text()).toBe('Each fan can contribute up to 14K tokens. Please set the minimum contribution at or below this limit');
+    expect(notice.classes()).toEqual(expect.arrayContaining(['border-[#06AED4]', 'bg-[#ECFDFF]', 'text-[#0096B7]']));
+    expect(notice.find('svg').exists()).toBe(true);
+    expect(notice.attributes('data-booking-validation-warning')).toBeUndefined();
+    wrapper.unmount();
+  });
+  it('hides group recurring discount fields even when an older event enabled them', async () => {
+    const { default: Step1 } = await import('@/components/ui/form/BookingForm/OneOnOneBookinStep1.vue');
+    const wrapper = shallowMount(Step1, { props: { engine: createEngine({ eventType: 'group-event', priceSetting: 'fixedPricePerUser', enableLongerDiscount: true, discountEventsCount: 3, discountPercentage: 10 }), bookingType: 'group' }, global: mountOptions() });
+    expect(wrapper.find('[data-booking-validation-input-field="discountEventsCount"]').exists()).toBe(false);
+    expect(wrapper.find('[data-booking-validation-input-field="discountPercentage"]').exists()).toBe(false);
+    expect(wrapper.text()).not.toContain('Enable discount price');
+    wrapper.unmount();
+  });
+  it.each(['weekly', 'monthly', 'doesNotRepeat'])('hides every group off-hour control for %s schedules', async (repeatRule) => {
+    const { default: Step1 } = await import('@/components/ui/form/BookingForm/OneOnOneBookinStep1.vue');
+    for (const scheduleLocked of [false, true]) {
+      const wrapper = shallowMount(Step1, { props: { engine: createEngine({ eventType: 'group-event', repeatRule }), bookingType: 'group', scheduleLocked }, global: mountOptions() });
+      expect(wrapper.find('[data-test="off-hour-surcharge-toggle"]').exists()).toBe(false);
+      expect(wrapper.findAll('img').filter(img => String(img.attributes('src')).includes('cloud-moon'))).toHaveLength(0);
+      expect(wrapper.text()).not.toContain('Mark as off-hours');
+      wrapper.unmount();
+    }
+  });
   beforeEach(() => {
     sendBeaconDescriptor = Object.getOwnPropertyDescriptor(navigator, "sendBeacon");
     scrollIntoViewDescriptor = Object.getOwnPropertyDescriptor(Element.prototype, "scrollIntoView");
@@ -627,6 +660,19 @@ describe("one-on-one booking step translations", () => {
       block: "center",
       inline: "nearest",
     });
+  });
+
+  it("disables confirmed custom times while leaving adjacent times available", async () => {
+    const { default: Step1 } = await import("@/components/ui/form/BookingForm/OneOnOneBookinStep1.vue");
+    const engine = createEngine({ eventType: "1on1-call", repeatRule: "doesNotRepeat", creatorTimezone: "Asia/Hong_Kong",
+      oneTimeAvailability: [{ date: "2030-01-01", slots: [{ startTime: "09:00", endTime: "09:30" }] }] });
+    const wrapper = mount(Step1, { props: { engine, confirmedBookings: [{ status: "confirmed", startIso: "2030-01-01T10:00:00+08:00", endIso: "2030-01-01T11:00:00+08:00" }] }, global: mountOptions() });
+    const entry = wrapper.vm.oneTimeDates[0];
+    const options = wrapper.vm.getOneTimeStartOptions(entry, 0);
+    expect(options.find(option => option.value === "10:00").disabled).toBe(true);
+    expect(options.find(option => option.value === "11:00").disabled).toBe(false);
+    expect(wrapper.vm.bookedDates).toContain("2030-01-01");
+    wrapper.unmount();
   });
 
   it("enables step 1 Next after validation passes and advances", async () => {
@@ -1882,6 +1928,44 @@ describe("one-on-one booking step translations", () => {
       date: addedDate,
       startTime: "",
     });
+  });
+
+  it.each(["addDayAvailability", "addWeeklySlot"].flatMap((action) => [
+    { action, timeZone: "Asia/Hong_Kong", startIso: "2026-10-11T01:30:00+08:00", expected: { startTime: "00:00", endTime: "01:30" } },
+    { action, timeZone: "Asia/Dhaka", startIso: "2026-10-11T01:30:00+08:00", expected: { startTime: "22:30", endTime: "23:59" } },
+    { action, timeZone: "Asia/Hong_Kong", startIso: "2026-10-11T00:05:00+08:00", expected: null },
+  ]))("$action checks shorter free weekly windows in $timeZone from $startIso", async ({ action, timeZone, startIso, expected }) => {
+    const { default: OneOnOneBookinStep1 } = await import(
+      "@/components/ui/form/BookingForm/OneOnOneBookinStep1.vue"
+    );
+    const wrapper = shallowMount(OneOnOneBookinStep1, {
+      props: {
+        engine: createEngine({
+          eventType: "1on1-call",
+          creatorTimezone: timeZone,
+          repeatRule: "weekly",
+          weeklyAvailability: [{ key: "sun", name: "Sun", unavailable: true, slots: [] }],
+        }),
+        bookingType: "private",
+        confirmedBookings: [{
+          status: "confirmed",
+          startIso,
+          endIso: "2026-10-12T00:30:00+08:00",
+        }],
+      },
+      global: mountOptions(),
+    });
+
+    wrapper.vm[action](0);
+
+    expect(unrefPublic(wrapper.vm.weekDays)[0].slots).toEqual(expected
+      ? [expect.objectContaining(expected)]
+      : []);
+    if (expected) expect(showToast).not.toHaveBeenCalled();
+    else expect(showToast).toHaveBeenCalledWith(expect.objectContaining({
+      message: "No free slot of at least 10 minutes remains for this weekday. Weekly slots cannot overlap confirmed bookings or other slots, including on future dates.",
+    }));
+    wrapper.unmount();
   });
 
   it("does not cap the start date with a stale past end date", async () => {
