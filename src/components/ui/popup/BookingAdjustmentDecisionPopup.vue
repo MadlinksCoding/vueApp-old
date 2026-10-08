@@ -40,7 +40,10 @@
           </div>
         </div>
 
-        <div v-if="isCreatorRefundDecision" class="self-stretch flex flex-col gap-3 px-2" data-test="booking-adjustment-creator-cancel-summary">
+        <div v-if="isCreatorGroupCancellation" class="self-stretch text-slate-800 text-sm" data-test="booking-adjustment-group-cancel-summary">
+          {{ t('dashboard_cancel_group_event_refund') }}
+        </div>
+        <div v-else-if="isCreatorRefundDecision" class="self-stretch flex flex-col gap-3 px-2" data-test="booking-adjustment-creator-cancel-summary">
           <div class="self-stretch inline-flex justify-between items-center gap-4">
             <div class="text-slate-800 text-sm font-medium">{{ t('booking_adjustment_session_cost_refund') }}</div>
             <div class="inline-flex items-center gap-1 text-slate-800 text-base font-semibold"><img :src="TokenIcon" alt="" class="h-6 w-6" /><span data-test="booking-adjustment-creator-session-refund">{{ formatAmount(sessionRefund) }}</span></div>
@@ -165,6 +168,7 @@ const props = defineProps({
   creatorName: { type: String, default: '' },
   eventTitle: { type: String, default: '' },
   actorRole: { type: String, default: 'fan' },
+  isGroupEvent: { type: Boolean, default: false },
   fanUsername: { type: String, default: '' },
   netRefundTokens: { type: [Number, String], default: null },
   balanceLoading: { type: Boolean, default: false },
@@ -202,6 +206,7 @@ const normalizedMode = computed(() => {
 const isCancellationMode = computed(() => normalizedMode.value === 'decline' || normalizedMode.value === 'cancel');
 const isReviewRejection = computed(() => normalizedMode.value === 'reject');
 const isCreatorRefundDecision = computed(() => (isCancellationMode.value || isReviewRejection.value) && String(props.actorRole).toLowerCase() === 'creator');
+const isCreatorGroupCancellation = computed(() => normalizedMode.value === 'cancel' && isCreatorRefundDecision.value && props.isGroupEvent);
 const originalPrice = computed(() => finiteAmount(props.originalTokens));
 const proposedPrice = computed(() => finiteAmount(props.proposedTokens));
 const balanceAvailable = computed(() => props.walletBalance !== '' && props.walletBalance != null && Number.isFinite(Number(props.walletBalance)));
@@ -239,6 +244,7 @@ const fanLabel = computed(() => {
 });
 const balanceDisplay = computed(() => balanceAvailable.value ? formatAmount(balance.value) : '—');
 const headingKey = computed(() => {
+  if (isCreatorGroupCancellation.value) return 'dashboard_cancel_group_event_heading';
   if (isCreatorRefundDecision.value) return 'booking_adjustment_creator_cancel_heading';
   if (isReviewRejection.value) return 'calendar_event_decline_confirm';
   if (isCancellationMode.value) {
@@ -290,6 +296,7 @@ const primaryButtonText = computed(() => {
   if (props.balanceLoading) return t('booking_adjustment_checking_balance');
   if (props.topupCompleted) return t('booking_adjustment_check_again');
   if (props.balanceError) return t('booking_adjustment_retry_balance');
+  if (isCreatorGroupCancellation.value) return t('dashboard_cancel_group_event');
   if (isCreatorRefundDecision.value) return t('booking_adjustment_creator_cancel_action', { fan: fanLabel.value });
   if (isReviewRejection.value) return t('calendar_event_decline_booking');
   if (isCancellationMode.value) return t('booking_adjustment_proceed_cancel');

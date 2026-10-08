@@ -122,6 +122,7 @@
                 <button
                   type="button"
                   class="w-full flex items-center gap-2 px-3 py-3 text-left text-[0.8rem] font-semibold text-[#F04438] hover:bg-[#FEF3F2]"
+                  data-test="events-widget-cancel-call"
                   @click.stop="onMenuAction('cancel_call', event)"
                 >
                   <span class="inline-flex w-5 h-5 items-center justify-center">
@@ -129,7 +130,7 @@
                       <path d="M10 14L21 3M14 10L3 21M4.5 8.5C3.5 6.5 3.5 4.5 5 3C7 1 10 2 12.5 4.5L19.5 11.5C22 14 23 17 21 19C19.5 20.5 17.5 20.5 15.5 19.5" stroke="#F04438" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                     </svg>
                   </span>
-                  {{ t("dashboard_cancel_call") }}
+                  {{ viewerRole === 'creator' && event.isGroup ? t('dashboard_cancel_group_event') : t('dashboard_cancel_call') }}
                 </button>
               </div>
             </span>
@@ -172,23 +173,7 @@
                 </template>
   
                 <template v-else>
-                  <div class="flex">
-  
-                      <span class="flex -space-x-[.8rem]">
-  
-                          <div 
-                          v-for="(av, i) in event.avatars" 
-                          :key="i"
-                          class="w-[1rem] h-[1rem] rounded bg-cover bg-center mask-mango shrink-0 border border-white"
-                          :class="`z-[${30 - (i*10)}]`" 
-                          :style="{ backgroundImage: `url(${av.src})` }"
-                          ></div>
-                      </span>
-  
-                      <p v-if="event.isGroup" class="text-[0.6875rem]  text-gray-500 font-medium leading-[1.125rem] mt-[-2px] truncate">
-                         {{ event.groupText }}
-                      </p>
-                  </div>
+                  <GroupBookingAvatars :event="event" />
                 </template>
               </span>
 
@@ -292,6 +277,7 @@ import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useBookingTranslations } from "@/i18n/bookingTranslations.js";
 import { buildWpApiUrl } from "@/utils/wpApiBaseUrl.js";
 import TooltipIcon from '../ui/tooltip/TooltipIcon.vue';
+import GroupBookingAvatars from './GroupBookingAvatars.vue';
 import fileSearchIcon from "@/assets/images/icons/file-search-02.svg";
 import IndicatorDot from "../icons/IndicatorDot.vue";
 import GreenCheckIcon from "@/assets/images/icons/green-check.svg"

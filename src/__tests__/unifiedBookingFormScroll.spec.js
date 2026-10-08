@@ -813,7 +813,7 @@ describe("UnifiedBookingForm mobile step scroll", () => {
     expect(creatorFetches).toHaveLength(fetchCountBeforeScheduleChange + 1);
     expect(creatorFetches.at(-1)?.[1]).toEqual(expect.objectContaining({
       fromIso: "2026-05-16",
-      toIso: "2026-05-23",
+      toIso: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
     }));
     expect(creatorFetches.at(-1)?.[2]).toEqual(expect.objectContaining({
       forceRefresh: false,
@@ -1600,7 +1600,7 @@ describe("UnifiedBookingForm mobile step scroll", () => {
     expect(fetchCountAfterRefresh).toBeGreaterThan(fetchCountBeforeRefresh);
   });
 
-  it("loads only the visible week and refetches when the selected week changes", async () => {
+  it("loads the booking horizon and refetches when the selected week changes", async () => {
     const { default: UnifiedBookingForm } = await import("@/components/ui/form/BookingForm/UnifiedBookingForm.vue");
     const wrapper = mount(UnifiedBookingForm);
     await flushPromises();
@@ -1629,7 +1629,7 @@ describe("UnifiedBookingForm mobile step scroll", () => {
     expect(creatorFetches).toHaveLength(fetchCountBeforeNavigation + 1);
     expect(creatorFetches.at(-1)?.[1]).toEqual(expect.objectContaining({
       fromIso: "2026-05-09",
-      toIso: "2026-05-16",
+      toIso: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
     }));
   });
 

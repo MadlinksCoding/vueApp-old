@@ -232,10 +232,8 @@ vi.mock("@/services/bookings/mappers/createBookingMapper.js", async () => ({
         payment: {
           lines: [
             { code: "base", label: "Base Price", amount: 100 },
-            { code: "recurring_event_discount", label: "Recurring Event Discount (25%)", amount: -25 },
-            { code: "off_hour_surcharge", label: "Off-hour Surcharge", amount: 38 },
           ],
-          total: 113,
+          total: 100,
         },
       };
     }
@@ -541,7 +539,7 @@ describe("BookingFlowStep3", () => {
     expect(wallet.text()).toContain("Wallet Balance");
     expect(wallet.text()).not.toContain("Your Token Balance");
     expect(wallet.get("[data-testid='booking-balance-subtotal']").text()).toContain("Subtotal");
-    expect(wallet.get("[data-testid='booking-balance-subtotal']").text()).toContain("1K");
+    expect(wallet.get("[data-testid='booking-balance-subtotal']").text()).toContain("1,000");
     const available = wallet.get("[data-testid='booking-balance-available-after-booking']");
     expect(available.element.style.display === "none").toBe(needsTopUp);
     if (!needsTopUp) expect(available.text()).toContain("900");
@@ -801,7 +799,7 @@ describe("BookingFlowStep3", () => {
     expect(avatarCard.element.style.backgroundSize).toBe("cover");
     expect(avatarCard.element.style.backgroundPosition).toBe("center");
     expect(avatarCard.element.style.backgroundColor).toBe("");
-    expect(avatarCard.text()).toContain("1.9K");
+    expect(avatarCard.text()).toContain("1,900");
     expect(avatarCard.text()).toContain("900");
     expect(fetchUserProfileData).not.toHaveBeenCalled();
   });
@@ -864,7 +862,7 @@ describe("BookingFlowStep3", () => {
 
     const genericCard = wrapper.get("[data-testid='booking-balance-placeholder-card']");
     expect(wrapper.find("[data-testid='booking-balance-avatar-card']").exists()).toBe(false);
-    expect(genericCard.text()).toContain("1.9K");
+    expect(genericCard.text()).toContain("1,900");
     expect(genericCard.text()).toContain("900");
     expect(fetchUserProfileData).not.toHaveBeenCalled();
   });
@@ -1429,7 +1427,7 @@ describe("BookingFlowStep3", () => {
     expect(engine.goToStep).not.toHaveBeenCalledWith(1);
   });
 
-  it("formats compact token balances with one non-zero decimal across suffixes", async () => {
+  it("formats token balances in full, including large balances", async () => {
     const { default: BookingFlowStep3 } = await import("@/components/FanBookingFlow/OneOnOneBookingFlow/BookingFlowStep3.vue");
 
     async function renderBalanceText(paidTokens) {
@@ -1457,19 +1455,19 @@ describe("BookingFlowStep3", () => {
     }
 
     const kText = await renderBalanceText(42956);
-    expect(kText).toContain("42.9K");
+    expect(kText).toContain("42,956");
     expect(kText).not.toContain("43K");
 
     const exactKText = await renderBalanceText(42000);
-    expect(exactKText).toContain("42K");
+    expect(exactKText).toContain("42,000");
     expect(exactKText).not.toContain("42.0K");
 
     const mText = await renderBalanceText(1250000);
-    expect(mText).toContain("1.2M");
+    expect(mText).toContain("1,250,000");
     expect(mText).not.toContain("1.0M");
 
     const bText = await renderBalanceText(2500000000);
-    expect(bText).toContain("2.5B");
+    expect(bText).toContain("2,500,000,000");
   });
 
   it("defaults guests to top-up without checking token balance", async () => {
@@ -2461,7 +2459,7 @@ describe("BookingFlowStep3", () => {
     expect(engine.goToStep).not.toHaveBeenCalledWith(3);
     expect(engine.forceSubstep).not.toHaveBeenCalledWith('summary', expect.any(Object));
     expect(wrapper.text()).toContain('BOOKING SUMMARY');
-    expect(wrapper.text()).toContain('EVENT TOTAL');
+    expect(wrapper.text()).not.toContain('EVENT TOTAL');
     expect(wrapper.find('[data-test="left-sidebar"]').exists()).toBe(false);
     expect(wrapper.find('#step3-event-goal-contribution').exists()).toBe(false);
     wrapper.unmount();
@@ -2527,6 +2525,45 @@ describe("BookingFlowStep3", () => {
     await flushAsync();
 
     expect(wrapper.text()).toContain("4,000");
+  });
+
+  it.each(["eventGoal", "fixedPricePerUser"])("omits Session Total for %s group bookings", async (priceSetting) => {
+    const engine = createEngine();
+    configureEventGoalGroup(engine, { priceSetting });
+    engine.state.fanBooking.context.selectedEvent.raw.priceSetting = priceSetting;
+    const { default: Step3 } = await import("@/components/FanBookingFlow/OneOnOneBookingFlow/BookingFlowStep3.vue");
+    const wrapper = mount(Step3, { props: { engine, embedded: true } });
+    await flushAsync();
+    expect(wrapper.find('[data-testid="booking-session-total"]').exists()).toBe(false);
+    expect(wrapper.text()).toContain("SESSION COST");
+    wrapper.unmount();
+  });
+
+  it("shows the exact contribution and wallet balances without K abbreviations", async () => {
+    const engine = createEngine();
+    configureEventGoalGroup(engine);
+    engine.state.bookingDetails.contributionTokens = 1543;
+    engine.state.fanBooking.selection.contributionTokens = 1543;
+    const { default: Step3 } = await import("@/components/FanBookingFlow/OneOnOneBookingFlow/BookingFlowStep3.vue");
+    const wrapper = mount(Step3, { props: { engine, embedded: true } });
+    await flushAsync();
+    expect(wrapper.text()).toContain("1,543");
+    expect(wrapper.text()).not.toMatch(/1[.,]5K/);
+    wrapper.unmount();
+  });
+
+  it("shows actual contributions above the goal while keeping the progress bar full", async () => {
+    const engine = createEngine();
+    configureEventGoalGroup(engine);
+    engine.state.fanBooking.catalog.bookedSlotsIndex.evt_goal_step3["2026-03-24"][0].contributionTokens = 9000;
+    const { default: Step3 } = await import("@/components/FanBookingFlow/OneOnOneBookingFlow/BookingFlowStep3.vue");
+    const wrapper = mount(Step3, { props: { engine, embedded: true } });
+    await flushAsync();
+    const sidebar = wrapper.get('[data-test="left-sidebar"]');
+    expect(sidebar.attributes("data-event-goal-reached-tokens")).toBe("9000");
+    expect(sidebar.attributes("data-event-goal-tokens")).toBe("8000");
+    expect(sidebar.attributes("data-event-goal-percent")).toBe("100");
+    wrapper.unmount();
   });
 
   it("passes group event-goal progress into the sidebar", async () => {
@@ -2716,7 +2753,7 @@ describe("BookingFlowStep3", () => {
     expect(wrapper.get("[data-test='left-sidebar']").attributes("data-show-approval-needed")).toBe("false");
   });
 
-  it("renders recurring group discount and off-hour surcharge payment lines", async () => {
+  it("shows only the fixed group session cost", async () => {
     tokenGet.mockResolvedValue({
       data: {
         balance: 3000,
@@ -2765,15 +2802,14 @@ describe("BookingFlowStep3", () => {
     await flushAsync();
 
     const text = wrapper.text();
-    expect(text).toContain("Recurring Event Discount (25%)");
-    expect(text).toContain("Off-hour Surcharge");
-    expect(text).toContain("113");
-    expect(wrapper.get("[data-testid='booking-amount-due-usd']").text()).toBe("=USD$ 6.78");
-    expect(text.indexOf("Recurring Event Discount (25%)")).toBeLessThan(text.indexOf("Off-hour Surcharge"));
-    expect(text.indexOf("Off-hour Surcharge")).toBeLessThan(text.indexOf("Session Total"));
+    expect(text).not.toContain("Recurring Event Discount (25%)");
+    expect(text).not.toContain("Off-hour Surcharge");
+    expect(text).not.toContain("Session Total");
+    expect(text).toContain("100");
+    expect(wrapper.get("[data-testid='booking-amount-due-usd']").text()).toBe("=USD$ 6.00");
   });
 
-  it("renders payment codes and active tooltips with locale translations", async () => {
+  it("omits group extras in translated summaries", async () => {
     tokenGet.mockResolvedValue({ data: { balance: 3000 } });
     const engine = createEngine();
     engine.state.bookingDetails = {
@@ -2817,9 +2853,9 @@ describe("BookingFlowStep3", () => {
     await flushAsync();
 
     const text = wrapper.text();
-    expect(text).toContain("回头客活动折扣（25%）");
-    expect(text).toContain("非工作时间附加费");
-    expect(text).toContain("创作者可以为粉丝提供不同折扣。");
+    expect(text).not.toContain("回头客活动折扣（25%）");
+    expect(text).not.toContain("非工作时间附加费");
+    expect(text).not.toContain("创作者可以为粉丝提供不同折扣。");
     expect(text).not.toContain("Recurring Event Discount (25%)");
     expect(text).not.toContain("Off-hour Surcharge");
   });

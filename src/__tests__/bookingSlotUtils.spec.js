@@ -680,6 +680,18 @@ describe("booking slot utilities", () => {
     expect(buildCandidateSlotsForEventDate(event, "2026-04-06", { eventId })).toEqual([]);
   });
 
+  it.each(["fixedPrice", "eventGoal"])("allows a full-goal %s event through 248 fans and closes at 249", (priceSetting) => {
+    const event = { eventId, type: "group-event", raw: { type: "group-event", priceSetting,
+      enableMaxAttendees: false, maxAttendees: 1, eventGoalTokens: 1 } };
+    const slot = makeSlot("10:00", "13:00");
+    const rows = Array.from({ length: 248 }, (_, i) => ({ bookingId: `fan_${i}`, eventId,
+      startIso: `${localDateIso}T10:00:00`, endIso: `${localDateIso}T13:00:00`, status: "confirmed", contributionTokens: 100 }));
+    const index = buildBookedSlotsIndex(rows);
+    expect(createSlotUiModel({ event, eventId, localDateIso, slot, bookedSlotsIndex: index }).disabled).toBe(false);
+    rows.push({ ...rows[0], bookingId: "fan_249" });
+    expect(createSlotUiModel({ event, eventId, localDateIso, slot, bookedSlotsIndex: buildBookedSlotsIndex(rows) }).disabled).toBe(true);
+  });
+
   it("allows group slot overlaps until capacity is reached", () => {
     const bookedSlotsIndex = buildBookedSlotsIndex([
       {

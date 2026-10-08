@@ -2,6 +2,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { step1Validator, step2Validator } from "@/services/events/validators/eventStepValidators.js";
 
 describe("event step validators", () => {
+  it('does not block group editing on hidden legacy surcharge and discount fields', () => {
+    const result = step1Validator({ eventType: 'group-event', priceSetting: 'fixedPricePerUser', enableLongerDiscount: true, discountEventsCount: '', discountPercentage: '', addOffHourSurcharge: true, offHourSurchargeTokens: '' });
+    expect(result.errors.filter(error => ['discountEventsCount', 'discountPercentage', 'offHourSurchargeTokens'].includes(error.field))).toEqual([]);
+  });
 	afterEach(() => vi.unstubAllEnvs());
   const weeklyAvailability = [{
     key: "sun",

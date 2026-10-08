@@ -71,27 +71,14 @@
               data-test="mobile-join-card-cancel"
               @click.stop="$emit('menu-action', 'cancel_call')"
             >
-              {{ t('dashboard_cancel_call') }}
+              {{ showsGroup ? t('dashboard_cancel_group_event') : t('dashboard_cancel_call') }}
             </button>
           </div>
         </div>
       </div>
 
       <div class="flex min-h-0 items-start justify-between gap-2">
-        <div v-if="showsGroup" class="flex min-w-0 items-center gap-1">
-          <span class="flex -space-x-2">
-            <img
-              v-for="(avatar, index) in avatars"
-              :key="`${avatar.src}-${index}`"
-              :src="avatar.src"
-              :alt="avatar.name"
-              class="h-5 w-5 shrink-0 rounded-full border border-white object-cover"
-            />
-          </span>
-          <p class="flex-1 truncate text-[0.6875rem] font-medium text-gray-500">
-            {{ event.groupText }}
-          </p>
-        </div>
+        <GroupBookingAvatars v-if="showsGroup" :event="event" />
 
         <div v-else class="flex min-w-0 items-center gap-2">
           <template v-if="profileLoading">
@@ -180,6 +167,7 @@ import PendingStatus from '@/components/icons/PendingStatus.vue';
 import GreenCheckIcon from '@/assets/images/icons/green-check.svg';
 import PhoneIncoming02Icon from '@/assets/images/icons/phone-incoming-02.svg';
 import ThreeDotsIcon from '@/assets/images/icons/dots-vertical.svg';
+import GroupBookingAvatars from './GroupBookingAvatars.vue';
 import FileSearchIcon from '@/assets/images/icons/file-search-02.svg';
 import { useBookingTranslations } from '@/i18n/bookingTranslations.js';
 import { buildWpApiUrl } from '@/utils/wpApiBaseUrl.js';

@@ -731,16 +731,15 @@ const fetchCreatorBookedSlots = async (forceRefresh = false, { scrollToCurrentTi
         "bookings.fetchCreatorBookingContext",
         {
             creatorId,
-            fromIso: visibleRange.fromIso,
-            toIso: visibleRange.toIso,
+            fromIso: new Date(Math.min(Date.now(), Date.parse(visibleRange.fromIso))).toISOString().slice(0, 10),
+            toIso: new Date(Math.max(Date.parse(visibleRange.toIso), Date.now() + 183 * 86400000, Date.parse(bookingFlow.state.dateTo || '') || 0)).toISOString().slice(0, 10),
             slotLimit: 1000,
             statusIn: "pending,pending_hold,confirmed,completed",
         },
         {
             forceRefresh,
-            // This form requests one visible week at a time. The flow's state-engine
-            // destination is shared across payloads, so it cannot safely answer a
-            // different date range. The payload-keyed local cache remains available.
+            // Include the booking horizon so schedule choices outside the visible week
+            // can disable confirmed conflicts. A changed range needs its own result.
             skipDestinationRead: true,
             context: {
                 stateEngine: bookingFlow,
@@ -2372,6 +2371,7 @@ useBodyOverflowHidden({ minWidth: 1010 });
                             :is-edit-mode="isEditMode"
                             :edit-baseline="editWarningBaseline"
                             :availability-baseline-ready="availabilityEditBaselineReady"
+                            :confirmed-bookings="bookedSlotsRawForCalendar"
                             :schedule-locked="false"
                             :pricing-locked="false"
                             :reschedule-fee-setting-enabled="RESCHEDULE_FEE_SETTING_ENABLED"
@@ -2405,6 +2405,7 @@ useBodyOverflowHidden({ minWidth: 1010 });
                             :is-edit-mode="isEditMode"
                             :edit-baseline="editWarningBaseline"
                             :availability-baseline-ready="availabilityEditBaselineReady"
+                            :confirmed-bookings="bookedSlotsRawForCalendar"
                             bookingType="group"
                             :schedule-locked="editScheduleLocked"
                             :pricing-locked="editPricingLocked"

@@ -477,10 +477,7 @@ const eventGoalTokens = computed(() => {
 
 const eventGoalReachedTokens = computed(() => {
   const eventId = selectedEvent.value?.eventId || selectedEvent.value?.id;
-  return Math.min(
-    eventGoalTokens.value,
-    sumEventGoalContributionsForEvent({ eventId, bookedSlotsIndex: bookedSlotsIndex.value }),
-  );
+  return sumEventGoalContributionsForEvent({ eventId, bookedSlotsIndex: bookedSlotsIndex.value });
 });
 const eventGoalPercent = computed(() => (
   eventGoalTokens.value > 0
@@ -608,12 +605,7 @@ const usdFormatter = new Intl.NumberFormat('en-US', {
   minimumFractionDigits: 2,
   maximumFractionDigits: 2,
 });
-const COMPACT_TOKEN_UNITS = [
-  { threshold: 1_000_000_000_000, suffix: 'T' },
-  { threshold: 1_000_000_000, suffix: 'B' },
-  { threshold: 1_000_000, suffix: 'M' },
-  { threshold: 1_000, suffix: 'K' },
-];
+
 
 function isInviteAcceptedForCurrentSecret() {
   const acceptedSecret = String(props.engine.getState('fanBooking.context.inviteAcceptedSecret') || '').trim();
@@ -696,26 +688,6 @@ async function acceptInviteForAuthenticatedFan({ silent = false } = {}) {
     isAcceptingInvite.value = false;
     inviteAcceptPromise = null;
   }
-}
-
-function formatTokenCompact(value) {
-  const num = Number(value);
-  if (!Number.isFinite(num)) return '0';
-
-  const abs = Math.abs(num);
-  const sign = num < 0 ? '-' : '';
-
-  if (abs < 1000) {
-    return `${sign}${Math.round(abs).toLocaleString('en-US')}`;
-  }
-
-  const unit = COMPACT_TOKEN_UNITS.find(({ threshold }) => abs >= threshold);
-  const tenths = Math.trunc((abs / unit.threshold) * 10);
-  const whole = Math.trunc(tenths / 10);
-  const decimal = tenths % 10;
-  const scaled = decimal > 0 ? `${whole}.${decimal}` : `${whole}`;
-
-  return `${sign}${scaled}${unit.suffix}`;
 }
 
 function formatTokenExact(value) {
@@ -2683,7 +2655,7 @@ onBeforeUnmount(() => {
               :time-display="formattedTime"
               :date-display="headerDateDisplay"
               :subtotal="totalPrice"
-              :subtotal-display="totalPrice > 0 ? formatTokenCompact(totalPrice) : '-'"
+              :subtotal-display="totalPrice > 0 ? formatTokenExact(totalPrice) : '-'"
               :duration="sessionDuration"
               :selected-event="selectedEvent"
               :is-first-booking-for-creator="isFirstBookingForCreator"
@@ -2757,7 +2729,7 @@ onBeforeUnmount(() => {
                               </div>
                               <div class="flex justify-center items-center gap-0.5">
                                 <div class="w-4 h-4 flex justify-center items-center"><img :src="bookingFlowTokenIcon" alt="token-icon" /></div>
-                                <p class="text-sm font-medium text-white">{{ formatTokenCompact(sessionCost) }}</p>
+                                <p class="text-sm font-medium text-white">{{ formatTokenExact(sessionCost) }}</p>
                               </div>
                             </div>
                           </div>
@@ -2776,7 +2748,7 @@ onBeforeUnmount(() => {
                               <div class="flex justify-center items-center gap-0.5">
                                 <p class="text-sm text-white font-normal">+</p>
                                 <div class="w-4 h-4 flex justify-center items-center"><img :src="bookingFlowTokenIcon" alt="token-icon" /></div>
-                                <p class="text-sm text-white font-normal">{{ formatTokenCompact(addon.price) }}</p>
+                                <p class="text-sm text-white font-normal">{{ formatTokenExact(addon.price) }}</p>
                               </div>
                             </div>
                           </div>
@@ -2788,7 +2760,7 @@ onBeforeUnmount(() => {
                               <div class="flex justify-center items-center gap-0.5">
                                 <p class="text-base text-white font-normal">+</p>
                                 <div class="w-4 h-4 flex justify-center items-center"><img :src="bookingFlowTokenIcon" alt="token-icon" /></div>
-                                <p class="text-base text-white font-normal">{{ formatTokenCompact(bookingFeeAmount) }}</p>
+                                <p class="text-base text-white font-normal">{{ formatTokenExact(bookingFeeAmount) }}</p>
                               </div>
                             </div>
                           </div>
@@ -2809,7 +2781,7 @@ onBeforeUnmount(() => {
                               <div class="flex justify-center items-center gap-1 py-1 px-2 bg-[#07F468] rounded-[20px] h-6">
                                 <p class="text-sm text-[#0C111D] font-medium">-</p>
                                 <div class="w-4 h-4 flex justify-center items-center"><img :src="bookingFlowTokenIcon" alt="token-icon" /></div>
-                                <p class="text-sm text-[#0C111D] font-semibold">{{ formatTokenCompact(row.amount) }}</p>
+                                <p class="text-sm text-[#0C111D] font-semibold">{{ formatTokenExact(row.amount) }}</p>
                               </div>
                             </div>
                           </div>
@@ -2821,7 +2793,7 @@ onBeforeUnmount(() => {
                               <div class="flex justify-center items-center gap-0.5">
                                 <p class="text-base text-white font-normal">+</p>
                                 <div class="w-4 h-4 flex justify-center items-center"><img :src="bookingFlowTokenIcon" alt="token-icon" /></div>
-                                <p class="text-base text-white font-normal">{{ formatTokenCompact(offHourSurchargeAmount) }}</p>
+                                <p class="text-base text-white font-normal">{{ formatTokenExact(offHourSurchargeAmount) }}</p>
                               </div>
                             </div>
                           </div>
@@ -2837,16 +2809,16 @@ onBeforeUnmount(() => {
                             <div class="hidden flex-row justify-between items-center text-white">
                               <div class="flex items-center">
                                 <img :src="bookingFlowTokenIcon" alt="token-icon" class="w-4 h-4" />
-                                <p class="text-base font-normal text-[#EAECF0]">{{ formatTokenCompact(bookingFeeAmount) }} {{ t("fan_booking_booking_fee_included") }}</p>
+                                <p class="text-base font-normal text-[#EAECF0]">{{ formatTokenExact(bookingFeeAmount) }} {{ t("fan_booking_booking_fee_included") }}</p>
                               </div>
                               <div class="flex justify-center items-center gap-0.5">
                                 <div class="w-4 h-4 flex justify-center items-center"><img :src="bookingFlowTokenIcon" alt="token-icon" /></div>
-                                <p class="text-base text-white font-normal">{{ formatTokenCompact(bookingFeeAmount) }}</p>
+                                <p class="text-base text-white font-normal">{{ formatTokenExact(bookingFeeAmount) }}</p>
                               </div>
                             </div>
                           </div>
 
-                          <div class="flex flex-col gap-1" :class="!groupReview && 'border-t border-[#98A2B3]/50 pt-2'">
+                          <div v-if="!isGroupEvent" class="flex flex-col gap-1 border-t border-[#98A2B3]/50 pt-2" data-testid="booking-session-total">
                             <div class="flex justify-between items-center">
                               <div class="flex flex-col gap-1">
                                 <h4 class="text-sm font-semibold text-white">{{ t(groupReview ? "fan_booking_event_total" : "fan_booking_session_total") }}</h4>
@@ -2866,7 +2838,7 @@ onBeforeUnmount(() => {
                                 <span class="whitespace-nowrap dn">{{ t("fan_booking_non_refundable") }}</span>
                                 <span class="flex items-center gap-[2px]">
                                   <img :src="bookingFlowTokenIcon" alt="token-icon" class="w-4 h-4" />
-                                  <span class="font-semibold">{{ formatTokenCompact(bookingFeeAmount) }}</span>
+                                  <span class="font-semibold">{{ formatTokenExact(bookingFeeAmount) }}</span>
                                 </span>
                                 <span class="whitespace-nowrap">{{ t("fan_booking_booking_fee_included") }}</span>
                               </div>
@@ -2963,12 +2935,12 @@ onBeforeUnmount(() => {
                                 <span class="text-[#0C111D] text-[11px] font-semibold leading-[10px] relative top-[-2px]">...</span>
                                 <p class="text-[11px] font-semibold text-[#0C111D] leading-[14px] italic tracking-wider">{{ t("common_top_up_needed") }}</p>
                                 <div class="w-3 h-3 hidden justify-center items-center"><img :src="bookingFlowTokenIcon" alt="token-icon" /></div>
-                                <p class="text-[11px] hidden font-semibold text-[#0C111D] leading-[14px]">{{ formatTokenCompact(topUpAmount) }}</p>
+                                <p class="text-[11px] hidden font-semibold text-[#0C111D] leading-[14px]">{{ formatTokenExact(topUpAmount) }}</p>
                             </div>
 
                             <div class="flex items-center justify-center gap-[2px]">
                               <div class="w-6 h-6 flex justify-center items-center"><img :src="bookingFlowTokenIcon" alt="token-icon" /></div>
-                            <p class="text-base font-semibold" :class="isTopUpNeeded ? 'text-[#FCE40D]' : 'text-white'">{{ formatTokenCompact(walletBalance) }}</p>
+                            <p class="text-base font-semibold" :class="isTopUpNeeded ? 'text-[#FCE40D]' : 'text-white'">{{ formatTokenExact(walletBalance) }}</p>
                             </div>
                           </div>
                         </div>
@@ -2978,7 +2950,7 @@ onBeforeUnmount(() => {
                           <div class="flex justify-center items-center gap-0.5">
                             <span class="text-lg font-semibold">-</span>
                             <div class="w-6 h-6 flex justify-center items-center"><img :src="bookingFlowTokenIcon" alt="token-icon" /></div>
-                            <p class="text-base font-semibold text-white">{{ formatTokenCompact(totalPrice) }}</p>
+                            <p class="text-base font-semibold text-white">{{ formatTokenExact(totalPrice) }}</p>
                           </div>
                         </div>
 
@@ -2987,7 +2959,7 @@ onBeforeUnmount(() => {
                           <div class="flex items-center gap-2"><p class="text-sm font-medium leading-5 text-white">{{ t("fan_booking_available_balance_after_booking") }}</p></div>
                           <div class="flex justify-center items-center gap-0.5">
                             <div class="w-6 h-6 flex justify-center items-center"><img :src="bookingFlowTokenIcon" alt="token-icon" /></div>
-                            <p class="text-base font-semibold text-white">{{ formatTokenCompact(remainingBalance) }}</p>
+                            <p class="text-base font-semibold text-white">{{ formatTokenExact(remainingBalance) }}</p>
                           </div>
                         </div>
                         <!-- /Available Balance after booking  -->
@@ -3012,11 +2984,11 @@ onBeforeUnmount(() => {
                                 <span class="text-[#0C111D] text-[11px] font-semibold leading-[10px] relative top-[-2px]">...</span>
                                 <p class="text-[11px] font-semibold text-[#0C111D] leading-[14px] italic tracking-wider">{{ t("common_top_up_needed") }}</p>
                                 <div class="w-3 h-3 hidden justify-center items-center"><img :src="bookingFlowTokenIcon" alt="token-icon" /></div>
-                                <p class="text-[11px] hidden font-semibold text-[#0C111D] leading-[14px]">{{ formatTokenCompact(topUpAmount) }}</p>
+                                <p class="text-[11px] hidden font-semibold text-[#0C111D] leading-[14px]">{{ formatTokenExact(topUpAmount) }}</p>
                               </div>
                               <div class="flex items-center justify-center gap-[2px]">
                                 <div class="w-6 h-6 flex justify-center items-center"><img :src="bookingFlowTokenIcon" alt="token-icon" /></div>
-                                <p class="text-base font-semibold" :class="isTopUpNeeded ? 'text-[#FCE40D]' : 'text-white'">{{ formatTokenCompact(walletBalance) }}</p>
+                                <p class="text-base font-semibold" :class="isTopUpNeeded ? 'text-[#FCE40D]' : 'text-white'">{{ formatTokenExact(walletBalance) }}</p>
                               </div>
                             </div>
                           </div>
@@ -3025,14 +2997,14 @@ onBeforeUnmount(() => {
                             <div class="flex justify-center items-center gap-0.5">
                               <span class="text-lg font-semibold">-</span>
                               <div class="w-6 h-6 flex justify-center items-center"><img :src="bookingFlowTokenIcon" alt="token-icon" /></div>
-                              <p class="text-base font-semibold">{{ formatTokenCompact(totalPrice) }}</p>
+                              <p class="text-base font-semibold">{{ formatTokenExact(totalPrice) }}</p>
                             </div>
                           </div>
                           <div v-show="!isTopUpNeeded" class="flex justify-between items-center gap-2 border-t border-[#F2F4F7]/50 pt-3" data-testid="booking-balance-available-after-booking">
                             <div class="flex items-center gap-2"><p class="text-sm font-medium leading-5">{{ t("fan_booking_available_balance_after_booking") }}</p></div>
                             <div class="flex justify-center items-center gap-0.5">
                               <div class="w-6 h-6 flex justify-center items-center"><img :src="bookingFlowTokenIcon" alt="token-icon" /></div>
-                              <p class="text-base font-semibold">{{ formatTokenCompact(remainingBalance) }}</p>
+                              <p class="text-base font-semibold">{{ formatTokenExact(remainingBalance) }}</p>
                             </div>
                           </div>
                         </div>

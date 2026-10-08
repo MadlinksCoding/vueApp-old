@@ -72,9 +72,9 @@ describe("updateEventMapper", () => {
 
     expect(mapped.priceSetting).toBe("fixedPricePerUser");
     expect(mapped.basePriceTokens).toBe(99);
-    expect(mapped.enableDiscountForRecurring).toBe(true);
-    expect(mapped.minEventsForRecurringDiscount).toBe(2);
-    expect(mapped.recurringDiscountPercentOfBase).toBe(10);
+    expect(mapped.enableDiscountForRecurring).toBe(false);
+    expect(mapped.minEventsForRecurringDiscount).toBeUndefined();
+    expect(mapped.recurringDiscountPercentOfBase).toBeUndefined();
     expect(mapped.enableCancellationFee).toBe(true);
     expect(mapped.cancellationFeeTokens).toBe(7);
     expect(mapped.allowAdvanceCancelToAvoidMinCharge).toBe(true);
@@ -93,7 +93,7 @@ describe("updateEventMapper", () => {
     expect(mapped.description).toBeNull();
   });
 
-  it("uses canonical fixed off-hour tokens in update payloads", () => {
+  it("disables hidden group off-hour settings in update payloads", () => {
     const mapped = updateEventMapper(makeGroupEditPayload({
       addOffHourSurcharge: true,
       offHourSurchargeTokens: "18",
@@ -102,8 +102,8 @@ describe("updateEventMapper", () => {
       isGroupPricingLocked: false,
     });
 
-    expect(mapped.offHourSurcharge).toBe(true);
-    expect(mapped.offHourSurchargeTokens).toBe(18);
+    expect(mapped.offHourSurcharge).toBe(false);
+    expect(mapped.offHourSurchargeTokens).toBeUndefined();
     expect(mapped.offHourSurchargePercent).toBeUndefined();
   });
 

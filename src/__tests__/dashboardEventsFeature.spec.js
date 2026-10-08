@@ -4250,10 +4250,10 @@ describe("DashboardEventsFeature", () => {
     expect(wrapper.getComponent({ name: "MainCalendar" }).props("bookedSlotsCount")).toBe(1);
     const [groupItem] = widgetSections.find((section) => section.title === "TODAY").items;
 
+    expect(groupItem).not.toHaveProperty("groupText");
     expect(groupItem).toEqual(expect.objectContaining({
       title: "Group Hang",
       isGroup: true,
-      groupText: "Group event (2)",
       participantCount: 2,
       showJoin: true,
       joinUrl: expect.stringContaining("event_id=evt_group"),
@@ -4954,6 +4954,9 @@ describe("DashboardEventsFeature", () => {
     await flushPromises();
 
     const confirmButton = wrapper.get("[data-test='booking-adjustment-decision-primary']");
+    expect(confirmButton.text()).toBe('Cancel Group Event');
+    expect(wrapper.get("[data-test='booking-adjustment-decision-heading']").text()).toContain('all fan bookings for this date and time');
+    expect(wrapper.find('[data-testid="group-decline-fan"]').exists()).toBe(false);
     await confirmButton.trigger("click");
     await flushPromises();
 
@@ -4963,6 +4966,7 @@ describe("DashboardEventsFeature", () => {
       expect.objectContaining({
         bookingId: "booking_group_1",
         actor: "creator",
+        intent: "normal",
         reason: "creator_cancelled_from_events_widget",
       }),
     ]));
@@ -5202,10 +5206,10 @@ describe("DashboardEventsFeature", () => {
     const widgetSections = wrapper.getComponent({ name: "MainCalendar" }).props("eventsData");
     const [groupItem] = widgetSections.find((section) => section.title === "WEEK").items;
 
+    expect(groupItem).not.toHaveProperty("groupText");
     expect(groupItem).toEqual(expect.objectContaining({
       title: "Week Group Hang",
       isGroup: true,
-      groupText: "Group event",
       participantCount: undefined,
       showJoin: true,
       joinUrl: "https://example.com/join/77",

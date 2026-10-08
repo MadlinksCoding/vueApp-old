@@ -96,10 +96,11 @@ describe.each(["shared", "fallback", "delayed shared"])("profile event-card posi
     vi.setSystemTime(new Date("2026-09-01T00:00:00Z"));
     document.body.innerHTML = `
       <div data-pre-call-init-popup style="display: flex"></div>
-      <div data-creator-events-slider>
-        <div class="splide__track"><ul data-creator-events-list class="splide__list"></ul></div>
+      <div data-creator-events-section="private"><div data-creator-events-slider="private">
+        <div class="splide__track"><ul data-creator-events-list="private" class="splide__list"></ul></div>
         <div class="splide__arrows"></div>
       </div>
+      </div><div data-creator-events-section="group"><div data-creator-events-slider="group"><div class="splide__track"><ul data-creator-events-list="group" class="splide__list"></ul></div><div class="splide__arrows"></div></div></div>
       <template data-id="event-1on1-card"><strong data-name="title"></strong></template>
       <template data-id="event-group-fixedPrice-card"><strong data-name="title"></strong><div data-name="group-datetime"><span data-name="group-date"></span><span data-name="group-time"></span></div><button data-el="book-now">Join</button></template>
     `;
@@ -121,7 +122,7 @@ describe.each(["shared", "fallback", "delayed shared"])("profile event-card posi
       return { ok: true, json: async () => ({ ok: true, slots: [] }) };
     }));
     vi.stubGlobal("Splide", class {
-      constructor(element, options) { this.index = options.start || 0; }
+      constructor(element, options) { this.index = options.start || 0; this.options = options; }
       mount() { return this; }
       destroy() {}
     });
@@ -147,7 +148,7 @@ describe.each(["shared", "fallback", "delayed shared"])("profile event-card posi
     controller?.dispose();
     for (const key of ["FanSocialEventCards", "__FSHeroRightButtonsSlotLogic",
       "_PROFILE_CREATOR_EVENTS_REFRESH_CONTROLLER", "_PROFILE_CREATOR_EVENTS_DOM_READY_LISTENER",
-      "_creatorEventsSplide", "_UPDATE_UI_ACCORDING_TO_CALL_AVAILABILITY",
+      "_creatorEventsSplide", "_creatorGroupEventsSplide", "_UPDATE_UI_ACCORDING_TO_CALL_AVAILABILITY",
       "siteData", "userData", "userSpecifiData", "translation_strings"]) delete window[key];
     document.body.innerHTML = "";
     pendingResponse = null;
@@ -166,11 +167,22 @@ describe.each(["shared", "fallback", "delayed shared"])("profile event-card posi
     items = [{ eventId: "group", title: "Group", type: "group-event", groupEventType: "fixedPrice", repeatRule,
       dateFrom: "2026-09-01", dateTo, slots: [{ date: "2026-09-01", day: "tuesday", startTime: "08:30", endTime: "09:30" }], basePriceTokens: 50 }];
     await controller.refresh("test-group-dates");
-    const date = document.querySelector('[data-creator-events-list] [data-name="group-date"]');
+    const date = document.querySelector('[data-creator-events-list="group"] [data-name="group-date"]');
     expect(date).not.toBeNull();
     expect(date.style.display !== "none").toBe(visible);
-    const time = document.querySelector('[data-creator-events-list] [data-name="group-time"]');
+    const time = document.querySelector('[data-creator-events-list="group"] [data-name="group-time"]');
     expect(time.style.display !== "none").toBe(visible);
+  });
+
+  it("renders every card in separate private and group carousels without a two-card limit", async () => {
+    items.push({ ...items[0], eventId: "group-one", type: "group-event", basePriceTokens: 50 });
+    await controller.refresh("test-sections");
+    expect(document.querySelector('[data-creator-events-list="private"]').children).toHaveLength(4);
+    expect(document.querySelector('[data-creator-events-list="group"]').children).toHaveLength(1);
+    expect(window._creatorEventsSplide.options.autoWidth).toBe(true);
+    expect(window._creatorEventsSplide.options.perPage).toBeUndefined();
+    expect(window._creatorEventsSplide.options.padding).toBe(0);
+    expect(document.querySelector('[data-creator-events-section="group"]').style.display).toBe("");
   });
 
   it("keeps the selected card across polling while updating its details", async () => {

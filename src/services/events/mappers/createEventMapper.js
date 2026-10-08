@@ -719,7 +719,7 @@ function mapBasePayload(payload = {}, context = {}) {
     enableRescheduleFee: asBoolean(payload.enableRescheduleFee, false),
     enableCancellationFee: asBoolean(payload.enableCancellationFee, false),
     allowAdvanceCancelToAvoidMinCharge: asBoolean(payload.allowAdvanceCancellation, false),
-    offHourSurcharge: asBoolean(
+    offHourSurcharge: type !== "group-event" && asBoolean(
       payload.addOffHourSurcharge ?? payload.offHourSurcharge,
       false,
     ),
@@ -836,13 +836,7 @@ function mapBasePayload(payload = {}, context = {}) {
       withOptionalField(mapped, "maxAttendees", pickNumeric(payload.maxAttendees, 2));
     }
 
-    mapped.enableDiscountForRecurring = mapped.priceSetting === "fixedPricePerUser"
-      && asBoolean(payload.enableLongerDiscount || payload.enableDiscountForRecurring, false);
-
-    if (mapped.enableDiscountForRecurring) {
-      withOptionalField(mapped, "minEventsForRecurringDiscount", pickNumeric(payload.discountEventsCount || payload.minEventsForRecurringDiscount, 2));
-      withOptionalField(mapped, "recurringDiscountPercentOfBase", pickNumeric(payload.discountPercentage || payload.recurringDiscountPercentOfBase, 0));
-    }
+    mapped.enableDiscountForRecurring = false;
 
     mapped.eventTime = {
       start: primarySlot.hkt.eventTime.start,

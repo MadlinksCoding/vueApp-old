@@ -800,13 +800,10 @@ const eventGoalMinimumTokens = computed(() => {
 const eventGoalTokens = computed(() => toWholeTokens(
   selectedEvent.value?.raw?.eventGoalTokens ?? selectedEvent.value?.eventGoalTokens ?? 0,
 ));
-const eventGoalReachedTokens = computed(() => Math.min(
-  eventGoalTokens.value,
-  sumEventGoalContributionsForEvent({
+const eventGoalReachedTokens = computed(() => sumEventGoalContributionsForEvent({
     eventId: selectedEvent.value?.eventId || selectedEvent.value?.id,
     bookedSlotsIndex: bookedSlotsIndex.value,
-  }),
-));
+  }));
 
 // The goal is a target, not a contribution limit. Wallet shortfalls use top-up.
 const eventGoalMaximumTokens = computed(() => MAX_EVENT_GOAL_CONTRIBUTION_TOKENS);
@@ -2462,7 +2459,7 @@ onBeforeUnmount(() => {
                     <div class="w-full flex items-center gap-1">
                       <img :src="bookingFlowTokenIcon" alt="token-icon" class="w-10 h-10 shrink-0" />
                       <div class="px-1 flex-1 min-w-0 h-[44px] border-b flex items-center gap-1" :class="contributionInvalid ? 'border-[#FF5CA8]' : 'border-[#98A2B3]'">
-                        <input id="step2-event-goal-contribution" v-model="contributionTokens" type="number" inputmode="numeric" :min="eventGoalMinimumTokens" :max="contributionRangeMax" :aria-invalid="contributionInvalid" :aria-describedby="contributionInvalid ? 'step2-event-goal-contribution-error' : undefined" class="w-full min-w-0 bg-transparent text-white text-[1.875rem] font-normal leading-[2.375rem] focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                        <input id="step2-event-goal-contribution" v-model="contributionTokens" type="number" inputmode="numeric" :min="eventGoalMinimumTokens" :max="contributionRangeMax" :aria-invalid="contributionInvalid" :aria-describedby="contributionInvalid ? 'step2-event-goal-contribution-error' : undefined" class="w-full min-w-0 bg-transparent text-white text-[1.875rem] font-normal leading-[2.375rem] focus:outline-none" />
                         <span class="text-base">{{ t('common_tokens') }}</span>
                       </div>
                     </div>
@@ -2927,3 +2924,9 @@ onBeforeUnmount(() => {
     </div>
   </div>
 </template>
+
+<style scoped>
+#step2-event-goal-contribution { appearance: textfield; -moz-appearance: textfield; }
+#step2-event-goal-contribution::-webkit-inner-spin-button,
+#step2-event-goal-contribution::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+</style>

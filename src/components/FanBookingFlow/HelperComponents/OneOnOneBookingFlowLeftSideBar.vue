@@ -309,10 +309,7 @@ function formatTokens(value) {
 }
 
 const normalizedEventGoalTokens = computed(() => toWholeTokens(props.eventGoalTokens));
-const normalizedEventGoalReachedTokens = computed(() => Math.min(
-  normalizedEventGoalTokens.value,
-  toWholeTokens(props.eventGoalReachedTokens),
-));
+const normalizedEventGoalReachedTokens = computed(() => toWholeTokens(props.eventGoalReachedTokens));
 const normalizedEventGoalPercent = computed(() => {
   const explicit = Number(props.eventGoalPercent);
   if (props.eventGoalPercent != null && Number.isFinite(explicit)) return Math.min(100, Math.max(0, Math.floor(explicit)));

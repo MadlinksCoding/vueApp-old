@@ -17,7 +17,7 @@ const props = defineProps({
   purpose: {
     type: String,
     default: "validation",
-    validator: (value) => ["validation", "edit-impact"].includes(value),
+    validator: (value) => ["validation", "edit-impact", "info"].includes(value),
   },
 });
 
@@ -40,14 +40,17 @@ const normalizedMessages = computed(() => {
     v-if="normalizedMessages.length"
     :class="[
       spacingClass,
-      'w-full border-l-4 border-[#FDB022] bg-[#FFFAEB] px-3 py-3 text-sm font-semibold leading-5 text-[#C4320A]',
+      'w-full border-l-4 px-3 py-3 text-sm font-semibold leading-5',
+      purpose === 'info' ? 'flex items-start gap-3 border-[#06AED4] bg-[#ECFDFF] text-[#0096B7]' : 'border-[#FDB022] bg-[#FFFAEB] text-[#C4320A]',
     ]"
     :data-booking-validation-warning="purpose === 'validation' ? 'true' : undefined"
     :data-booking-validation-field="purpose === 'validation' && field ? field : undefined"
     :data-booking-edit-impact-warning="purpose === 'edit-impact' ? 'true' : undefined"
+    :data-booking-info-notice="purpose === 'info' ? 'true' : undefined"
   >
-    <p v-for="message in normalizedMessages" :key="message">
-      {{ message }}
-    </p>
+    <svg v-if="purpose === 'info'" class="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+      <circle cx="12" cy="12" r="9" /><path d="M12 11v6M12 7v1" />
+    </svg>
+    <div><p v-for="message in normalizedMessages" :key="message">{{ message }}</p></div>
   </div>
 </template>

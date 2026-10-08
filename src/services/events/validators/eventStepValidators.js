@@ -419,24 +419,6 @@ export function step1Validator(state = {}) {
     });
   }
 
-  if (isGroupEvent && state?.priceSetting === "fixedPricePerUser" && (state?.enableLongerDiscount || state?.enableDiscountForRecurring)) {
-    addRequiredNumberError(errors, [state?.discountEventsCount, state?.minEventsForRecurringDiscount], {
-      field: "discountEventsCount",
-      translationKey: "booking_validation_recurring_discount_min_events",
-      message: "Recurring discount minimum must be at least 2 events.",
-      min: 2,
-      integer: true,
-    });
-
-    addRequiredNumberError(errors, [state?.discountPercentage, state?.recurringDiscountPercentOfBase], {
-      field: "discountPercentage",
-      translationKey: "booking_validation_recurring_discount_percent_range",
-      message: "Recurring discount must be between 0 and 100 percent.",
-      min: 0,
-      max: 100,
-    });
-  }
-
   if (state?.enableBookingFee) {
     addRequiredNumberError(errors, [state?.bookingFee, state?.bookingFeeTokens], {
       field: "bookingFee",
@@ -503,7 +485,7 @@ export function step1Validator(state = {}) {
     }
   }
 
-  if (state?.addOffHourSurcharge || state?.offHourSurcharge === true) {
+  if (!isGroupEvent && (state?.addOffHourSurcharge || state?.offHourSurcharge === true)) {
     addRequiredNumberError(errors, [state?.offHourSurchargeTokens, state?.offHourSurchargePercent, state?.offHourSurcharge], {
       field: "offHourSurchargeTokens",
       translationKey: "booking_validation_off_hour_surcharge_range",
@@ -551,8 +533,9 @@ export function step1Validator(state = {}) {
     addRequiredNumberError(errors, [state?.maxAttendees], {
       field: "maxAttendees",
       translationKey: "booking_validation_max_attendees_min",
-      message: "Maximum participants must be at least 1.",
+      message: "Maximum participants must be between 1 and 249.",
       min: 1,
+      max: 249,
       integer: true,
     });
   }
