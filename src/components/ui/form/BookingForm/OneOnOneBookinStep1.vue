@@ -3469,20 +3469,20 @@
               v-model="formData.repeatRule"
               :options="repeatRuleOptions"
             />
-            <div v-if="formData.repeatRule !== 'doesNotRepeat'" class="self-stretch inline-flex justify-start items-end">
-              <div class="flex-1 inline-flex flex-col justify-start items-start gap-1.5">
-                <div class="self-stretch flex flex-col justify-start items-start gap-1.5">
+            <div v-if="formData.repeatRule !== 'doesNotRepeat'" class="flex w-full items-end">
+              <div class="flex min-w-0 flex-1 flex-col gap-1.5">
+                <div class="flex w-full flex-col gap-1.5">
                   <div class="flex items-center gap-1">
                     <div class="justify-start text-gray-500 text-sm font-medium font-['Poppins'] leading-tight">
                       {{ t("booking_duration") }}
                     </div>
                     <span class="text-[#F06] text-xs italic font-normal leading-none">{{ t("required_title") }}</span>
                   </div>
-                  <div class="relative w-full bg-white/75 rounded-tl-sm rounded-tr-sm border-b border-gray-300">
-                    <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                  <div class="relative w-full">
+                    <div class="pointer-events-none absolute inset-y-0 left-0 z-10 flex items-center pl-3">
                       <img :src="calendarIcon" alt="" class="w-5 h-5 opacity-50" />
                     </div>
-                    <div v-if="!formData.dateFrom" class="absolute inset-y-0 left-10 flex items-center pointer-events-none text-gray-900">
+                    <div v-if="!formData.dateFrom" class="pointer-events-none absolute inset-y-0 left-10 z-10 flex items-center text-gray-900">
                      From
                     </div>
                     <BookingDateInput v-model="formData.dateFrom" data-booking-validation-input-field="dateFrom" :min="todayIsoDate" :max="getDateFromMax()" :blocked-dates="bookedDates" />
@@ -3490,20 +3490,15 @@
                 </div>
               </div>
 
-              <div class="flex-1 inline-flex flex-col justify-start items-start gap-1.5">
-                <div class="self-stretch flex flex-col justify-start items-start gap-1.5">
-                  <!-- <div class="justify-start text-gray-500 text-sm font-medium font-['Poppins'] leading-tight">
-                    {{ t("booking_end_date") }} <span class="text-gray-500 text-xs italic font-normal font-['Poppins'] leading-none">{{ t("common_optional") }}</span>
-                  </div> -->
-                  <div class="relative w-full bg-white/75 rounded-tl-sm rounded-tr-sm border-b border-gray-300">
-                    <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                      <img :src="calendarIcon" alt="" class="w-5 h-5 opacity-50" />
-                    </div>
-                    <div v-if="!formData.dateTo" class="absolute inset-y-0 left-10 flex items-center pointer-events-none text-gray-900">
-                     To
-                    </div>
-                    <BookingDateInput v-model="formData.dateTo" :min="getDateToMin()" :blocked-dates="bookedDates" />
+              <div class="flex min-w-0 flex-1 flex-col justify-end">
+                <div class="relative w-full">
+                  <div class="pointer-events-none absolute inset-y-0 left-0 z-10 flex items-center pl-3">
+                    <img :src="calendarIcon" alt="" class="w-5 h-5 opacity-50" />
                   </div>
+                  <div v-if="!formData.dateTo" class="pointer-events-none absolute inset-y-0 left-10 z-10 flex items-center text-gray-900">
+                   To
+                  </div>
+                  <BookingDateInput v-model="formData.dateTo" align="right" :min="getDateToMin()" :blocked-dates="bookedDates" />
                 </div>
               </div>
             </div>
@@ -3777,7 +3772,7 @@
               class="p-3">
               <div class="flex items-center gap-2 mb-3">
                 <div class="relative w-full">
-                  <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                  <div class="pointer-events-none absolute inset-y-0 left-0 z-10 flex items-center pl-3">
                     <img :src="calendarIcon" alt="" class="w-5 h-5" />
                   </div>
                   <BookingDateInput v-model="entry.date" @change="onOneTimeDateChanged(entryIndex)" :min="getOneTimeDateMin()" :blocked-dates="bookedDates" />
