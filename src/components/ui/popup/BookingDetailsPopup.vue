@@ -269,8 +269,8 @@
           </button>
         </div>
 
-        <div class="size- px-1.5 py-1 left-0 top-0 absolute rounded-br-sm inline-flex justify-center items-center gap-2.5" :style="{ backgroundColor: eventColor }" data-test="event-details-fan-event-type-badge">
-          <div class="justify-start text-white text-sm font-bold leading-5">{{ eventTypeLabel }}</div>
+        <div class="size- px-1.5 py-1 left-0 top-0 absolute rounded-br-sm bg-[#22CCEE] inline-flex justify-center items-center gap-2.5"  data-test="event-details-fan-event-type-badge">
+          <div class="justify-start text-black text-sm font-bold leading-5">{{ eventTypeLabel }}</div>
         </div>
       </div>
 
