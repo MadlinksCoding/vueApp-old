@@ -1,6 +1,6 @@
 <template>
     <div
-        class="w-full min-[1010px]:w-[42.188rem] h-full flex flex-col bg-gray-200 shadow-[0_0_10px_0_rgba(0,0,0,0.25)] backdrop-blur-[50px]">
+        class="w-full lg:w-[42.188rem] h-full lg:h-[80vh] xl:h-[6   0vh] lg:max-h-[80vh] lg:overflow-hidden flex flex-col bg-gray-200 shadow-[0_0_10px_0_rgba(0,0,0,0.25)] backdrop-blur-[50px]">
 
         <!-- Header -->
         <div class="self-stretch min-h-14 px-2 inline-flex justify-between items-center">
@@ -58,7 +58,7 @@
                     class="self-stretch px-1 inline-flex justify-between items-center">
                     <div class="flex justify-start items-center gap-2">
                         <div class="relative overflow-hidden rounded-[25%_75%_50%_51%/45%_65%_36%_55%]">
-                            <img :src="user.avatar || SmilingPeachIcon"
+                            <img :src="user.avatar || 'https://fansocial.app/wp-content/plugins/fansocial/assets/img/placeholder/placeholder-headshot-creator-trans-bg.png'"
                                 class="w-[3.625rem] h-[3.625rem] object-cover" />
                         </div>
                         <div class="inline-flex flex-col justify-center items-start gap-1">
@@ -87,7 +87,7 @@
         </div>
 
         <!-- Default sections view -->
-        <div v-else class="flex flex-col overflow-y-auto overscroll-contain bg-[rgba(242,244,247,0.7)] shadow-[0_0_8px_0_rgba(0,0,0,0.10)]">
+        <div v-else class="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain bg-[rgba(242,244,247,0.7)] shadow-[0_0_8px_0_rgba(0,0,0,0.10)]">
             <div class="flex p-2 md:p-4 flex-col gap-6">
 
                 <!-- Missed Call Users -->
@@ -100,25 +100,25 @@
                     </div>
                     <div class="self-stretch grid grid-cols-1 md:grid-cols-4 gap-2 w-full">
                         <div v-for="user in missedCallUsersList" :key="user.id"
-                            class="flex justify-start items-start gap-2 w-full">
+                            class="flex justify-start items-start gap-2 w-full md:min-w-0 md:overflow-hidden">
                             <div
-                                class="flex-1 md:px-1 inline-flex md:flex-col justify-between md:justify-start items-center md:items-center gap-2">
-                                <div class="self-stretch flex md:flex-col justify-center items-center gap-2 md:gap-1">
-                                    <div class="inline-flex justify-start items-center">
+                                class="flex-1 md:min-w-0 md:px-1 inline-flex md:flex-col justify-between md:justify-start items-center md:items-center gap-2 md:w-full">
+                                <div class="self-stretch flex md:min-w-0 md:w-full md:flex-col justify-center items-center gap-2 md:gap-1">
+                                    <div class="inline-flex shrink-0 justify-start items-center">
                                         <div class="relative overflow-hidden rounded-[25%_62%_38%_60%/21%_39%_61%_75%]">
-                                            <img :src="user.avatar || SmilingPeachIcon" alt=""
+                                            <img :src="user.avatar || 'https://fansocial.app/wp-content/plugins/fansocial/assets/img/placeholder/placeholder-headshot-creator-trans-bg.png'" alt=""
                                                 onerror="this.src='https://fansocial.app/wp-content/plugins/fansocial/assets/img/placeholder/placeholder-headshot-creator-trans-bg.png'"
                                                 class="w-12 h-12 object-cover" />
                                         </div>
                                     </div>
-                                    <div class="md:self-stretch flex flex-col justify-start items-center gap-1">
-                                        <div class="self-stretch flex flex-col justify-center items-center gap-1">
+                                    <div class="md:self-stretch flex flex-col justify-start items-center gap-1 md:min-w-0 md:w-full md:overflow-hidden">
+                                        <div class="self-stretch flex flex-col justify-center items-center gap-1 md:min-w-0 md:w-full md:overflow-hidden">
                                             <div
-                                                class="justify-center text-[#0C111D] text-base md:text-lg font-medium md:font-semibold font-['Poppins'] md:leading-5 line-clamp-2">
+                                                class="justify-center text-[#0C111D] text-base md:text-lg font-medium md:font-semibold font-['Poppins'] md:leading-5 line-clamp-2 md:line-clamp-none md:w-full md:min-w-0 md:truncate md:text-center">
                                                 {{ user.display_name }}</div>
                                         </div>
                                         <div
-                                            class="self-stretch md:text-center text-gray-500 text-xs md:text-[10px] font-medium font-['Poppins'] leading-4">
+                                            class="self-stretch md:text-center text-gray-500 text-xs md:text-[10px] font-medium font-['Poppins'] leading-4 md:w-full md:min-w-0 md:truncate">
                                             @{{ user.username }}</div>
                                     </div>
                                 </div>
@@ -156,7 +156,7 @@
                                                 <div v-for="(sub, i) in tier.subscribers.slice(0, 3)" :key="sub.id"
                                                     class="relative overflow-hidden rounded-[25%_75%_50%_51%/45%_65%_36%_55%]"
                                                     :class="i > 0 ? '-ml-8' : ''" :style="{ zIndex: 30 - i * 10 }">
-                                                    <img :src="sub.avatar || SmilingPeachIcon"
+                                                    <img :src="sub.avatar || 'https://fansocial.app/wp-content/plugins/fansocial/assets/img/placeholder/placeholder-headshot-creator-trans-bg.png'"
                                                         onerror="this.src='https://fansocial.app/wp-content/plugins/fansocial/assets/img/placeholder/placeholder-headshot-creator-trans-bg.png'" alt=""
                                                         class="w-12 h-12 md:w-[3.625rem] md:h-[3.625rem] object-cover" />
                                                 </div>
@@ -241,7 +241,7 @@
                             class="self-stretch px-1 inline-flex justify-between items-center">
                             <div class="flex justify-start items-center gap-2">
                                 <div class="relative overflow-hidden rounded-[25%_62%_38%_60%/21%_39%_61%_75%]">
-                                    <img :src="user.avatar || SmilingPeachIcon"
+                                    <img :src="user.avatar || 'https://fansocial.app/wp-content/plugins/fansocial/assets/img/placeholder/placeholder-headshot-creator-trans-bg.png'"
                                         onerror="this.src='https://fansocial.app/wp-content/plugins/fansocial/assets/img/placeholder/placeholder-headshot-creator-trans-bg.png'" alt=""
                                         class="w-12 h-12 object-cover" />
                                 </div>
@@ -302,7 +302,7 @@
                             class="self-stretch px-1 inline-flex justify-between items-center">
                             <div class="flex justify-start items-center gap-2">
                                 <div class="relative overflow-hidden rounded-[25%_62%_38%_60%/21%_39%_61%_75%]">
-                                    <img :src="user.avatar || SmilingPeachIcon"
+                                    <img :src="user.avatar || 'https://fansocial.app/wp-content/plugins/fansocial/assets/img/placeholder/placeholder-headshot-creator-trans-bg.png'"
                                         onerror="this.src='https://fansocial.app/wp-content/plugins/fansocial/assets/img/placeholder/placeholder-headshot-creator-trans-bg.png'" alt=""
                                         class="w-12 h-12 object-cover" />
                                 </div>
@@ -358,7 +358,7 @@
                             class="self-stretch px-1 inline-flex justify-between items-center">
                             <div class="flex justify-start items-center gap-2">
                                 <div class="relative overflow-hidden rounded-[25%_62%_38%_60%/21%_39%_61%_75%]">
-                                    <img :src="user.avatar || SmilingPeachIcon"
+                                    <img :src="user.avatar || 'https://fansocial.app/wp-content/plugins/fansocial/assets/img/placeholder/placeholder-headshot-creator-trans-bg.png'"
                                         class="w-12 h-12 object-cover" />
                                 </div>
                                 <div class="inline-flex flex-col justify-center items-start gap-1">
@@ -394,7 +394,6 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue'
-import SmilingPeachIcon from '@/assets/images/icons/smiling-peach.png'
 import MessageCircleIcon from '@/assets/images/icons/message-circle.svg'
 import MessageCircleIconPink from '@/assets/images/icons/message-dots-circle-pink.svg'
 import XcloseIcon from '@/assets/images/icons/x-close-grey-1.svg'
