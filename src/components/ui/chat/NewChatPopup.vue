@@ -58,7 +58,7 @@
                     class="self-stretch px-1 inline-flex justify-between items-center">
                     <div class="flex justify-start items-center gap-2">
                         <div class="relative overflow-hidden rounded-[25%_75%_50%_51%/45%_65%_36%_55%]">
-                            <img :src="user.avatar || 'https://fansocial.app/wp-content/plugins/fansocial/assets/img/placeholder/placeholder-headshot-creator-trans-bg.png'"
+                            <img :src="user.avatar || avatarPlaceholder"
                                 class="w-[3.625rem] h-[3.625rem] object-cover" />
                         </div>
                         <div class="inline-flex flex-col justify-center items-start gap-1">
@@ -106,8 +106,8 @@
                                 <div class="self-stretch flex md:min-w-0 md:w-full md:flex-col justify-center items-center gap-2 md:gap-1">
                                     <div class="inline-flex shrink-0 justify-start items-center">
                                         <div class="relative overflow-hidden rounded-[25%_62%_38%_60%/21%_39%_61%_75%]">
-                                            <img :src="user.avatar || 'https://fansocial.app/wp-content/plugins/fansocial/assets/img/placeholder/placeholder-headshot-creator-trans-bg.png'" alt=""
-                                                onerror="this.src='https://fansocial.app/wp-content/plugins/fansocial/assets/img/placeholder/placeholder-headshot-creator-trans-bg.png'"
+                                            <img :src="user.avatar || avatarPlaceholder" alt=""
+                                                @error="setAvatarPlaceholder"
                                                 class="w-12 h-12 object-cover" />
                                         </div>
                                     </div>
@@ -156,8 +156,8 @@
                                                 <div v-for="(sub, i) in tier.subscribers.slice(0, 3)" :key="sub.id"
                                                     class="relative overflow-hidden rounded-[25%_75%_50%_51%/45%_65%_36%_55%]"
                                                     :class="i > 0 ? '-ml-8' : ''" :style="{ zIndex: 30 - i * 10 }">
-                                                    <img :src="sub.avatar || 'https://fansocial.app/wp-content/plugins/fansocial/assets/img/placeholder/placeholder-headshot-creator-trans-bg.png'"
-                                                        onerror="this.src='https://fansocial.app/wp-content/plugins/fansocial/assets/img/placeholder/placeholder-headshot-creator-trans-bg.png'" alt=""
+                                                    <img :src="sub.avatar || avatarPlaceholder"
+                                                        @error="setAvatarPlaceholder" alt=""
                                                         class="w-12 h-12 md:w-[3.625rem] md:h-[3.625rem] object-cover" />
                                                 </div>
                                             </div>
@@ -241,8 +241,8 @@
                             class="self-stretch px-1 inline-flex justify-between items-center">
                             <div class="flex justify-start items-center gap-2">
                                 <div class="relative overflow-hidden rounded-[25%_62%_38%_60%/21%_39%_61%_75%]">
-                                    <img :src="user.avatar || 'https://fansocial.app/wp-content/plugins/fansocial/assets/img/placeholder/placeholder-headshot-creator-trans-bg.png'"
-                                        onerror="this.src='https://fansocial.app/wp-content/plugins/fansocial/assets/img/placeholder/placeholder-headshot-creator-trans-bg.png'" alt=""
+                                    <img :src="user.avatar || avatarPlaceholder"
+                                        @error="setAvatarPlaceholder" alt=""
                                         class="w-12 h-12 object-cover" />
                                 </div>
                                 <div class="inline-flex flex-col justify-center items-start gap-1">
@@ -302,8 +302,8 @@
                             class="self-stretch px-1 inline-flex justify-between items-center">
                             <div class="flex justify-start items-center gap-2">
                                 <div class="relative overflow-hidden rounded-[25%_62%_38%_60%/21%_39%_61%_75%]">
-                                    <img :src="user.avatar || 'https://fansocial.app/wp-content/plugins/fansocial/assets/img/placeholder/placeholder-headshot-creator-trans-bg.png'"
-                                        onerror="this.src='https://fansocial.app/wp-content/plugins/fansocial/assets/img/placeholder/placeholder-headshot-creator-trans-bg.png'" alt=""
+                                    <img :src="user.avatar || avatarPlaceholder"
+                                        @error="setAvatarPlaceholder" alt=""
                                         class="w-12 h-12 object-cover" />
                                 </div>
                                 <div class="inline-flex flex-col justify-center items-start gap-1">
@@ -358,7 +358,7 @@
                             class="self-stretch px-1 inline-flex justify-between items-center">
                             <div class="flex justify-start items-center gap-2">
                                 <div class="relative overflow-hidden rounded-[25%_62%_38%_60%/21%_39%_61%_75%]">
-                                    <img :src="user.avatar || 'https://fansocial.app/wp-content/plugins/fansocial/assets/img/placeholder/placeholder-headshot-creator-trans-bg.png'"
+                                    <img :src="user.avatar || avatarPlaceholder"
                                         class="w-12 h-12 object-cover" />
                                 </div>
                                 <div class="inline-flex flex-col justify-center items-start gap-1">
@@ -400,6 +400,12 @@ import XcloseIcon from '@/assets/images/icons/x-close-grey-1.svg'
 import SearchResultIcon from '@/assets/images/icons/search-result.svg'
 import { fetchNewMessageUsersFlow } from '@/services/chat/flows/fetchNewMessageUsersFlow.js'
 import { fetchGroupUserIdsFlow } from '@/services/chat/flows/fetchGroupUserIdsFlow.js'
+
+const avatarPlaceholder = 'https://fansocial.app/wp-content/plugins/fansocial/assets/img/placeholder/placeholder-headshot-creator-trans-bg.png'
+
+function setAvatarPlaceholder(event) {
+  if (event.target.src !== avatarPlaceholder) event.target.src = avatarPlaceholder
+}
 
 const props = defineProps({
     creatorId: { type: [String, Number], required: true },
