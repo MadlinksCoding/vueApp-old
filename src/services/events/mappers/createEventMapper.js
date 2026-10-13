@@ -1,3 +1,4 @@
+import { normalizeEventTipMenu } from "../eventTipMenu.js";
 import {
   resolveCreatorId,
   toNumberOr,
@@ -731,6 +732,8 @@ function mapBasePayload(payload = {}, context = {}) {
 
     idempotencyKey: nonEmptyString(payload.idempotencyKey, "") || buildIdempotencyKey("create_event"),
   };
+
+  if (type === "group-event") mapped.tipMenu = normalizeEventTipMenu(payload.tipMenu);
 
   if (type !== "group-event") {
     const disableChatDuringCall = asBoolean(payload.disableChatDuringCall, false);

@@ -235,6 +235,7 @@ const bookingFlow = createFlowStateEngine({
         allowPersonalRequest: false,
         personalRequestNote: "",
         addOns: [],
+        tipMenu: [],
         blockedUserSearch: "",
         blockedUsers: [],
         coPerformerSearch: "",

@@ -1,5 +1,6 @@
   <script setup>
   import { computed, nextTick, onMounted, ref, watch } from "vue";
+  import EventTipMenu from "./EventTipMenu.vue";
   import CheckboxGroup from "../checkbox/CheckboxGroup.vue";
   import ButtonComponent from "@/components/dev/button/ButtonComponent.vue";
   import BookingSectionsWrapper from "../BookingForm/HelperComponents/BookingSectionsWrapper.vue";
@@ -350,6 +351,7 @@
   const initialBufferTime = requestedBufferTime == null ? 5 : requestedBufferTime;
 
   const formData = ref({
+    tipMenu: JSON.parse(JSON.stringify(props.engine.state.tipMenu || [])),
     eventTitle: props.engine.state.eventTitle || "",
     eventDescription: props.engine.state.eventDescription || "",
     eventColorSkin: props.engine.state.eventColorSkin || "#5549FF",
@@ -427,6 +429,7 @@
   });
 
   const formRootRef = ref(null);
+  const tipMenuRef = ref(null);
   const showInlineValidation = ref(false);
   const validationErrors = ref([]);
   const validationPending = ref(true);
@@ -654,6 +657,7 @@
   };
 
   const goToNext = async () => {
+    if (tipMenuRef.value && !tipMenuRef.value.beforeLeave()) return;
     const result = await validateStep1({ reveal: true, scroll: false });
     if (!result.valid) {
       showStep1ValidationToast(result.errors);
@@ -2813,6 +2817,7 @@
       </BookingSectionsWrapper>
       <div class="w-full bg-[#D0D5DD] h-[0.063rem]"></div>
 
+      <EventTipMenu ref="tipMenuRef" v-if="isGroupBooking" v-model="formData.tipMenu" :creator-id="engine.state.creatorId" />
       <template v-for="section in step1SectionOrder" :key="section">
       <BookingSectionsWrapper v-if="section === 'privatePricing'" :title="t('booking_pricing_discounts')" :leftIcon=BankNoteIcon
         leftIconClass="mt-[0.25rem]" :accordionIcon=ArrowDownIcon :is-open="sectionsState.privatePricing"
