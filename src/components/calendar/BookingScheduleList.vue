@@ -1,11 +1,11 @@
 <template>
   <section v-if="items.length > 0" class="flex w-full flex-col gap-3 pb-5" data-test="booking-schedule-list">
-    <div class="flex items-center justify-between gap-3 px-0.5">
-      <div class="flex items-center gap-2">
-        <h3 class="text-[0.75rem] font-semibold uppercase leading-[1.125rem] tracking-wide text-[#0C111D]">
+    <div class="flex items-center justify-between gap-3 ">
+      <div class="flex items-center gap-1">
+        <h3 class="text-sm font-semibold uppercase tracking-wide text-[#0C111D]">
           {{ t("dashboard_booking_schedule_title") }}
         </h3>
-        <span class="inline-flex h-4 min-w-6 items-center justify-center rounded-full bg-slate-400 px-2 text-[0.7rem] font-bold leading-none text-white">
+        <span class="inline-flex mb-[-2px] px-2 py-1 min-w-6 items-center justify-center rounded-full bg-[#F06] text-sm font-semibold leading-3 text-white">
           {{ items.length }}
         </span>
       </div>

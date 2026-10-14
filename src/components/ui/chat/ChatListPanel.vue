@@ -90,7 +90,7 @@ const newChatPopupConfig = computed(() => {
     lockScroll: false,
     escToClose: true,
     width: isTabletPortrait ? (isEmbedded ? '100%' : 'calc(100% - 90px)') : (props.hostWidth >= 768 ? '42.188rem' : { default: '100%', '>768': '675px' }),
-    height: isTabletPortrait ? '100vh' : (props.hostWidth >= 768 ? '80vh' : { default: '100vh', '>768': '90vh' }),
+    height: isTabletPortrait ? '100vh' : (props.hostWidth >= 960 ? '70vh' : (props.hostWidth >= 768 ? '80vh' : { default: '100vh', '>768': '90vh' })),
     scrollable: false,
     zIndex: 10000,
     containerClass: isTabletPortrait

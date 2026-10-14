@@ -1,7 +1,8 @@
 <template>
   <section class="flex flex-col gap-[1rem]">
     
-    <div v-for="(section, sIndex) in sections" :key="sIndex" class="flex flex-col gap-[0.5rem] w-full">
+    <template v-for="(section, sIndex) in sections" :key="sIndex">
+    <div v-if="section.items?.length" class="flex flex-col gap-[0.5rem] w-full">
       <div class="flex items-center justify-between gap-3 self-stretch">
         <div class="flex gap-1 items-center">
           <h3
@@ -10,14 +11,14 @@
           >
             {{ section.title }}
           </h3>
+          <!-- :class="isPendingSection(section) ? 'bg-[#F79009]' : 'bg-[#98A2B3]'" -->
           <div
             v-if="section.items && section.items.length > 0"
-            class="px-2 py-1 h-[18px] flex items-center justify-center rounded-full"
-            :class="isPendingSection(section) ? 'bg-[#F79009]' : 'bg-[#98A2B3]'"
+            class="px-2 py-1 min-w-[25px] flex items-center justify-center rounded-full bg-[#F06]"
             data-test="events-widget-section-count-badge"
           >
             <span
-              class="text-sm font-semibold text-white"
+              class="text-sm leading-3 font-semibold text-white mb-[-1px]"
               data-test="events-widget-section-count"
             >{{ section.items?.length ?? 0 }}</span>
           </div>
@@ -269,6 +270,7 @@
       </section>
       </template>
     </div>
+    </template>
   </section>
 </template>
 
