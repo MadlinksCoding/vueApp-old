@@ -357,9 +357,13 @@ function handleDateHover(day) {
 }
 
 function isDisabled(date) {
-    // Configured bounds
-    if (options.value.minDate && date < utils.dateFromStr(options.value.minDate)) return true;
-    if (options.value.maxDate && date > utils.dateFromStr(options.value.maxDate)) return true;
+    // Bounds are calendar dates; grid cells and parsed values can have
+    // different times of day (midnight versus noon).
+    const dayKey = utils.formatDate(date);
+    const minDate = utils.dateFromStr(options.value.minDate);
+    const maxDate = utils.dateFromStr(options.value.maxDate);
+    if (minDate && dayKey < utils.formatDate(minDate)) return true;
+    if (maxDate && dayKey > utils.formatDate(maxDate)) return true;
 
     // Configured blocked dates
     if (options.value.blockedDates.some(blocked => utils.isSameDate(utils.dateFromStr(blocked), date))) return true;

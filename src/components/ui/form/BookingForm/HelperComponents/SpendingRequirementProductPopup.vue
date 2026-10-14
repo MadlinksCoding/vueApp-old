@@ -11,6 +11,7 @@ import { getSpendingRequirementMediaBadge } from "@/utils/spendingRequirementMed
 import galleryIcon from '@/assets/images/icons/image-03.svg';
 import SearchResultIcon from '@/assets/images/icons/search-result.svg';
 import NotificationCard from '@/components/dev/card/notification/NotificationCard.vue';
+import SpendingRequirementProductCard from './SpendingRequirementProductCard.vue';
 
 const GalleryIconComponent = (props) => h('img', { src: galleryIcon, ...props, alt: "" });
 
@@ -334,9 +335,10 @@ function handleConfirm() {
               </div>
 
            <div v-else class="grid grid-cols-2 gap-3">
+             <template v-for="item in filteredItems" :key="productKey(item)">
+             <SpendingRequirementProductCard v-if="item.type === 'product'" :item="item" :selected="isSelected(item)" @select="toggleSelect" />
              <button
-               v-for="item in filteredItems"
-               :key="productKey(item)"
+               v-else
                type="button"
                class="text-left rounded overflow-hidden transition p-[0.375rem] flex flex-col gap-1"
                :class="isSelected(item) ? 'border border-[#FF0080] bg-[rgba(255,0,102,0.10)]' : ''"
@@ -394,6 +396,7 @@ function handleConfirm() {
                  </div> -->
                </div>
              </button>
+             </template>
            </div>
 
            <button v-if="excludeSubscriberExclusiveMerch && activeTab === 'product' && filteredItems.length === 0 && activeTabHasMore && !activeTabLoading && !searchQuery.trim()"

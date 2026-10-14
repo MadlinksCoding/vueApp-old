@@ -1,3 +1,4 @@
+import { normalizeEventTipMenu } from "../eventTipMenu.js";
 import {
   extractDateIso,
   extractHm,
@@ -408,6 +409,7 @@ export function mapEventToBookingFormState(event = {}) {
     recordingPrice: fieldNumber(event.allowFanRecordingTokens, ""),
     allowPersonalRequest: bool(event.allowPersonalRequestRequired, false),
     personalRequestNote: stringValue(event.personalRequestNote, ""),
+    tipMenu: type === "group" ? normalizeEventTipMenu(event.tipMenu) : [],
     addOns: normalizeAddOns(event.addOns),
     blockedUsers: normalizeArray(event.blockedUsers),
     coPerformerSearch: "",
