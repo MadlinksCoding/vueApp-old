@@ -34,7 +34,8 @@ export async function fetchTipPrizePage({ type, creatorId, offset = 0, signal })
     throw prizeLibraryError("The prize library could not be loaded.", "booking_tip_menu_library_load_failed");
   }
   const page = mapFetchSpendingRequirementItemsFromResponse({ type: collection, results: data.results, totalCount: data.total_count, count: 6, offset });
-  page.items = page.items.filter(item => collection === "product" ? !item.subscriberExclusive : collection === "media" ? item.canBuy : true);
+  page.items = page.items.filter(item => collection === "product" ? !item.subscriberExclusive
+    : collection === "media" ? item.canBuy : Number(item.subscribePrice) > 0 && ![true, 1, '1', 'yes', 'true'].includes(item.raw?.is_free));
   // Tier endpoints return the complete list and do not support pagination.
   if (collection === "subscription") page.hasMore = false;
   return page;
