@@ -195,7 +195,7 @@
               view === 'month' ? 'static' : 'absolute',
               event?.isAvailabilityBlock ? 'pointer-events-none' : '',
               !event?.isAvailabilityBlock ? 'cursor-pointer' : '',
-              !event?.isAvailabilityBlock ? 'rounded-lg' : '',
+              !event?.isAvailabilityBlock ? 'rounded' : '',
               view === 'month' ? 'month-booking-row flex overflow-hidden' : '',
               'py-[0.125rem] px-[0.25rem] text-xs shadow-custom min-h-[2.5rem]'
             ]"
@@ -1476,7 +1476,7 @@ function getCalendarEventStyle(event) {
 
   if (isPastBookedCalendarEvent(event)) {
     return {
-      backgroundColor: "#D9DCE6",
+      backgroundColor: "#D0D5DD",
       border: "0",
       borderBottom: "0",
       boxShadow: "none",
