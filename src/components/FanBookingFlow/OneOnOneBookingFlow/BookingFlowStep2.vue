@@ -15,6 +15,7 @@ import {
 import {
   buildCandidateSlotsForEventDate,
   GROUP_BOOKING_CLOSE_BEFORE_END_MS,
+  isGroupSlotOpenForBooking,
   createSlotUiModel,
   formatLocalDateIso,
   getBlockingBookedSlotsForRange,
@@ -463,6 +464,7 @@ function buildCandidateSlotsForDisplayDate(
 
     slots.forEach((slot) => {
       const cutoffMs = isGroupEvent.value ? slot.endMs - GROUP_BOOKING_CLOSE_BEFORE_END_MS : slot.startMs;
+      if (isGroupEvent.value && !isGroupSlotOpenForBooking(event, slot, currentTimeMs.value)) return;
       if (Number.isFinite(cutoffMs) && (isGroupEvent.value
         ? cutoffMs <= currentTimeMs.value
         : cutoffMs < currentTimeMs.value)) return;
@@ -471,7 +473,12 @@ function buildCandidateSlotsForDisplayDate(
         slot.startMs,
         displayTimezoneOffsetMinutes.value,
       );
-      if (displayParts?.dateIso !== displayDateIso) return;
+      if (displayParts?.dateIso !== displayDateIso) {
+        const todayInDisplayTimezone = getFixedOffsetDateTimeParts(currentTimeMs.value, displayTimezoneOffsetMinutes.value)?.dateIso;
+        if (!isGroupEvent.value || displayDateIso !== todayInDisplayTimezone
+          || slot.startMs > currentTimeMs.value
+          || !isGroupSlotOpenForBooking(event, slot, currentTimeMs.value)) return;
+      }
       deduped.set(`${slot.startMs}_${slot.endMs}`, slot);
     });
   }
@@ -694,7 +701,8 @@ function startCurrentTimeRefreshTimer() {
   const refreshAtMinuteBoundary = () => {
     const nowMs = Date.now();
     currentTimeMs.value = nowMs;
-    const delayMs = MINUTE_MS - (nowMs % MINUTE_MS);
+    const tickMs = isGroupEvent.value ? 5000 : MINUTE_MS;
+    const delayMs = tickMs - (nowMs % tickMs);
     currentTimeRefreshTimerId = setTimeout(refreshAtMinuteBoundary, delayMs);
   };
 
@@ -1536,6 +1544,13 @@ const formattedTimeRange = computed(() => {
         )?.hm || addMinutesToHm(startHm, selectedMinutes))
         : (selectedTime.value.displayEndHm || selectedTime.value.endHm)
     );
+  if (isGroupEvent.value) {
+    const endDateIso = getFixedOffsetDateTimeParts(selectedTime.value.endMs, displayTimezoneOffsetMinutes.value)?.dateIso;
+    if (endDateIso && endDateIso !== selectedTime.value.displayDateIso) {
+      const endDateLabel = new Date(`${endDateIso}T12:00:00`).toLocaleDateString(locale.value, { month: 'short', day: 'numeric' });
+      return `${hmToLabel(startHm)}-${endDateLabel} ${hmToLabel(endHm)}`;
+    }
+  }
   return `${hmToLabel(startHm)}-${hmToLabel(endHm)}`;
 });
 
@@ -1545,7 +1560,9 @@ const currentDuration = computed(() => {
 
 const selectedDateDisplay = computed(() => {
   if (!state.selected) return '';
-  return state.selected.toLocaleDateString(locale.value, {
+  const date = isGroupEvent.value && selectedTime.value?.displayDateIso
+    ? new Date(`${selectedTime.value.displayDateIso}T12:00:00`) : state.selected;
+  return date.toLocaleDateString(locale.value, {
     month: 'long',
     day: 'numeric',
     year: 'numeric'
@@ -1554,7 +1571,8 @@ const selectedDateDisplay = computed(() => {
 
 const headerDateDisplay = computed(() => {
   if (!state.selected) return '';
-  const selected = new Date(state.selected);
+  const selected = isGroupEvent.value && selectedTime.value?.displayDateIso
+    ? new Date(`${selectedTime.value.displayDateIso}T12:00:00`) : new Date(state.selected);
   const selectedIso = formatLocalDateIso(selected);
   const todayIso = todayDateIso.value;
   const tomorrowIso = addDaysToDateIso(todayIso, 1);
@@ -2061,7 +2079,8 @@ watch(
   () => timeSlots.value,
   (slots) => {
     if (isGroupEvent.value && selectedTime.value
-      && selectedTime.value.endMs - GROUP_BOOKING_CLOSE_BEFORE_END_MS <= currentTimeMs.value) {
+      && (selectedTime.value.endMs - GROUP_BOOKING_CLOSE_BEFORE_END_MS <= currentTimeMs.value
+        || !isGroupSlotOpenForBooking(selectedEvent.value, selectedTime.value, currentTimeMs.value))) {
       clearSelectedSlotAfterAvailabilityRefresh('step2-group-booking-cutoff');
       return;
     }

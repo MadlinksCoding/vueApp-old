@@ -205,6 +205,14 @@ function isGroupSlotBeforeEventCreated(event = {}, slot = {}) {
   return createdAtMs != null && Number.isFinite(startMs) && startMs < createdAtMs;
 }
 
+export function isGroupSlotOpenForBooking(event, slot, nowMs = Date.now()) {
+  const rows = event?.groupSlotBookingAvailability || event?.raw?.groupSlotBookingAvailability || [];
+  const state = rows.find((row) => Date.parse(row.startAtIso) === slot?.startMs);
+  if (state && state.bookable !== true) return false;
+  if (slot?.startMs > nowMs) return true;
+  return state?.running === true && state.bookable === true && Number(state.validUntil) > nowMs;
+}
+
 function resolveBookedSlotEventType(slot = {}) {
   const eventSnapshot = slot?.eventSnapshot && typeof slot.eventSnapshot === "object" ? slot.eventSnapshot : {};
   const eventCurrent = slot?.eventCurrent && typeof slot.eventCurrent === "object" ? slot.eventCurrent : {};
@@ -627,6 +635,13 @@ export function buildCandidateSlotsForEventDate(event = {}, localDateIso, option
   ));
 
   const built = [];
+  const includeWindow = (mapped) => {
+    if (shouldBuildWindowForLocalDate(mapped, localDateIso, groupEvent || preserveScheduleWindow)) return true;
+    const nowMs = Date.now();
+    return groupEvent && localDateIso === formatLocalDateIso(new Date(nowMs))
+      && mapped.startMs <= nowMs && mapped.endMs > nowMs
+      && isGroupSlotOpenForBooking(event, mapped, nowMs);
+  };
 
   if (repeatRule === "doesNotRepeat") {
     const oneTimeSlots = normalizeOneTimeSlots(rawSlots);
@@ -643,7 +658,7 @@ export function buildCandidateSlotsForEventDate(event = {}, localDateIso, option
         inclusiveEndOfDay: !groupEvent,
       });
       if (!mapped) return;
-      if (!shouldBuildWindowForLocalDate(mapped, localDateIso, groupEvent || preserveScheduleWindow)) return;
+      if (!includeWindow(mapped)) return;
       built.push(mapped);
     });
   } else if (repeatRule === "monthly") {
@@ -674,7 +689,7 @@ export function buildCandidateSlotsForEventDate(event = {}, localDateIso, option
         });
 
         if (!mapped) return;
-        if (!shouldBuildWindowForLocalDate(mapped, localDateIso, groupEvent || preserveScheduleWindow)) return;
+        if (!includeWindow(mapped)) return;
         built.push(mapped);
       });
     });
@@ -709,7 +724,7 @@ export function buildCandidateSlotsForEventDate(event = {}, localDateIso, option
         });
 
         if (!mapped) return;
-        if (!shouldBuildWindowForLocalDate(mapped, localDateIso, groupEvent || preserveScheduleWindow)) return;
+        if (!includeWindow(mapped)) return;
         built.push(mapped);
       });
     });
@@ -1096,7 +1111,8 @@ export function createSlotUiModel({ event, eventId, localDateIso, slot, bookedSl
         && Number.isFinite(slot?.startMs) && slot.startMs < today.getTime()
   );
   const creationDisabled = groupEvent && isGroupSlotBeforeEventCreated(event, slot);
-  const disabled = bookedDisabled || pastDisabled || creationDisabled;
+  const runningDisabled = groupEvent && !isGroupSlotOpenForBooking(event, slot, today.getTime());
+  const disabled = bookedDisabled || pastDisabled || creationDisabled || runningDisabled;
   return {
     ...slot,
     disabled,
@@ -1298,7 +1314,9 @@ function mergeContiguousSlots(slots = []) {
 
 function isAvailabilityCandidateFree({ event, eventId, localDateIso, slot, bookedSlotsIndex = {} }) {
   if (isGroupEvent(event)) {
-    return !isGroupSlotAtCapacity({ event, eventId, slot, bookedSlotsIndex });
+    return isGroupSlotOpenForBooking(event, slot)
+      && slot.endMs - GROUP_BOOKING_CLOSE_BEFORE_END_MS > Date.now()
+      && !isGroupSlotAtCapacity({ event, eventId, slot, bookedSlotsIndex });
   }
 
   return !isSlotBooked({
