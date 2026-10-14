@@ -419,7 +419,7 @@ const groupPolicyItems = computed(() => {
                   </div>
                   <div class="flex items-center gap-1">
                     <img :src="bookingFlowInfoCircleIcon" alt="" class="w-3 h-3" />
-                    <span class="text-[#FCE40D] text-xs font-medium leading-[1.125rem]">{{ t(prerequisite.type === 'subscription' ? 'fan_booking_mandatory_subscription' : 'fan_booking_mandatory_purchase') }}</span>
+                    <span class="text-[#FCE40D] text-xs font-medium leading-none">{{ t(prerequisite.type === 'subscription' ? 'fan_booking_mandatory_subscription' : 'fan_booking_mandatory_purchase') }}</span>
                   </div>
                 </div>
               </div>
