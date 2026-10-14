@@ -1476,7 +1476,7 @@ function getCalendarEventStyle(event) {
 
   if (isPastBookedCalendarEvent(event)) {
     return {
-      backgroundColor: "#D0D5DD",
+      backgroundColor: "#D0D5DD80",
       border: "0",
       borderBottom: "0",
       boxShadow: "none",
