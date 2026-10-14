@@ -3,6 +3,7 @@ import { nextTick } from "vue";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { bookingTranslationSymbol, createBookingTranslator } from "@/i18n/bookingTranslations.js";
 import { buildBookedSlotsIndex } from "@/services/bookings/utils/bookingSlotUtils.js";
+import { localDateTimeToHkt } from "@/services/events/eventsApiUtils.js";
 import { showToast } from "@/utils/toastBus.js";
 
 vi.mock("@/utils/toastBus.js", () => ({
@@ -772,10 +773,63 @@ describe("BookingFlowStep2", () => {
     wrapper.unmount();
   });
 
-  it("preselects an ongoing group session only when it is the sole remaining session", async () => {
+  it("does not offer an ongoing group session before the creator connects", async () => {
     const today = setFixedStepClock();
     const { engine, wrapperPromise } = createMountedStep({
       selectedEvent: createGroupEvent(today, { localStartHm: "11:00", localEndHm: "13:00" }),
+      selection: { selectedDate: null },
+    });
+    const wrapper = await wrapperPromise;
+    await flushStep2();
+    expect(wrapper.find("[data-testid='booking-flow-time-slot']").exists()).toBe(false);
+    expect(engine.state.fanBooking.selection.selectedSlot).toBeFalsy();
+    wrapper.unmount();
+  });
+
+  it('offers a running overnight group on today\'s calendar while displaying its actual start date', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2030-01-16T00:20:00'));
+    const startMs = new Date('2030-01-15T23:00:00').getTime();
+    const endMs = new Date('2030-01-16T01:00:00').getTime();
+    const hktStart = localDateTimeToHkt('2030-01-15', '23:00');
+    const hktEnd = localDateTimeToHkt('2030-01-16', '01:00');
+    const event = createGroupEvent('2030-01-15', { raw: { slots: [{ date: hktStart.dateIso, times: [{
+      startTime: hktStart.hm, endTime: hktEnd.hm, endDayOffset: hktStart.dateIso === hktEnd.dateIso ? 0 : 1,
+    }] }] }, groupSlotBookingAvailability: [{ startAtIso: new Date(startMs).toISOString(), running: true, bookable: true, validUntil: Date.now() + 60000 }] });
+    const { engine, wrapperPromise } = createMountedStep({ dateIso: '2030-01-16', selectedEvent: event, selection: { selectedDate: null } });
+    const wrapper = await wrapperPromise;
+    await flushStep2();
+    expect(engine.state.fanBooking.selection.selectedDate).toBe('2030-01-16');
+    expect(engine.state.fanBooking.selection.selectedSlot).toEqual(expect.objectContaining({ startMs, endMs }));
+    expect(wrapper.text()).toContain('Jan 16');
+    await wrapper.get('[data-testid="group-booking-action"]').trigger('click');
+    await flushStep2();
+    expect(engine.state.bookingDetails.selectedDateDisplay).toBe('January 15, 2030');
+    wrapper.unmount();
+  });
+
+  it("clears an ongoing group slot when the creator activity check expires", async () => {
+    const today = setFixedStepClock();
+    const { engine, wrapperPromise } = createMountedStep({
+      selectedEvent: createGroupEvent(today, { localStartHm: "11:00", localEndHm: "13:00", groupSlotBookingAvailability: [
+        { startAtIso: `${today}T11:00:00`, running: true, bookable: true, validUntil: Date.now() + 10000 },
+      ] }),
+      selection: { selectedDate: null },
+    });
+    const wrapper = await wrapperPromise;
+    await flushStep2();
+    expect(engine.state.fanBooking.selection.selectedSlot).toBeTruthy();
+    await vi.advanceTimersByTimeAsync(10000);
+    await flushStep2();
+    expect(engine.state.fanBooking.selection.selectedSlot).toBeNull();
+    expect(wrapper.find("[data-testid='booking-flow-time-slot']").exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it("preselects an ongoing group session only when it is the sole remaining session", async () => {
+    const today = setFixedStepClock();
+    const { engine, wrapperPromise } = createMountedStep({
+      selectedEvent: createGroupEvent(today, { localStartHm: "11:00", localEndHm: "13:00", groupSlotBookingAvailability: [{ startAtIso: `${today}T11:00:00`, running: true, bookable: true, validUntil: Date.now() + 60000 }] }),
       selection: { selectedDate: null },
     });
     const wrapper = await wrapperPromise;
@@ -802,7 +856,7 @@ describe("BookingFlowStep2", () => {
     const today = setFixedStepClock();
     vi.setSystemTime(new Date(`${today}T12:49:59`));
     const { engine, wrapperPromise } = createMountedStep({
-      selectedEvent: createGroupEvent(today, { localStartHm: '11:00', localEndHm: '13:00' }),
+      selectedEvent: createGroupEvent(today, { localStartHm: '11:00', localEndHm: '13:00', groupSlotBookingAvailability: [{ startAtIso: `${today}T11:00:00`, running: true, bookable: true, validUntil: Date.now() + 60000 }] }),
       selection: { selectedDate: null },
     });
     const wrapper = await wrapperPromise;

@@ -142,7 +142,10 @@ export default defineConfig(({ command, mode }) => {
               id.includes("/src/utils/resolveGuestSessionId") ||
               id.includes("/src/composables/useChatSocket")
             ) {
-              return "embed-fan-booking-core";
+              // These services import booking UI helpers and Vue. Keeping them
+              // with the embed avoids a cycle that mounts it before JWT and
+              // token-handler module constants have initialized.
+              return "embed-fan-booking";
             }
             // Bundle components by section
             if (

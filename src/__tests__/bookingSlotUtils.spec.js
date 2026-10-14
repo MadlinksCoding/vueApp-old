@@ -66,6 +66,10 @@ function makeCrossMidnightWeeklyEvent({
   };
 }
 
+function markGroupRunning(event, slot) {
+  event.groupSlotBookingAvailability = [{ startAtIso: new Date(slot.startMs).toISOString(), bookable: true, running: true, validUntil: Date.now() + 60_000 }];
+}
+
 function makeIndex(status) {
   return buildBookedSlotsIndex([
     {
@@ -725,6 +729,14 @@ describe("booking slot utilities", () => {
     expect(createSlotUiModel({ event, eventId, localDateIso, slot, bookedSlotsIndex }).disabled).toBe(true);
   });
 
+  it.each([null, { running: false, bookable: false }, { running: true, bookable: true, expired: true }])("rejects an ongoing group slot without fresh creator activity (%j)", (state) => {
+    setFixedNow();
+    const slot = makeSlot("11:00", "13:00");
+    const event = { eventId, type: "group-event" };
+    if (state) event.raw = { groupSlotBookingAvailability: [{ ...state, startAtIso: new Date(slot.startMs).toISOString(), validUntil: state.expired ? Date.now() : Date.now() + 60000 }] };
+    expect(createSlotUiModel({ event, eventId, localDateIso, slot, bookedSlotsIndex: {} }).disabled).toBe(true);
+  });
+
   it("keeps ongoing group slots bookable before the final ten minutes", () => {
     setFixedNow();
     const event = {
@@ -736,6 +748,7 @@ describe("booking slot utilities", () => {
       raw: { type: "group-event", enableMaxAttendees: true, maxAttendees: 5 },
     };
     const ongoingSlot = makeSlot("11:00", "13:00");
+    markGroupRunning(event, ongoingSlot);
     const endedSlot = makeSlot("10:00", "12:00");
 
     expect(createSlotUiModel({ event, eventId, localDateIso, slot: ongoingSlot, bookedSlotsIndex: {} }).disabled).toBe(false);
@@ -752,6 +765,7 @@ describe("booking slot utilities", () => {
     vi.setSystemTime(new Date(`${localDateIso}T${time}`));
     const event = { eventId, type: 'group-event', raw: { type: 'group-event' } };
     const slot = makeSlot('11:00', '13:00');
+    markGroupRunning(event, slot);
     expect(createSlotUiModel({ event, eventId, localDateIso, slot, bookedSlotsIndex: {} }).disabled).toBe(disabled);
   });
 
@@ -761,6 +775,19 @@ describe("booking slot utilities", () => {
     const event = { eventId, type: 'group-event', raw: { type: 'group-event' } };
     const slot = { startMs: new Date('2030-01-15T23:00:00').getTime(), endMs: new Date('2030-01-16T01:00:00').getTime() };
     expect(createSlotUiModel({ event, eventId, localDateIso, slot, bookedSlotsIndex: {} }).disabled).toBe(true);
+  });
+
+  it('offers a running overnight group slot on today\'s calendar', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2030-01-16T00:20:00'));
+    const event = makeCrossMidnightWeeklyEvent({ localStartHm: '23:00', localEndHm: '01:00' });
+    event.type = 'group-event'; event.raw.type = 'group-event';
+    const slot = { startMs: new Date('2030-01-15T23:00:00').getTime(), endMs: new Date('2030-01-16T01:00:00').getTime() };
+    markGroupRunning(event, slot);
+    const next = computeNextAvailableSlot(event, {});
+    expect(next.dateIso).toBe('2030-01-16');
+    expect(next.slot.startMs).toBe(slot.startMs);
+    expect(buildCandidateSlotsForEventDate(event, '2030-01-16')[0].startMs).toBe(slot.startMs);
   });
 
   it("disables group slots that started before the event was created", () => {
@@ -778,6 +805,8 @@ describe("booking slot utilities", () => {
       raw: { type: "group-event", createdAt: "2030-01-15T05:30:00.000Z" },
     };
 
+    markGroupRunning(eligibleEvent, slot);
+    markGroupRunning(justCreatedEvent, slot);
     expect(createSlotUiModel({ event: eligibleEvent, eventId, localDateIso, slot, bookedSlotsIndex: {} }).disabled).toBe(false);
     expect(createSlotUiModel({ event: justCreatedEvent, eventId, localDateIso, slot, bookedSlotsIndex: {} }).disabled).toBe(true);
   });
@@ -1101,6 +1130,7 @@ describe("booking slot utilities", () => {
       },
     };
 
+    markGroupRunning(event, makeSlot("11:00", "13:00"));
     const next = computeNextAvailableSlot(event, {}, 2, { skipBookedByUserId: 2615 });
 
     expect(next?.dateIso).toBe(localDateIso);
