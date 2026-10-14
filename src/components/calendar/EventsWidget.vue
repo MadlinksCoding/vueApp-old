@@ -18,7 +18,7 @@
             data-test="events-widget-section-count-badge"
           >
             <span
-              class="text-sm leading-3 font-semibold text-white"
+              class="text-sm leading-3 font-semibold text-white mb-[-1px]"
               data-test="events-widget-section-count"
             >{{ section.items?.length ?? 0 }}</span>
           </div>
