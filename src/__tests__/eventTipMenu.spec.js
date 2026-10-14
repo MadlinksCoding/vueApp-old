@@ -52,7 +52,7 @@ describe("published prize catalog", () => {
     expect(page.hasMore).toBe(true);
   });
   it("lists only published tiers and stops at the complete tier response", async () => {
-    mockResponse([{ id: 1, title: "VIP", status: "publish" }, { id: 2, title: "Draft", status: "draft" }]);
+    mockResponse([{ id: 1, title: "VIP", status: "publish", price: 10 }, { id: 2, title: "Draft", status: "draft", price: 10 }, { id: 3, title: "Free", status: "publish", price: 0 }, { id: 4, title: "Free flag", status: "publish", price: 10, is_free: true }]);
     const page = await fetchTipPrizePage({ type: "subscription", creatorId: 1407 });
     expect(page.items.map(item => item.id)).toEqual([1]);
     expect(page.hasMore).toBe(false);
