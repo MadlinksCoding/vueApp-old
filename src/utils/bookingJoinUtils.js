@@ -1,3 +1,5 @@
+import { resolveWpSiteBaseUrl } from './wpApiBaseUrl.js';
+
 function parseDateLike(value) {
   const parsed = new Date(value);
   return Number.isNaN(parsed.getTime()) ? null : parsed;
@@ -62,7 +64,7 @@ function getEffectiveEndDate(endDate, extensions = []) {
   ), endDate);
 }
 
-export function buildScheduledMeetingUrl(bookingId, baseUrl = import.meta.env.VITE_WEB_BASE_URL) {
+export function buildScheduledMeetingUrl(bookingId, baseUrl = resolveWpSiteBaseUrl()) {
   const normalizedBookingId = typeof bookingId === 'string' || typeof bookingId === 'number'
     ? String(bookingId).trim()
     : '';
@@ -72,7 +74,7 @@ export function buildScheduledMeetingUrl(bookingId, baseUrl = import.meta.env.VI
   return `${normalizedBaseUrl}/scheduled-meeting/?booking_id=${encodeURIComponent(normalizedBookingId)}`;
 }
 
-export function buildScheduledGroupMeetingUrl({ eventId, startIso } = {}, baseUrl = import.meta.env.VITE_WEB_BASE_URL) {
+export function buildScheduledGroupMeetingUrl({ eventId, startIso } = {}, baseUrl = resolveWpSiteBaseUrl()) {
   const normalizedEventId = typeof eventId === 'string' || typeof eventId === 'number'
     ? String(eventId).trim()
     : '';
@@ -155,7 +157,7 @@ export function getBookingJoinState({
   callReminderMinutesBefore = null,
   reminderMinutes = null,
   extensions = [],
-  baseUrl = import.meta.env.VITE_WEB_BASE_URL,
+  baseUrl = resolveWpSiteBaseUrl(),
   now = new Date(),
 } = {}) {
   const startDate = parseDateLike(startAt);
@@ -221,7 +223,7 @@ export function getCalendarEventJoinState(
   {
     viewerRole = 'fan',
     now = new Date(),
-    baseUrl = import.meta.env.VITE_WEB_BASE_URL,
+    baseUrl = resolveWpSiteBaseUrl(),
   } = {},
 ) {
   const source = event && typeof event === 'object' ? event : {};

@@ -29,14 +29,23 @@ function getBrowserOrigin() {
 }
 
 export function resolveWpSiteBaseUrl(options = {}) {
+  const pathname = options.pathname !== undefined
+    ? options.pathname
+    : (typeof window !== "undefined" ? window.location?.pathname : "");
+  const browserOrigin = normalizeWpSiteBaseUrl(
+    options.origin !== undefined ? options.origin : getBrowserOrigin(),
+  );
+  // WordPress embeds can be copied between environments without rebuilding.
+  // Keep their links and callbacks on the site that actually serves the embed.
+  if (browserOrigin && /^\/wp-content\/plugins\/fansocial\/bookings-embed\//.test(String(pathname || ""))) {
+    return browserOrigin;
+  }
+
   const configured = normalizeWpSiteBaseUrl(
     options.envValue !== undefined ? options.envValue : getConfiguredWpSiteBaseUrl(),
   );
   if (configured) return configured;
 
-  const browserOrigin = normalizeWpSiteBaseUrl(
-    options.origin !== undefined ? options.origin : getBrowserOrigin(),
-  );
   if (browserOrigin) return browserOrigin;
 
   return "";

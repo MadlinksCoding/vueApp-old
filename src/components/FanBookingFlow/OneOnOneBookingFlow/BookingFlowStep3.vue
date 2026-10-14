@@ -2,6 +2,7 @@
 import { computed, ref, watch, onMounted, onBeforeUnmount, defineAsyncComponent } from 'vue';
 import OneOnOneBookingFlowLeftSideBar from '../HelperComponents/OneOnOneBookingFlowLeftSideBar.vue';
 import TokenHandler from '@/utils/TokenHandler.js';
+import { buildWpApiUrl } from '@/utils/wpApiBaseUrl.js';
 import { showToast } from '@/utils/toastBus.js';
 import { mapCreateBookingToRequest, MAX_EVENT_GOAL_CONTRIBUTION_TOKENS } from '@/services/bookings/mappers/createBookingMapper.js';
 import { sumEventGoalContributionsForEvent } from '@/services/bookings/utils/bookingSlotUtils.js';
@@ -1322,7 +1323,7 @@ function fireAndForgetBookingCreated() {
     on_purchased_in_session_media_url: String(engineState.on_purchased_in_session_media_url || ""),
   };
 
-  const endpoint = import.meta.env.VITE_WEB_BASE_URL + "/wp-json/api/bookings/create";
+  const endpoint = buildWpApiUrl("bookings/create");
 
   console.error('[endpoint] payload', endpoint, { payload });
 
