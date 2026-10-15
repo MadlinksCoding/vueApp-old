@@ -1,5 +1,5 @@
 import { mount } from "@vue/test-utils";
-import { nextTick } from "vue";
+import { nextTick, reactive } from "vue";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { bookingTranslationSymbol, createBookingTranslator } from "@/i18n/bookingTranslations.js";
 import { buildBookedSlotsIndex } from "@/services/bookings/utils/bookingSlotUtils.js";
@@ -31,7 +31,8 @@ function setByPath(target, path, value) {
   cursor[segments[0]] = value;
 }
 
-function createEngine(state = {}) {
+function createEngine(state = {}, reactiveState = false) {
+  if (reactiveState) state = reactive(state);
   return {
     state,
     getState: vi.fn((path) => {
@@ -139,6 +140,7 @@ function createMountedStep({
   isFirstBookingForCreator = false,
   componentProps = {},
   translations = {},
+  reactiveState = false,
 } = {}) {
   const engine = createEngine({
     bookingDetails,
@@ -160,7 +162,7 @@ function createMountedStep({
         previewReadOnly: false,
       },
     },
-  });
+  }, reactiveState);
 
   return {
     engine,
@@ -229,6 +231,110 @@ async function flushStep2() {
 }
 
 describe("BookingFlowStep2", () => {
+  async function startPendingGroupRefresh({ startWithTimer = true } = {}) {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2030-01-15T09:00:00'));
+    let finishRefresh;
+    const refreshBookingContext = vi.fn(() => new Promise(resolve => { finishRefresh = resolve; }));
+    const mounted = createMountedStep({
+      dateIso: '2030-01-16',
+      reactiveState: true,
+      componentProps: { refreshBookingContext },
+    });
+    const wrapper = await mounted.wrapperPromise;
+    await vi.dynamicImportSettled();
+    await flushStep2();
+    const { engine } = mounted;
+    const selection = { ...engine.state.fanBooking.selection.selectedSlot };
+    const details = { ...engine.state.bookingDetails };
+    expect(selection.startMs).toBeTruthy();
+    expect(wrapper.find('[data-testid="group-booking-review"]').exists()).toBe(true);
+    if (startWithTimer) {
+      await vi.advanceTimersByTimeAsync(15000);
+      expect(refreshBookingContext).toHaveBeenCalledOnce();
+    }
+    showToast.mockClear();
+    return { engine, wrapper, refreshBookingContext, finishRefresh: result => finishRefresh(result), selection, details };
+  }
+
+  function ownGroupBooking(selection) {
+    return {
+      bookingId: 'confirmed-own-booking', eventId: 'evt_group_1', userId: 2615,
+      eventType: 'group-event', status: 'confirmed',
+      startIso: new Date(selection.startMs).toISOString(),
+      endIso: new Date(selection.endMs).toISOString(),
+    };
+  }
+
+  it('preserves the inline review when a refresh sees our booking before submission returns', async () => {
+    const { engine, wrapper, finishRefresh, refreshBookingContext, selection, details } = await startPendingGroupRefresh();
+    engine.setState('fanBooking.booking.isSubmitting', true);
+    engine.setState('fanBooking.catalog.bookedSlotsIndex', buildBookedSlotsIndex([ownGroupBooking(selection)]));
+    engine.setState('fanBooking.context.selectedEvent', { ...engine.state.fanBooking.context.selectedEvent });
+    await flushStep2();
+    finishRefresh({ ok: true });
+    await flushStep2();
+
+    expect(showToast).not.toHaveBeenCalled();
+    expect(wrapper.find('[data-testid="group-booking-review"]').exists()).toBe(true);
+    expect(engine.state.fanBooking.selection.selectedSlot).toMatchObject(selection);
+    expect(engine.state.bookingDetails).toMatchObject(details);
+
+    engine.setState('fanBooking.booking.result', { bookingId: 'confirmed-own-booking' });
+    engine.setState('fanBooking.booking.lastStatus', 'created');
+    engine.setState('fanBooking.booking.isSubmitting', false);
+    await vi.advanceTimersByTimeAsync(30000);
+    expect(refreshBookingContext).toHaveBeenCalledOnce();
+    expect(engine.state.bookingDetails).toMatchObject(details);
+    expect(showToast).not.toHaveBeenCalled();
+    wrapper.unmount();
+  });
+
+  it.each(['created', 'closed'])('ignores an availability response after the schedule is %s', async (outcome) => {
+    const { engine, wrapper, finishRefresh, selection, details } = await startPendingGroupRefresh();
+    if (outcome === 'created') {
+      engine.setState('fanBooking.booking.result', { bookingId: 'confirmed-own-booking' });
+      engine.setState('fanBooking.booking.lastStatus', 'created');
+    } else {
+      wrapper.unmount();
+    }
+    engine.setState('fanBooking.catalog.bookedSlotsIndex', buildBookedSlotsIndex([ownGroupBooking(selection)]));
+    finishRefresh({ ok: true });
+    await flushStep2();
+    expect(showToast).not.toHaveBeenCalled();
+    expect(engine.state.fanBooking.selection.selectedSlot).toMatchObject(selection);
+    expect(engine.state.bookingDetails).toMatchObject(details);
+    if (outcome === 'created') wrapper.unmount();
+  });
+
+  it('invalidates old refreshes across a failed submission and still blocks a fresh conflict', async () => {
+    const { engine, wrapper, finishRefresh, refreshBookingContext, selection } = await startPendingGroupRefresh({ startWithTimer: false });
+    const pendingContinue = wrapper.findComponent({ name: 'BookingFlowStep3' }).props('prepareGroupBooking')();
+    expect(refreshBookingContext).toHaveBeenCalledOnce();
+    engine.setState('fanBooking.booking.isSubmitting', true);
+    engine.setState('fanBooking.booking.isSubmitting', false);
+    // The old request must stay invalid even after submission has ended.
+    finishRefresh({ ok: true });
+    expect(await pendingContinue).not.toBe(true);
+    await flushStep2();
+    expect(showToast).not.toHaveBeenCalled();
+    expect(engine.state.fanBooking.selection.selectedSlot).toMatchObject(selection);
+
+    refreshBookingContext.mockImplementationOnce(async () => {
+      engine.setState('fanBooking.catalog.bookedSlotsIndex', buildBookedSlotsIndex([ownGroupBooking(selection)]));
+      return { ok: true };
+    });
+    await wrapper.get('[data-testid="group-booking-action"]').trigger('click');
+    await flushStep2();
+    expect(refreshBookingContext).toHaveBeenCalledTimes(2);
+    expect(engine.state.fanBooking.selection.selectedSlot).toBeNull();
+    expect(showToast).toHaveBeenCalledWith(expect.objectContaining({
+      title: 'Slot Unavailable',
+      message: 'This slot has already been booked. Try booking a different slot',
+    }));
+    wrapper.unmount();
+  });
+
   it.each([
     { capacity: 7, enabled: true, remaining: 5 },
     { capacity: 3, enabled: true, remaining: 1 },

@@ -137,7 +137,15 @@ const { resolvedBackgroundImageUrl } = useEventBackgroundImage(selectedEvent, bo
 const inviteSecret = computed(() => String(props.engine.getState('fanBooking.context.inviteSecret') || '').trim());
 
 const topUpFormRef = ref(null);
-const isSubmitting = ref(false);
+// The schedule screen stays mounted around the inline group booking review.
+// Share this flag so its availability refresh cannot invalidate our own booking.
+const isSubmitting = computed({
+  get: () => props.engine.getState('fanBooking.booking.isSubmitting') === true,
+  set: (value) => props.engine.setState('fanBooking.booking.isSubmitting', value, {
+    reason: 'booking-submission',
+    silent: true,
+  }),
+});
 const isCheckingBalance = ref(false);
 const hasCheckedBalance = ref(false);
 const balanceCheckError = ref('');

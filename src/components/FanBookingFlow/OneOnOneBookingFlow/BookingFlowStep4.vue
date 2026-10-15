@@ -10,6 +10,11 @@ import {
   bookingFlowTokenIcon,
 } from './oneOnOneBookingFlowAssets.js';
 import { sumEventGoalContributionsForEvent, sumEventGoalContributionsForSlot } from '@/services/bookings/utils/bookingSlotUtils.js';
+import {
+  formatTimestampInFixedOffset,
+  getBrowserOffsetMinutes,
+  getFixedOffsetDateTimeParts,
+} from '@/services/bookings/utils/fixedOffsetTimezone.js';
 import groupConfirmedIcon from '@/assets/images/icons/booking-group-confirmed.webp';
 import groupContributionIcon from '@/assets/images/icons/booking-group-contribution.webp';
 import memberBenefitsIcon from '@/assets/images/icons/booking-member-benefits.svg';
@@ -111,11 +116,61 @@ function formatNumber(value) {
   return numeric.toLocaleString(locale.value);
 }
 
-const formattedDate = computed(() => normalizeText(
-  bookingData.value.headerDateDisplay || bookingData.value.selectedDateDisplay,
-) || '-');
-const timeRange = computed(() => normalizeText(bookingData.value.formattedTimeRange) || '-');
+// Confirmation must survive selection state being cleared by a catalog refresh.
+// Use one complete server range so date, time, and duration describe the same booking.
+const confirmedSchedule = computed(() => {
+  const startMs = Date.parse(normalizeText(bookingItem.value.startAtIso));
+  const endMs = Date.parse(normalizeText(bookingItem.value.endAtIso));
+  return Number.isFinite(startMs) && Number.isFinite(endMs) && endMs > startMs
+    ? { startMs, endMs }
+    : null;
+});
+const displayTimezoneOffsetMinutes = computed(() => {
+  const candidates = [
+    bookingData.value.displayTimezoneOffsetMinutes,
+    props.engine.getState('fanBooking.selection.displayTimezoneOffsetMinutes'),
+  ];
+  for (const value of candidates) {
+    if (typeof value !== 'number' && !normalizeText(value)) continue;
+    const offset = Number(value);
+    if (Number.isFinite(offset)) return offset;
+  }
+  return getBrowserOffsetMinutes();
+});
+function formatConfirmedTimestamp(timestamp, options) {
+  return formatTimestampInFixedOffset(timestamp, displayTimezoneOffsetMinutes.value, locale.value, options);
+}
+const formattedDate = computed(() => {
+  if (!confirmedSchedule.value) {
+    return normalizeText(bookingData.value.headerDateDisplay)
+      || normalizeText(bookingData.value.selectedDateDisplay) || '-';
+  }
+  const { startMs } = confirmedSchedule.value;
+  const offset = displayTimezoneOffsetMinutes.value;
+  const dateIso = getFixedOffsetDateTimeParts(startMs, offset)?.dateIso;
+  const nowMs = Date.now();
+  let prefix = '';
+  if (dateIso === getFixedOffsetDateTimeParts(nowMs, offset)?.dateIso) prefix = t('common_today');
+  else if (dateIso === getFixedOffsetDateTimeParts(nowMs + 86400000, offset)?.dateIso) prefix = t('fan_booking_tomorrow');
+  const date = formatConfirmedTimestamp(startMs, { month: 'long', day: 'numeric', year: 'numeric' });
+  return prefix ? `${prefix} ${date}` : date;
+});
+const timeRange = computed(() => {
+  if (!confirmedSchedule.value) return normalizeText(bookingData.value.formattedTimeRange) || '-';
+  const { startMs, endMs } = confirmedSchedule.value;
+  const offset = displayTimezoneOffsetMinutes.value;
+  const timeOptions = { hour: 'numeric', minute: '2-digit' };
+  const start = formatConfirmedTimestamp(startMs, timeOptions);
+  const end = formatConfirmedTimestamp(endMs, timeOptions);
+  const spansDates = getFixedOffsetDateTimeParts(startMs, offset)?.dateIso
+    !== getFixedOffsetDateTimeParts(endMs, offset)?.dateIso;
+  const endDate = spansDates ? `${formatConfirmedTimestamp(endMs, { month: 'short', day: 'numeric' })} ` : '';
+  return `${start}-${endDate}${end}`;
+});
 const durationMinutes = computed(() => {
+  if (confirmedSchedule.value) {
+    return Math.round((confirmedSchedule.value.endMs - confirmedSchedule.value.startMs) / 60000);
+  }
   const numeric = Number(bookingData.value.selectedDuration?.value);
   return Number.isFinite(numeric) && numeric > 0 ? Math.round(numeric) : 0;
 });

@@ -197,6 +197,118 @@ describe("BookingFlowStep4", () => {
     expect(wrapper.find("[data-testid='step4-message-action-desktop']").exists()).toBe(false);
   });
 
+  it.each([
+    ['group-event', 'fixedPrice', '-'],
+    ['group-event', 'eventGoal', ''],
+    ['private-event', 'fixedPrice', '   '],
+  ])("recovers the confirmed %s %s schedule when selection labels are cleared", (type, priceSetting, label) => {
+    const state = createState({
+      event: { type, priceSetting },
+      bookingDetails: {
+        formattedTimeRange: label,
+        headerDateDisplay: label,
+        selectedDateDisplay: label,
+        selectedTime: null,
+        selectedDuration: null,
+        displayTimezoneOffsetMinutes: 360,
+      },
+    });
+    Object.assign(state.fanBooking.booking.result.item, {
+      startAtIso: '2030-01-15T19:42:00+08:00',
+      endAtIso: '2030-01-15T20:12:00+08:00',
+    });
+    const { wrapper } = mountStep4(state, { locale: 'en-US' });
+
+    for (const suffix of ['desktop', 'mobile']) {
+      expect(wrapper.get(`[data-testid='step4-date-${suffix}']`).text()).toBe('January 15, 2030');
+      expect(wrapper.get(`[data-testid='step4-time-${suffix}']`).text()).toBe('5:42 PM-6:12 PM');
+      expect(wrapper.get(`[data-testid='step4-duration-${suffix}']`).text()).toBe('30 min.');
+    }
+  });
+
+  it("uses the confirmed schedule over stale labels and preserves a selected UTC offset of zero", () => {
+    const state = createState({ bookingDetails: { displayTimezoneOffsetMinutes: 0 } });
+    Object.assign(state.fanBooking.booking.result.item, {
+      startAtIso: '2030-01-15T23:45:00Z',
+      endAtIso: '2030-01-16T00:15:00Z',
+    });
+    state.fanBooking.selection = { displayTimezoneOffsetMinutes: 360 };
+    const { wrapper } = mountStep4(state, { locale: 'en-US' });
+    for (const suffix of ['desktop', 'mobile']) {
+      expect(wrapper.get(`[data-testid='step4-date-${suffix}']`).text()).toBe('January 15, 2030');
+      expect(wrapper.get(`[data-testid='step4-time-${suffix}']`).text()).toBe('11:45 PM-Jan 16 12:15 AM');
+      expect(wrapper.get(`[data-testid='step4-duration-${suffix}']`).text()).toBe('30 min.');
+    }
+  });
+
+  it("uses the saved selection timezone and localizes a confirmed date that rolls into the next day", () => {
+    const state = createState();
+    state.fanBooking.selection = { displayTimezoneOffsetMinutes: 345 };
+    Object.assign(state.fanBooking.booking.result.item, {
+      startAtIso: '2030-01-15T21:45:00Z',
+      endAtIso: '2030-01-15T22:30:00Z',
+    });
+    const { wrapper } = mountStep4(state, { locale: 'de-DE' });
+    for (const suffix of ['desktop', 'mobile']) {
+      expect(wrapper.get(`[data-testid='step4-date-${suffix}']`).text()).toBe('16. Januar 2030');
+      expect(wrapper.get(`[data-testid='step4-time-${suffix}']`).text()).toBe('3:30-4:15');
+      expect(wrapper.get(`[data-testid='step4-duration-${suffix}']`).text()).toBe('45 min.');
+    }
+  });
+
+  it.each([
+    ['2030-01-15T11:42:00Z', 'Today', 'Hoy'],
+    ['2030-01-16T11:42:00Z', 'Tomorrow', 'Mañana'],
+  ])("keeps the translated %s confirmation date prefix", (startAtIso, _prefix, translatedPrefix) => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2030-01-14T23:00:00Z'));
+    try {
+      const state = createState({ bookingDetails: { displayTimezoneOffsetMinutes: 360 } });
+      Object.assign(state.fanBooking.booking.result.item, {
+        startAtIso,
+        endAtIso: new Date(Date.parse(startAtIso) + 30 * 60000).toISOString(),
+      });
+      const { wrapper } = mountStep4(state, {
+        locale: 'en-US',
+        translations: { common_today: 'Hoy', fan_booking_tomorrow: 'Mañana' },
+      });
+      for (const suffix of ['desktop', 'mobile']) {
+        expect(wrapper.get(`[data-testid='step4-date-${suffix}']`).text()).toBe(
+          `${translatedPrefix} January ${startAtIso.includes('-15T') ? '15' : '16'}, 2030`,
+        );
+      }
+    } finally { vi.useRealTimers(); }
+  });
+
+  it("falls back to the browser timezone when no display timezone was saved", () => {
+    const offsetSpy = vi.spyOn(Date.prototype, 'getTimezoneOffset').mockReturnValue(300);
+    try {
+      const state = createState();
+      Object.assign(state.fanBooking.booking.result.item, {
+        startAtIso: '2030-01-15T11:42:00Z',
+        endAtIso: '2030-01-15T12:12:00Z',
+      });
+      const { wrapper } = mountStep4(state, { locale: 'en-US' });
+      expect(wrapper.get("[data-testid='step4-time-desktop']").text()).toBe('6:42 AM-7:12 AM');
+    } finally { offsetSpy.mockRestore(); }
+  });
+
+  it.each([
+    { startAtIso: '', endAtIso: '' },
+    { startAtIso: 'invalid', endAtIso: '2030-01-15T10:30:00Z' },
+    { startAtIso: '2030-01-15T10:00:00Z', endAtIso: null },
+    { startAtIso: '2030-01-15T10:00:00Z', endAtIso: '2030-01-15T09:30:00Z' },
+  ])("retains the saved schedule for an incomplete or invalid booking range: %j", range => {
+    const state = createState();
+    Object.assign(state.fanBooking.booking.result.item, range);
+    const { wrapper } = mountStep4(state, { locale: 'en-US' });
+    for (const suffix of ['desktop', 'mobile']) {
+      expect(wrapper.get(`[data-testid='step4-date-${suffix}']`).text()).toBe('January 15, 2030');
+      expect(wrapper.get(`[data-testid='step4-time-${suffix}']`).text()).toBe('10:00 AM-10:30 AM');
+      expect(wrapper.get(`[data-testid='step4-duration-${suffix}']`).text()).toBe('30 min.');
+    }
+  });
+
   it("runs available actions and returns incomplete booking state to payment", async () => {
     const openSpy = vi.spyOn(window, "open").mockImplementation(() => null);
     const state = createState();
