@@ -208,6 +208,7 @@ const engine = createFlowStateEngine({
         guestHoldToken: null,
       },
       booking: {
+        isSubmitting: false,
         result: null,
         bookingId: null,
         paymentStatus: null,

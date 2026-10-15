@@ -68,6 +68,13 @@ const BookingFlowStep3 = defineAsyncComponent(() => import('./BookingFlowStep3.v
 
 const { t, locale } = useBookingTranslations();
 const selectedEvent = computed(() => props.engine.getState('fanBooking.context.selectedEvent') || null);
+const bookingSelectionLocked = computed(() => Boolean(
+  props.engine.getState('fanBooking.booking.isSubmitting')
+  || props.engine.getState('fanBooking.booking.bookingId')
+  || props.engine.getState('fanBooking.booking.result.bookingId')
+  || props.engine.getState('fanBooking.booking.result.item.bookingId')
+  || props.engine.getState('fanBooking.booking.lastStatus') === 'created'
+));
 const bookedSlotsIndex = computed(() => props.engine.getState('fanBooking.catalog.bookedSlotsIndex') || {});
 const sidebarPrerequisite = computed(() => (
   props.engine.getState('fanBooking.prerequisite.eventId') === (selectedEvent.value?.eventId || selectedEvent.value?.id)
@@ -164,6 +171,12 @@ let availabilityRefreshTimerId = null;
 let currentTimeRefreshTimerId = null;
 let lastTimeSlotScrollLeft = 0;
 let timeSlotScrollContextVersion = 0;
+let availabilityRefreshVersion = 0;
+let isScheduleActive = true;
+
+function canUpdateScheduleSelection() {
+  return isScheduleActive && !bookingSelectionLocked.value;
+}
 
 const AVAILABILITY_REFRESH_INTERVAL_MS = 15000;
 const MINUTE_MS = 60 * 1000;
@@ -627,6 +640,7 @@ function restoreSelectedSnapshotIfAvailable(snapshot = {}) {
 }
 
 function clearSelectedSlotAfterAvailabilityRefresh(reason = 'step2-availability-refresh-conflict') {
+  if (!canUpdateScheduleSelection()) return;
   selectedTime.value = null;
   selectedDurationObj.value = null;
   showMaxDurationWarning.value = false;
@@ -656,10 +670,12 @@ function showSelectedSlotBookedToast() {
 }
 
 async function refreshAvailabilityAndValidateSelection({ notifyOnConflict = false, reason = 'availability-refresh' } = {}) {
+  if (!canUpdateScheduleSelection()) return false;
   if (!shouldAutoRefreshAvailability.value) return true;
   if (isRefreshingAvailability.value) return true;
 
   const snapshot = getSelectedAvailabilitySnapshot();
+  const refreshVersion = availabilityRefreshVersion;
   isRefreshingAvailability.value = true;
 
   try {
@@ -668,6 +684,9 @@ async function refreshAvailabilityAndValidateSelection({ notifyOnConflict = fals
       preserveSelectedEvent: true,
     });
 
+    // Stopping the timer does not stop requests already awaiting a response.
+    // An old response must not clear a completed booking, even after unmount.
+    if (!canUpdateScheduleSelection() || refreshVersion !== availabilityRefreshVersion) return false;
     if (!result?.ok) return true;
     if (snapshot.slotValue && !restoreSelectedSnapshotIfAvailable(snapshot)) {
       clearSelectedSlotAfterAvailabilityRefresh(reason);
@@ -677,7 +696,7 @@ async function refreshAvailabilityAndValidateSelection({ notifyOnConflict = fals
 
     return true;
   } catch (_error) {
-    return true;
+    return canUpdateScheduleSelection() && refreshVersion === availabilityRefreshVersion;
   } finally {
     isRefreshingAvailability.value = false;
   }
@@ -775,7 +794,8 @@ const isFirstBookingForCreator = computed(() => (
   toBoolean(props.engine.getState('fanBooking.context.isFirstBookingForCreator'), false)
 ));
 const shouldAutoRefreshAvailability = computed(() => (
-  !isPreviewMode.value
+  !bookingSelectionLocked.value
+  && !isPreviewMode.value
   && !isPreviewReadOnly.value
   && Boolean(selectedEvent.value)
   && typeof props.refreshBookingContext === 'function'
@@ -938,7 +958,11 @@ const timeSlots = computed(() => {
   return candidateSlots.value.map((slot) => buildDisplaySlot(slot));
 });
 
-const hasAvailableSlots = computed(() => timeSlots.value.some((slot) => !slot.disabled));
+// Keep the inline booking handler mounted while the server saves this selection.
+const hasAvailableSlots = computed(() => (
+  (bookingSelectionLocked.value && Boolean(selectedTime.value))
+  || timeSlots.value.some((slot) => !slot.disabled)
+));
 
 const timeSlotHourColumns = computed(() => {
   const columns = [];
@@ -1684,6 +1708,7 @@ const onlyBookableGroupDate = computed(() => {
 const showCalendar = computed(() => !onlyBookableGroupDate.value);
 
 function preselectOnlyGroupDate() {
+  if (!canUpdateScheduleSelection()) return;
   const onlyDate = onlyBookableGroupDate.value;
   if (!onlyDate) return;
 
@@ -1753,6 +1778,7 @@ function hydrateAddons() {
 }
 
 function hydrateFromState() {
+  if (!canUpdateScheduleSelection()) return;
   const existing = props.engine.getState('bookingDetails') || {};
   const fallbackSelectedDateIso = props.engine.getState('fanBooking.selection.selectedDate');
   let restoredSavedDate = false;
@@ -1910,6 +1936,7 @@ const toggleAddon = (index) => {
 };
 
 const goToNextStep = async ({ groupReview = false } = {}) => {
+  if (!canUpdateScheduleSelection()) return;
   if (isPreviewReadOnly.value) {
     return;
   }
@@ -1972,6 +1999,7 @@ const goToNextStep = async ({ groupReview = false } = {}) => {
 // The group review uses the existing payment/booking handler, with this screen
 // owning schedule and contribution edits. Persist edits before its server checks.
 function persistSelection() {
+  if (!canUpdateScheduleSelection()) return;
   const bookingData = {
     selectedDate: state.selected,
     selectedTime: selectedTime.value,
@@ -2053,6 +2081,7 @@ watch(
 watch(
   () => selectedEvent.value,
   async (nextEvent, previousEvent) => {
+    if (!canUpdateScheduleSelection()) return;
     const sameEventRefresh = (
       isRefreshingAvailability.value
       && getEventIdentity(nextEvent)
@@ -2078,6 +2107,7 @@ watch(
 watch(
   () => timeSlots.value,
   (slots) => {
+    if (!canUpdateScheduleSelection()) return;
     if (isGroupEvent.value && selectedTime.value
       && (selectedTime.value.endMs - GROUP_BOOKING_CLOSE_BEFORE_END_MS <= currentTimeMs.value
         || !isGroupSlotOpenForBooking(selectedEvent.value, selectedTime.value, currentTimeMs.value))) {
@@ -2126,6 +2156,7 @@ watch(
 watch(
   () => durationOptions.value,
   (options) => {
+    if (!canUpdateScheduleSelection()) return;
     if (!Array.isArray(options) || options.length === 0) {
       selectedDurationObj.value = null;
       return;
@@ -2143,6 +2174,7 @@ watch(
 watch(
   () => selectedTime.value,
   () => {
+    if (!canUpdateScheduleSelection()) return;
     if (!selectedDurationObj.value) return;
     const stillValid = durationOptions.value.find(
       (item) => item.value === selectedDurationObj.value?.value && !item.disabled,
@@ -2151,6 +2183,15 @@ watch(
       selectedDurationObj.value = null;
     }
   },
+);
+
+watch(
+  bookingSelectionLocked,
+  (locked, wasLocked) => {
+    availabilityRefreshVersion += 1;
+    if (!locked && wasLocked && isScheduleActive) hydrateFromState();
+  },
+  { flush: 'sync' },
 );
 
 watch(
@@ -2195,6 +2236,8 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
+  isScheduleActive = false;
+  availabilityRefreshVersion += 1;
   stopAvailabilityRefreshTimer();
   stopCurrentTimeRefreshTimer();
   if (typeof document !== 'undefined') {

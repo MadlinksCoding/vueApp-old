@@ -2,6 +2,7 @@ import { mount } from "@vue/test-utils";
 import { nextTick, reactive } from "vue";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { bookingTranslationSymbol, createBookingTranslator } from "@/i18n/bookingTranslations.js";
+import { buildBookedSlotsIndex } from "@/services/bookings/utils/bookingSlotUtils.js";
 
 const tokenGet = vi.fn();
 const showToast = vi.fn();
@@ -343,6 +344,12 @@ vi.mock("@/components/FanBookingFlow/OneOnOneBookingFlow/oneOnOneBookingFlowAsse
   bookingFlowVerifiedIcon: "/verified.webp",
   bookingFlowBackarrowIcon: "/backarrow.webp",
   bookingFlowTruckIcon: "/truck.webp",
+  bookingFlowCheckIcon: "/check.webp",
+  bookingFlowCloudMoonIcon: "/cloud-moon.webp",
+  bookingFlowCalendarIcon: "/calendar.webp",
+  bookingFlowCalendarCheckIcon: "/calendar-check.webp",
+  bookingFlowSaleIcon: "/sale.webp",
+  bookingFlowAlertHexagonIcon: "/alert.webp",
 }));
 
 describe("BookingFlowStep3", () => {
@@ -2442,6 +2449,104 @@ describe("BookingFlowStep3", () => {
         value: originalSendBeacon,
       });
     }
+  });
+
+  it('finishes a fixed-price booking while availability already includes its new booking', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2030-01-15T09:00:00'));
+    tokenGet.mockResolvedValue({ data: { balance: 3000 } });
+    const engine = createEngine();
+    engine.state.bookingDetails = { walletBalance: 3000 };
+    engine.state.fanBooking.selection = { selectedDate: '2030-01-16' };
+    engine.state.fanBooking.catalog = { bookedSlotsIndex: {} };
+    engine.state.fanBooking.context.creatorId = 793;
+    engine.state.fanBooking.context.selectedEvent = {
+      eventId: 'fixed-price-race', id: 'fixed-price-race', title: 'Fixed Price',
+      type: 'group-event', eventType: 'group-event',
+      localDateIso: '2030-01-16', localStartHm: '10:00', localEndHm: '13:00',
+      basePriceTokens: 50, sessionDurationMinutes: 180,
+      raw: {
+        type: 'group-event', eventType: 'group-event', repeatRule: 'doesNotRepeat',
+        priceSetting: 'fixedPricePerUser', basePriceTokens: 50, sessionDurationMinutes: 180,
+      },
+    };
+    let finishBooking;
+    const refreshBookingContext = vi.fn(async () => ({ ok: true }));
+    engine.callFlow.mockImplementation((name) => name === 'bookings.createBooking'
+      ? new Promise(resolve => { finishBooking = resolve; })
+      : Promise.resolve({ ok: true, data: {} }));
+    const { default: Step2 } = await import('@/components/FanBookingFlow/OneOnOneBookingFlow/BookingFlowStep2.vue');
+    const wrapper = mount(Step2, {
+      props: { engine, embedded: true, refreshBookingContext },
+      global: { stubs: { MiniCalendar: true } },
+    });
+    await vi.dynamicImportSettled();
+    await flushAsync();
+    const selection = { ...engine.state.fanBooking.selection.selectedSlot };
+    const savedTime = engine.state.bookingDetails.formattedTimeRange;
+    let review = wrapper.findComponent({ name: 'BookingFlowStep3' });
+    expect(review.exists()).toBe(true);
+    const buttons = review.findAll('button');
+    await buttons[buttons.length - 1].trigger('click');
+    await flushAsync();
+    expect(engine.state.fanBooking.booking.isSubmitting).toBe(true);
+    await vi.advanceTimersByTimeAsync(15000);
+    expect(refreshBookingContext).toHaveBeenCalledOnce();
+    const booking = {
+      bookingId: 'confirmed-fixed-price', eventId: 'fixed-price-race', userId: 2615,
+      eventType: 'group-event', status: 'confirmed',
+      startIso: new Date(selection.startMs).toISOString(),
+      endIso: new Date(selection.endMs).toISOString(),
+    };
+    engine.setState('fanBooking.catalog.bookedSlotsIndex', buildBookedSlotsIndex([booking]));
+    await flushAsync();
+    review = wrapper.findComponent({ name: 'BookingFlowStep3' });
+    expect(review.exists()).toBe(true);
+    finishBooking({ ok: true, data: { bookingId: booking.bookingId, item: booking } });
+    await flushAsync();
+    expect(engine.goToStep).toHaveBeenCalledWith(4);
+    expect(wrapper.emitted('booking-created')).toHaveLength(1);
+    expect(engine.state.bookingDetails.formattedTimeRange).toBe(savedTime);
+    expect(engine.state.fanBooking.selection.selectedSlot).toMatchObject(selection);
+    expect(engine.state.fanBooking.booking.lastStatus).toBe('created');
+    expect(engine.state.fanBooking.booking.isSubmitting).toBe(false);
+    expect(engine.callFlow.mock.calls.filter(([name]) => name === 'bookings.createBooking')).toHaveLength(1);
+    expect(showToast).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'error' }));
+    wrapper.unmount();
+  });
+
+  it.each(['success', 'failure', 'exception'])('shares submission state with the schedule until booking finishes: %s', async (outcome) => {
+    tokenGet.mockResolvedValue({ data: { balance: 3000 } });
+    const engine = createEngine();
+    configureEventGoalGroup(engine);
+    let finishBooking;
+    let failBooking;
+    engine.callFlow.mockImplementation((name) => name === 'bookings.createBooking'
+      ? new Promise((resolve, reject) => { finishBooking = resolve; failBooking = reject; })
+      : Promise.resolve({ ok: true, data: {} }));
+    const wrapper = await mountAndSubmitStep3(engine, {
+      groupReview: true, prepareGroupBooking: async () => true,
+    });
+    expect(engine.state.fanBooking.booking.isSubmitting).toBe(true);
+    const buttons = wrapper.findAll('button');
+    await buttons[buttons.length - 1].trigger('click');
+    expect(engine.callFlow.mock.calls.filter(([name]) => name === 'bookings.createBooking')).toHaveLength(1);
+
+    if (outcome === 'exception') failBooking(new Error('Connection failed'));
+    else finishBooking(outcome === 'success'
+      ? { ok: true, data: { bookingId: 'confirmed-group' } }
+      : { ok: false, error: { code: 'internal_error' } });
+    await flushAsync();
+    expect(engine.state.fanBooking.booking.isSubmitting).toBe(false);
+    if (outcome === 'success') {
+      expect(engine.state.fanBooking.booking.lastStatus).toBe('created');
+      expect(engine.goToStep).toHaveBeenCalledWith(4);
+      expect(showToast).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'error' }));
+    } else {
+      expect(engine.goToStep).not.toHaveBeenCalledWith(4);
+      expect(showToast).toHaveBeenCalledWith(expect.objectContaining({ type: 'error' }));
+    }
+    wrapper.unmount();
   });
 
   it("completes an eligible group directly from the inline step 2 review", async () => {
