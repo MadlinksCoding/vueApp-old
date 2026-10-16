@@ -53,4 +53,17 @@ describe("showFanBookingCancellationToast", () => {
 
     expect(showToast.mock.calls[0][0].message).toContain("24-08-2026");
   });
+
+  it('reuses the existing avatar and Detail toast for a group withdrawal', () => {
+    const onDetail = vi.fn();
+    showFanBookingCancellationToast({ booking: { bookingId: 'group_1', creatorUsername: 'host', creatorAvatarUrl: '/avatar.png',
+      eventSnapshot: { type: 'group-event' }, paymentStatus: 'partial_refunded', startAtIso: '2030-01-01T10:00:00Z', endAtIso: '2030-01-01T11:00:00Z' },
+      onDetail, t });
+    const toast = showToast.mock.calls[0][0];
+    expect(toast.variant).toBe('booking-decision');
+    expect(toast.title).toContain('cancelled_partially_refunded');
+    expect(toast.avatarUrl).toBe('/avatar.png');
+    toast.detailAction.run();
+    expect(onDetail).toHaveBeenCalledOnce();
+  });
 });

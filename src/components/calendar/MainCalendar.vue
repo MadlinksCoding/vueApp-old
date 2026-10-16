@@ -1059,6 +1059,7 @@
         :events-data="props.eventsData"
         :can-create-events="canCreateEvents"
         :user-role="props.userRole"
+        :api-base-url="props.apiBaseUrl"
         :booking-schedule-events="props.bookingScheduleEvents"
         :booking-schedule-booked-slots-index="props.bookingScheduleBookedSlotsIndex"
         :show-booking-schedule-list="props.showBookingScheduleList"
@@ -1114,6 +1115,7 @@
         v-if="eventDetailsPopupOpen"
         :event="selectedEvent"
         :booking="selectedBookingSnapshot"
+        :api-base-url="props.apiBaseUrl"
         :user-role="props.userRole"
         :can-review-pending="props.canReviewPending"
         :action-loading="props.bookingActionLoading"
@@ -1125,6 +1127,7 @@
         @approve-booking="handleDetailsApproveBooking"
         @reject-booking="handleDetailsRejectBooking"
         @cancel-booking="handleCancelBooking"
+        @group-updated="emit('refresh-events')"
         @adjust-booking="handleAdjustBooking"
         @accept-adjustment="handleAcceptAdjustment"
         @decline-adjustment="handleDeclineAdjustment"
@@ -1255,6 +1258,7 @@ import MiniCalendar from './MiniCalendar.vue';
 import TokenIcon from "@/assets/images/icons/token-sm-calender.svg"
 
 const props = defineProps({
+  apiBaseUrl: { type: String, default: '' },
   variant: { type: String, default: 'default' },
   focusDate: { type: Date, required: true },
   selectedDate: { type: Date, default: undefined },

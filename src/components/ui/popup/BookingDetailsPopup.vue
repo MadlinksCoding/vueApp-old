@@ -8,11 +8,14 @@
       :style="{ '--event-color': eventColor }"
     >
       <div
-        v-if="refreshing"
+        v-if="refreshing || groupRefreshing"
         class="absolute inset-0 z-[70] flex items-center justify-center bg-white/85 backdrop-blur-[1px]"
         data-test="booking-details-refreshing"
       >
-        <Spinner
+        <div v-if="groupRefreshing" class="h-full w-full animate-pulse space-y-5 bg-white p-4" role="status" :aria-label="t('common_loading')" data-test="booking-details-group-skeleton">
+          <div class="h-64 rounded bg-gray-200" /><div class="h-14 rounded bg-gray-100" /><div v-for="n in 3" :key="n" class="h-16 rounded bg-gray-100" />
+        </div>
+        <Spinner v-else
           size="md"
           thickness="2.5"
           color="text-[#5549FF]"
@@ -22,6 +25,12 @@
 
       <template v-if="isCompact">
         <div class="absolute inset-y-0 left-0 z-10 w-1" :style="{ backgroundColor: eventColor }" data-test="booking-details-compact-color-rail" />
+        <div v-if="canCancelGroupEvent" class="absolute right-14 top-4 z-20" @click.stop>
+          <button type="button" class="flex size-5 items-center justify-center" :aria-label="t('fan_event_details_booking_actions')" :aria-expanded="menuOpen" data-test="event-details-fan-menu" @click.stop="toggleMenu"><img :src="DotsGrayIcon" alt="" class="size-5" /></button>
+          <div v-if="menuOpen" class="absolute right-0 top-9 z-[1200] w-[14rem] rounded-md border border-[#EAECF0] bg-white shadow-[0_10px_20px_rgba(0,0,0,0.15)]" @click.stop>
+            <button type="button" class="w-full px-3 py-3 text-left text-sm font-semibold text-[#F04438] hover:bg-[#FEF3F2]" data-test="event-details-fan-cancel" @click.stop="requestCancel">{{ t('dashboard_cancel_group_event') }}</button>
+          </div>
+        </div>
 
         <div class="hidden h-7 w-full items-start justify-between md:flex" data-test="booking-details-compact-desktop-header">
           <div class="inline-flex h-7 items-center">
@@ -50,6 +59,23 @@
           </div>
 
           <h2 class="hidden w-full truncate text-3xl font-semibold leading-[2.375rem] text-[#B54708] md:block" data-test="booking-details-compact-title">{{ titleText }}</h2>
+
+          <div v-if="isCreatorGroup && showCreatorCancellationNotice" class="flex w-full items-start gap-3 border-l-4 border-[#FF4405] bg-[#FFF4ED] p-3" data-test="booking-details-cancelled-notice">
+            <div class="relative h-10 w-10 shrink-0" data-svg-wrapper>
+              <img v-if="creatorAvatar" :src="creatorAvatar" :alt="creatorName" class="h-10 w-10 rounded-full object-cover" data-test="booking-details-cancelled-avatar" />
+              <div v-else class="h-10 w-10 rounded-full bg-[#E4E7EC] inline-flex items-center justify-center text-sm font-semibold uppercase text-[#475467]" data-test="booking-details-cancelled-avatar-fallback" aria-hidden="true">{{ confirmedCounterpartyInitial }}</div>
+            </div>
+            <div class="min-w-0 flex-1 text-sm font-semibold text-[#7A271A]" data-test="booking-details-cancelled-heading">{{ cancelledNoticeHeading }}</div>
+          </div>
+          <div v-else-if="isCreatorGroup" class="flex w-full items-center gap-3 border-l-4 border-[#20C7B5] bg-[#ECFDF9] p-3" data-test="booking-details-confirmed-notice">
+            <div class="min-w-0 flex-1 text-sm font-semibold text-[#117E75]" data-test="booking-details-confirmed-heading">{{ groupParticipationMessage }}</div>
+            <div v-if="canCancelGroupEvent" class="relative shrink-0" data-booking-review-menu @click.stop>
+              <button type="button" class="h-10 w-10 rounded-sm border border-[#98A2B3] bg-white inline-flex items-center justify-center hover:bg-gray-50" :aria-label="t('fan_event_details_booking_actions')" :aria-expanded="reviewMenuOpen" data-test="booking-details-group-menu" @click.stop="toggleReviewMenu"><img :src="DotsGrayIcon" alt="" class="h-5 w-5" /></button>
+              <div v-if="reviewMenuOpen" class="absolute right-0 top-11 z-[1200] w-[11rem] rounded-md border border-[#EAECF0] bg-white shadow-[0_10px_20px_rgba(0,0,0,0.15)]" @click.stop>
+                <button type="button" class="w-full px-3 py-2.5 text-left text-sm font-medium text-[#FF4405] hover:bg-[#FFF4ED]" data-test="booking-details-group-cancel" @click.stop="requestCancel">{{ t('dashboard_cancel_group_event') }}</button>
+              </div>
+            </div>
+          </div>
 
           <BookingDetailsInformation
             compact
@@ -256,7 +282,7 @@
                       :style="{ maskImage: `url(${CloseIcon})`, WebkitMaskImage: `url(${CloseIcon})`, maskRepeat: 'no-repeat', WebkitMaskRepeat: 'no-repeat', maskPosition: 'center', WebkitMaskPosition: 'center', maskSize: 'contain', WebkitMaskSize: 'contain' }"
                     />
                   </span>
-                  {{ t('fan_event_details_cancel_booking') }}
+                  {{ t(isCreatorGroup ? 'dashboard_cancel_group_event' : isFanGroup ? 'fan_event_withdraw_action' : 'fan_event_details_cancel_booking') }}
                 </button>
               </div>
             </div>
@@ -277,11 +303,16 @@
       <div v-if="showCreatorCancellationNotice" class="self-stretch shadow-[0px_0px_8px_0px_rgba(0,0,0,0.25)] border-b-[0.50px] border-gray-200 inline-flex justify-start items-start" data-test="booking-details-cancelled-notice">
         <div class="w-1 self-stretch bg-[#FF4405]" />
         <div class="flex-1 px-3 py-3 bg-[#FFF4ED] inline-flex justify-start items-start gap-3">
-          <div v-if="creatorAvatar" data-svg-wrapper class="relative shrink-0"><img :src="creatorAvatar" :alt="creatorName" class="h-10 w-10 rounded-full object-cover" /></div>
+          <div data-svg-wrapper class="relative h-10 w-10 shrink-0">
+            <img v-if="creatorAvatar" :src="creatorAvatar" :alt="creatorName" class="h-10 w-10 rounded-full object-cover" data-test="booking-details-cancelled-avatar" />
+            <div v-else class="h-10 w-10 rounded-full bg-[#E4E7EC] inline-flex items-center justify-center text-sm font-semibold uppercase text-[#475467]" data-test="booking-details-cancelled-avatar-fallback" aria-hidden="true">{{ confirmedCounterpartyInitial }}</div>
+          </div>
           <div class="flex-1 text-sm leading-5 text-[#7A271A]">
             <div class="font-semibold" data-test="booking-details-cancelled-heading">{{ cancelledNoticeHeading }}</div>
             <div v-if="noShowNotice" class="mt-1 text-gray-900" data-test="booking-details-no-show-notice">{{ noShowNotice }}</div>
-            <div v-if="cancelledRefundTokens != null" class="mt-1 text-gray-900" data-test="booking-details-cancelled-refund">{{ t('booking_details_cancelled_refund_notice', { tokens: formatTokenAmount(cancelledRefundTokens) }) }}</div>
+            <div v-if="cancelledRefundTokens != null && (!isCreatorGroup || groupSummary?.cancellation?.status === 'completed')" class="mt-1 text-gray-900" data-test="booking-details-cancelled-refund">{{ isCreatorGroup && groupSummary?.cancellation
+              ? t('group_event_refunds_completed', { tokens: formatTokenAmount(cancelledRefundTokens), count: groupSummary.refundParticipantCount })
+              : t('booking_details_cancelled_refund_notice', { tokens: formatTokenAmount(cancelledRefundTokens) }) }}</div>
           </div>
         </div>
       </div>
@@ -553,7 +584,18 @@
             </span>
           </div>
           <div class="min-w-0 flex-1 break-words text-sm font-semibold leading-5 text-[#117E75]" data-test="booking-details-confirmed-heading">
-            {{ t('booking_details_confirmed_with_counterparty', { counterparty: confirmedCounterpartyUsername }) }}
+            {{ isCreatorGroup ? groupParticipationMessage : t('booking_details_confirmed_with_counterparty', { counterparty: confirmedCounterpartyUsername }) }}
+          </div>
+          <div v-if="canCancelGroupEvent" class="relative ml-auto shrink-0" data-booking-review-menu @click.stop>
+            <button type="button" class="h-10 w-10 rounded-sm border border-[#98A2B3] bg-white inline-flex items-center justify-center hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60" :aria-label="t('fan_event_details_booking_actions')" :aria-expanded="reviewMenuOpen" :disabled="groupProcessing" data-test="booking-details-group-menu" @click.stop="toggleReviewMenu">
+              <img :src="DotsGrayIcon" alt="" class="h-5 w-5" />
+            </button>
+            <div v-if="reviewMenuOpen" class="absolute right-0 top-11 z-[1200] w-[11rem] rounded-md border border-[#EAECF0] bg-white shadow-[0_10px_20px_rgba(0,0,0,0.15)]" data-test="booking-details-review-menu-dropdown" @click.stop>
+              <button type="button" class="w-full px-3 py-2.5 inline-flex items-center gap-2 text-left text-sm font-medium text-[#FF4405] hover:bg-[#FFF4ED]" data-test="booking-details-group-cancel" @click.stop="requestCancel">
+                <span data-svg-wrapper class="relative inline-flex h-5 w-5 items-center justify-center" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M13.5 4.5L4.5 13.5M4.5 4.5L13.5 13.5" stroke="#FF4405" stroke-width="1.5" stroke-linecap="round" /></svg></span>
+                {{ t('dashboard_cancel_group_event') }}
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -597,13 +639,19 @@
   <BookingAdjustmentDecisionPopup
     v-model="rejectDecisionOpen"
     :popup-config="decisionPopupConfig"
-    mode="reject"
+    :mode="isCreatorGroup ? 'cancel' : 'reject'"
     actor-role="creator"
+    :is-group-event="isCreatorGroup"
+    :participant-count="groupSummary?.refundParticipantCount || 0"
     :event-title="rejectEventTitle"
     :fan-username="decisionFanUsername"
     :session-refund-tokens="rejectRefundTokens"
-    :net-refund-tokens="rejectRefundTokens"
-    :processing="actionLoading"
+    :net-refund-tokens="isCreatorGroup ? groupSummary?.totalRefundTokens : rejectRefundTokens"
+    :balance-loading="isCreatorGroup && groupSummaryLoading"
+    :balance-error="isCreatorGroup ? groupSummaryError : ''"
+    :action-error="isCreatorGroup ? groupActionError : ''"
+    :processing="actionLoading || groupProcessing"
+    @retry-balance="loadGroupSummary()"
     @confirm="confirmRejectDecision"
     @close="closeRejectDecision"
   />
@@ -642,6 +690,7 @@ defineOptions({ name: 'BookingDetailsPopup' });
 
 const props = defineProps({
   modelValue: { type: Boolean, default: true }, booking: { type: Object, default: null },
+  apiBaseUrl: { type: String, default: '' },
   event: { type: Object, default: () => ({}) }, presentation: { type: String, default: 'popup' },
   layoutVariant: { type: String, default: 'hero' },
   compactReviewMode: { type: String, default: 'full' },
@@ -659,13 +708,16 @@ const props = defineProps({
   // Merged over the slide-in PopupHandler config (e.g. a higher zIndex inside chat).
   popupConfig: { type: Object, default: null },
 });
-const emit = defineEmits(['update:modelValue', 'close', 'closed', 'join-call', 'open-chat', 'cancel-booking', 'accept-adjustment', 'decline-adjustment', 'approve-booking', 'reject-booking', 'adjust-booking', 'decision-visibility', 'accept-counter', 'reject-counter', 'ask-more-time', 'ask-to-reschedule']);
+const emit = defineEmits(['update:modelValue', 'close', 'closed', 'join-call', 'open-chat', 'cancel-booking', 'accept-adjustment', 'decline-adjustment', 'approve-booking', 'reject-booking', 'adjust-booking', 'decision-visibility', 'accept-counter', 'reject-counter', 'ask-more-time', 'ask-to-reschedule', 'group-updated']);
 const { t, locale } = useBookingTranslations();
 const menuOpen = ref(false);
 const reviewMenuOpen = ref(false);
 const now = ref(new Date());
 const creatorProfile = ref(null);
 const fetchedBooking = ref(null);
+const groupSummary = ref(null), groupSummaryLoading = ref(false), groupSummaryError = ref(''), groupActionError = ref('');
+const groupRefreshing = ref(false), groupProcessing = ref(false);
+let groupGeneration = 0, groupPoll = null, groupLoad = null;
 const rejectDecisionOpen = ref(false);
 const compactMobile = ref(typeof window !== 'undefined' && window.innerWidth < 768);
 let timerId = null;
@@ -715,7 +767,14 @@ const panelProps = computed(() => (isSidePanel.value
 // A reactive booking prop is an explicit authoritative override (for example,
 // the result of an in-place creator review). The internally fetched booking is
 // only the fallback used when a lightweight calendar event opens the popup.
-const raw = computed(() => props.booking || fetchedBooking.value || props.event?.raw || {});
+const raw = computed(() => {
+  const booking = props.booking || fetchedBooking.value || props.event?.raw || {};
+  if (groupSummary.value?.status === 'cancelled') return { ...booking, status: 'cancelled_creator' };
+  if (groupSummary.value?.status === 'completed') return { ...booking, status: 'completed' };
+  // The first fan cancelling their booking does not cancel the group occurrence.
+  if (groupSummary.value?.status === 'confirmed' && /^(cancel|declined)/.test(booking.status || '')) return { ...booking, status: 'confirmed' };
+  return booking;
+});
 const snapshot = computed(() => raw.value?.eventSnapshot || {});
 const currentEvent = computed(() => raw.value?.eventCurrent || {});
 const mergedEvent = computed(() => ({ ...currentEvent.value, ...snapshot.value }));
@@ -756,6 +815,10 @@ const coverImage = computed(() => firstText(
 const eventType = computed(() => firstText(raw.value?.eventType, mergedEvent.value?.eventType, mergedEvent.value?.type));
 const callType = computed(() => firstText(raw.value?.eventCallType, mergedEvent.value?.eventCallType, mergedEvent.value?.callType));
 const isGroupEvent = computed(() => eventType.value.toLowerCase().includes('group'));
+const isCreatorGroup = computed(() => viewerRole.value === 'creator'
+  && (isGroupEvent.value || props.event?.raw?.isGroupedGroupSlot || String(props.event?.type || '').includes('group')));
+const isFanGroup = computed(() => viewerRole.value === 'fan'
+  && (isGroupEvent.value || String(props.event?.type || '').includes('group')));
 const eventTypeLabel = computed(() => isGroupEvent.value
   ? t(callType.value.toLowerCase().includes('audio') ? 'fan_event_details_group_audio_call' : 'dashboard_group_video_call')
   : t(callType.value.toLowerCase().includes('audio') ? 'fan_event_details_one_on_one_audio_call' : 'fan_event_details_one_on_one_video_call'));
@@ -1108,15 +1171,28 @@ const canOpenChat = computed(() => Boolean(chatPayload.value.chatId || chatPaylo
 const joinState = computed(() => getCalendarEventJoinState(props.event, { viewerRole: viewerRole.value, now: now.value }));
 const canJoinCall = computed(() => joinState.value.canJoin && Boolean(joinState.value.joinUrl));
 const isEnded = computed(() => joinState.value.effectiveEndDate && now.value.getTime() >= new Date(joinState.value.effectiveEndDate).getTime());
-const showMenu = computed(() => Boolean(bookingId.value) && shouldShowBookingOptionsMenu({
+const groupTerminal = computed(() => isCancelledStatus.value || isEnded.value
+  || ['completed', 'ended', 'expired', 'no_show_creator', 'no_show_fan'].includes(normalizedStatus.value));
+const groupParticipationCount = computed(() => groupSummary.value?.participantCount ?? null);
+const groupParticipationMessage = computed(() => {
+  const count = groupParticipationCount.value;
+  if (count == null && groupSummaryLoading.value) return t('common_loading');
+  const key = groupTerminal.value ? 'group_event_participation_final'
+    : Number(count) === 1 ? 'group_event_participation_current_singular' : 'group_event_participation_current';
+  return t(key, { count: count == null ? '—' : formatTokenAmount(count) });
+});
+const canCancelGroupEvent = computed(() => isCreatorGroup.value && !groupTerminal.value
+  && (groupSummary.value?.canCancel ?? (['pending', 'pending_hold', 'confirmed'].includes(normalizedStatus.value)
+    && !!startDate.value && now.value < startDate.value)));
+const showMenu = computed(() => isCreatorGroup.value ? canCancelGroupEvent.value : Boolean(bookingId.value) && shouldShowBookingOptionsMenu({
   viewerRole: viewerRole.value,
   status: normalizedStatus.value,
-  isPassed: Boolean(isEnded.value) || pendingStartElapsed.value,
+  isPassed: Boolean(isEnded.value) || pendingStartElapsed.value || (isFanGroup.value && !!startDate.value && now.value >= startDate.value),
   hasPendingPriceAdjustment: pendingAdjustment.value,
 }));
 const approvalState = computed(() => getCalendarEventApprovalState(props.event, { now: now.value }));
 const isWaitingForResponse = computed(() => viewerRole.value === 'creator' && Boolean(counterOfferType.value));
-const canReviewBooking = computed(() => viewerRole.value === 'creator' && props.canReviewPending && approvalState.value.canReview && !isWaitingForResponse.value);
+const canReviewBooking = computed(() => !isCreatorGroup.value && viewerRole.value === 'creator' && props.canReviewPending && approvalState.value.canReview && !isWaitingForResponse.value);
 const canAdjustBooking = computed(() => Boolean(raw.value?.meta?.bookingMessageId && raw.value?.meta?.chatId));
 
 // Chat-linked state — the chat message wins over the booking status because the
@@ -1126,11 +1202,11 @@ const effectiveAction = computed(() => firstText(props.messageAction, resolvedMe
   || (isCancelledStatus.value ? 'declined' : normalizedStatus.value === 'confirmed' ? 'accepted' : normalizedStatus.value));
 const isPendingApproval = computed(() => approvalState.value.isPending && !counterOfferType.value);
 // Nothing to act on any more: the slot started before either side responded.
-const showExpiredNotice = computed(() => isExpired.value && !isCancelledStatus.value
+const showExpiredNotice = computed(() => !isCreatorGroup.value && isExpired.value && !isCancelledStatus.value
   && (isPendingApproval.value || Boolean(counterOfferType.value)));
-const showConfirmedNotice = computed(() => normalizedStatus.value === 'confirmed'
+const showConfirmedNotice = computed(() => (isCreatorGroup.value && !isCancelledStatus.value) || (normalizedStatus.value === 'confirmed'
   && !isExpired.value
-  && !counterOfferType.value);
+  && !counterOfferType.value));
 const fanWaitingForCreator = computed(() => viewerRole.value === 'fan' && isPendingApproval.value && !isExpired.value);
 const canAskTimeChange = computed(() => props.canRequestTimeChange
   && viewerRole.value === 'creator'
@@ -1140,7 +1216,8 @@ const canAskTimeChange = computed(() => props.canRequestTimeChange
   && canAdjustBooking.value);
 const cancellation = computed(() => raw.value?.cancellation && typeof raw.value.cancellation === 'object' ? raw.value.cancellation : {});
 const cancelledActor = computed(() => firstText(cancellation.value.actor, normalizedStatus.value === 'cancelled_creator' ? 'creator' : normalizedStatus.value === 'cancelled_user' ? 'fan' : ''));
-const cancelledRefundTokens = computed(() => finiteNumber(cancellation.value.refundedTokens)
+const cancelledRefundTokens = computed(() => isCreatorGroup.value && groupSummary.value?.cancellation
+  ? groupSummary.value.cancellation.refundedTokens : finiteNumber(cancellation.value.refundedTokens)
   ?? finiteNumber(raw.value?.paymentSettlement?.releasedTotal)
   ?? finiteNumber(raw.value?.payment?.settlement?.releasedTotal)
   ?? finiteNumber(raw.value?.settlement?.releasedTotal));
@@ -1159,7 +1236,7 @@ const noShowNotice = computed(() => {
 // get the no-show settlement line.
 const showCreatorCancellationNotice = computed(() => isCancelledStatus.value && viewerRole.value === 'creator');
 const showFanNoShowNotice = computed(() => isCancelledStatus.value && viewerRole.value === 'fan' && Boolean(noShowNotice.value));
-const cancelledNoticeHeading = computed(() => cancelledActor.value === 'creator'
+const cancelledNoticeHeading = computed(() => isCreatorGroup.value ? t('group_event_cancelled_notice') : cancelledActor.value === 'creator'
   ? t('booking_details_cancelled_by_creator', { fan: creatorName.value || t('common_fan') })
   : t('booking_details_cancelled_by_fan', { fan: creatorName.value || t('common_fan') }));
 
@@ -1183,16 +1260,25 @@ function approveBooking() { if (!canReviewBooking.value || props.actionLoading) 
 function rejectBooking() { if (!canReviewBooking.value || props.actionLoading) return; emit('reject-booking', reviewPayload('reject')); }
 function adjustBooking() { if (!canReviewBooking.value || !canAdjustBooking.value || props.actionLoading) return; emit('adjust-booking', { bookingId: bookingId.value, eventId: raw.value?.eventId, event: props.event, booking: raw.value }); }
 function toggleMenu() { menuOpen.value = !menuOpen.value; }
-function toggleReviewMenu() { if (!canReviewBooking.value || props.actionLoading) return; reviewMenuOpen.value = !reviewMenuOpen.value; }
+function toggleReviewMenu() { if ((!canReviewBooking.value && !canCancelGroupEvent.value) || props.actionLoading || groupProcessing.value) return; reviewMenuOpen.value = !reviewMenuOpen.value; }
 function openRejectConfirmation() { if (!canReviewBooking.value || props.actionLoading) return; reviewMenuOpen.value = false; rejectDecisionOpen.value = true; }
 function closeRejectDecision() { if (props.actionLoading) return; rejectDecisionOpen.value = false; }
 function confirmRejectDecision(payload = {}) {
+  if (isCreatorGroup.value) { if (payload.mode === 'cancel') void cancelGroupEvent(); return; }
   if (payload.mode !== 'reject' || props.actionLoading) return;
   rejectDecisionOpen.value = false;
   rejectBooking();
 }
 function requestCancel() {
   menuOpen.value = false;
+  reviewMenuOpen.value = false;
+  if (isCreatorGroup.value) {
+    if (!canCancelGroupEvent.value || groupProcessing.value) return;
+    groupActionError.value = '';
+    rejectDecisionOpen.value = true;
+    void loadGroupSummary();
+    return;
+  }
   emit('cancel-booking', {
     bookingId: bookingId.value,
     eventId: raw.value?.eventId,
@@ -1201,6 +1287,67 @@ function requestCancel() {
     retainDetailsOnSuccess: viewerRole.value === 'creator',
   });
 }
+
+const groupIdentity = computed(() => requestedBookingId.value ? { bookingId: requestedBookingId.value } : ({
+  eventId: raw.value?.eventId || props.event?.eventId,
+  startIso: raw.value?.startAtIso || (props.event?.start instanceof Date ? props.event.start.toISOString() : props.event?.start) }));
+const groupFlowOptions = () => ({ context: { apiBaseUrl: props.apiBaseUrl || undefined } });
+function acceptGroupSummary(summary, notify = false) {
+  const changed = JSON.stringify(groupSummary.value?.cancellation) !== JSON.stringify(summary.cancellation);
+  groupSummary.value = summary;
+  if (notify || (changed && summary.cancellation)) emit('group-updated', summary);
+}
+function scheduleGroupPoll() {
+  if (groupPoll) clearTimeout(groupPoll);
+  groupPoll = null;
+  if (!isCreatorGroup.value || !props.modelValue || groupSummary.value?.cancellation?.status === 'completed') return;
+  if (!groupSummary.value?.cancellation && groupTerminal.value) return;
+  groupPoll = setTimeout(() => { groupPoll = null; void loadGroupSummary(); }, groupSummary.value?.cancellation ? 5000 : 15000);
+}
+async function loadGroupSummary() {
+  if (!isCreatorGroup.value || !props.modelValue) return false;
+  if (groupLoad) return groupLoad;
+  const generation = groupGeneration;
+  groupSummaryLoading.value = true;
+  groupSummaryError.value = '';
+  const load = (async () => {
+    try {
+      const result = await FlowHandler.run('bookings.fetchGroupSlotSummary', groupIdentity.value, groupFlowOptions());
+      if (generation !== groupGeneration) return false;
+      if (!result?.ok || !result.data?.summary) throw new Error(t('group_event_summary_failed'));
+      acceptGroupSummary(result.data.summary);
+      return true;
+    } catch (error) { if (generation === groupGeneration) groupSummaryError.value = error.message; return false; }
+    finally { if (generation === groupGeneration) { groupSummaryLoading.value = false; groupLoad = null; scheduleGroupPoll(); } }
+  })();
+  groupLoad = load;
+  return load;
+}
+async function cancelGroupEvent() {
+  if (groupProcessing.value || groupSummaryLoading.value || groupSummaryError.value || !groupSummary.value?.canCancel) return;
+  const generation = groupGeneration;
+  groupProcessing.value = true; groupActionError.value = '';
+  try {
+    const result = await FlowHandler.run('bookings.cancelGroupSlot', groupIdentity.value, groupFlowOptions());
+    if (generation !== groupGeneration) return;
+    if (!result?.ok || !result.data?.summary) throw new Error(result?.error?.message || t('dashboard_booking_cancel_failed_message'));
+    rejectDecisionOpen.value = false;
+    groupRefreshing.value = true;
+    acceptGroupSummary(result.data.summary, true);
+    await loadGroupSummary();
+  } catch (error) { if (generation === groupGeneration) groupActionError.value = error.message; }
+  finally { if (generation === groupGeneration) { groupProcessing.value = false; groupRefreshing.value = false; } }
+}
+watch(() => JSON.stringify([isCreatorGroup.value, props.modelValue, groupIdentity.value]), async () => {
+  groupGeneration++; groupLoad = null; groupSummary.value = null; groupSummaryError.value = ''; groupActionError.value = '';
+  groupProcessing.value = false; groupRefreshing.value = false;
+  if (groupPoll) clearTimeout(groupPoll); groupPoll = null;
+  if (isCreatorGroup.value && props.modelValue) {
+    await loadGroupSummary();
+    if (props.event?.initialGroupCancel && canCancelGroupEvent.value) requestCancel();
+  }
+}, { immediate: true });
+onBeforeUnmount(() => { groupGeneration++; if (groupPoll) clearTimeout(groupPoll); });
 // Shared payload for every chat-linked negotiation action, so hosts never have to
 // re-derive the message or the proposal from their own state.
 function counterPayload(extra = {}) {

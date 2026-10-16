@@ -131,7 +131,7 @@
                       <path d="M10 14L21 3M14 10L3 21M4.5 8.5C3.5 6.5 3.5 4.5 5 3C7 1 10 2 12.5 4.5L19.5 11.5C22 14 23 17 21 19C19.5 20.5 17.5 20.5 15.5 19.5" stroke="#F04438" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                     </svg>
                   </span>
-                  {{ viewerRole === 'creator' && event.isGroup ? t('dashboard_cancel_group_event') : t('dashboard_cancel_call') }}
+                  {{ event.isGroup ? t(viewerRole === 'creator' ? 'dashboard_cancel_group_event' : 'fan_event_withdraw_action') : t('dashboard_cancel_call') }}
                 </button>
               </div>
             </span>
@@ -476,6 +476,7 @@ const parseEventBoundary = (event = {}, boundary = "start") => {
 
 const getMenuExpiryTime = (event = {}) => {
   const status = getEventStatus(event) || (isPendingEvent(event) ? "pending" : "confirmed");
+  if (isFanViewer.value && event.isGroup) return parseEventBoundary(event, "start");
   if (status === "pending" || status === "pending_hold") return parseEventBoundary(event, "start");
   if (status === "confirmed" || status === "accepted") return parseEventBoundary(event, "end");
   return null;

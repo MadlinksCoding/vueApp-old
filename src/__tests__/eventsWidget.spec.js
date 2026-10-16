@@ -21,9 +21,9 @@ afterEach(() => {
 
 describe("EventsWidget", () => {
   it.each([
-    ['creator', true, 'Cancel Group Event'],
+    ['creator', true, 'Cancel Event'],
     ['creator', false, 'Cancel Call'],
-    ['fan', true, 'Cancel Call'],
+    ['fan', true, 'Withdraw Event'],
   ])('uses the cancellation scope for %s viewers (group=%s)', async (role, isGroup, label) => {
     const sourceEvent = { bookingId: 'booking_1', status: 'confirmed', start: '2099-01-01T10:00:00Z', end: '2099-01-01T11:00:00Z' };
     const item = { title: 'Session', isGroup, sourceEvent };

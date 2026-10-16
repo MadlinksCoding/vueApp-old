@@ -63,6 +63,7 @@
         @widget-accept-details="openWidgetCompactDetails"
         @reject-booking="onRejectPendingBooking"
         @cancel-booking="onCancelBookingFromCalendar"
+        :api-base-url="props.apiBaseUrl"
         @accept-adjustment="onAcceptPriceAdjustment"
         @decline-adjustment="onDeclinePriceAdjustment"
         @accept-counter="onAcceptCounterOffer"
@@ -634,7 +635,7 @@
       @close="closeCancelBookingPopup"
       @closed="handleCancelBookingPopupClosed"
     />
-    <PopupHandler v-else v-model="cancelBookingPopupOpen" :config="cancelBookingPopupConfig">
+    <PopupHandler v-else-if="!cancelBookingIsGroupEvent" v-model="cancelBookingPopupOpen" :config="cancelBookingPopupConfig">
       <div class="w-[30.9375rem] border border-[#EAECF0] bg-white p-4 shadow-xl">
         <h3 class="text-[1rem] font-semibold text-gray-700">{{ cancelBookingConfirmTitle }}</h3>
         <p class="mt-2 text-black">
@@ -664,6 +665,15 @@
         </div>
       </div>
     </PopupHandler>
+
+    <BookingAdjustmentDecisionPopup
+      v-if="isFan"
+      v-bind="fanWithdrawalPopupProps"
+      @update:model-value="$event || closeCancelBookingPopup()"
+      @confirm="confirmCancelBooking"
+      @retry-balance="retryFanWithdrawal"
+      @close="closeCancelBookingPopup"
+    />
 
     <BookingAdjustmentDecisionPopup
       v-bind="priceAdjustmentDecision.popupProps.value"
@@ -872,6 +882,7 @@ import { useBookingActions } from "@/composables/useBookingActions.js";
 import { useBookingAdjustmentDecision } from "@/composables/useBookingAdjustmentDecision.js";
 import { resumePriceAdjustmentAfterTopup } from "@/utils/bookingTopupResume.js";
 import { showFanBookingCancellationToast } from "@/utils/fanBookingCancellationToast.js";
+import { isGroupEventBooking } from "@/services/bookings/utils/bookingCalendarEvent.js";
 import { requestFanTokenBalanceRefresh } from "@/utils/fanTokenBalanceRefresh.js";
 import {
   requestBookingDetailsTopup,
@@ -2584,6 +2595,53 @@ const priceAdjustmentDecision = useBookingAdjustmentDecision(priceAdjustmentBook
   fanId: () => normalizedFanId.value,
 });
 
+const fanWithdrawalBooking = ref(null);
+const fanWithdrawalLoading = ref(false);
+const fanWithdrawalFetchError = ref("");
+let fanWithdrawalGeneration = 0;
+const fanWithdrawalDecision = useBookingAdjustmentDecision(fanWithdrawalBooking, {
+  viewerRole: "fan",
+  event: () => cancelBookingCandidate.value?.event,
+  processing: cancelBookingLoading,
+  fanId: () => normalizedFanId.value,
+});
+const fanWithdrawalPopupProps = computed(() => ({
+  ...fanWithdrawalDecision.popupProps.value,
+  balanceLoading: fanWithdrawalLoading.value || fanWithdrawalDecision.popupProps.value.balanceLoading,
+  balanceError: fanWithdrawalFetchError.value || fanWithdrawalDecision.popupProps.value.balanceError,
+}));
+
+async function loadFanWithdrawalBooking() {
+  const generation = ++fanWithdrawalGeneration;
+  const bookingId = cancelBookingCandidate.value?.bookingId;
+  fanWithdrawalLoading.value = true;
+  fanWithdrawalFetchError.value = "";
+  try {
+    const result = await dashboardEventsEngine.callFlow("bookings.fetchBooking", { bookingId }, {
+      context: { apiBaseUrl: props.apiBaseUrl || undefined, fanId: normalizedFanId.value },
+    });
+    if (generation !== fanWithdrawalGeneration) return;
+    if (!result?.ok || !result.data?.item) throw new Error(t("dashboard_booking_action_update_failed"));
+    fanWithdrawalBooking.value = result.data.item;
+    await fanWithdrawalDecision.loadBalance();
+  } catch (error) {
+    if (generation === fanWithdrawalGeneration) fanWithdrawalFetchError.value = error?.message || t("common_try_again");
+  } finally {
+    if (generation === fanWithdrawalGeneration) fanWithdrawalLoading.value = false;
+  }
+}
+
+function openFanWithdrawal() {
+  fanWithdrawalBooking.value = cancelBookingCandidate.value?.event?.raw || cancelBookingCandidate.value?.event;
+  fanWithdrawalDecision.open("cancel", { bookingId: cancelBookingCandidate.value?.bookingId });
+  void loadFanWithdrawalBooking();
+}
+
+function retryFanWithdrawal() {
+  if (fanWithdrawalFetchError.value) void loadFanWithdrawalBooking();
+  else void fanWithdrawalDecision.loadBalance();
+}
+
 const onAcceptPriceAdjustment = async (payload) => {
   const value = payload?.booking || payload?.event?.raw || null;
   if (!value) return;
@@ -3182,10 +3240,7 @@ const confirmDeleteEvent = async () => {
 const cancelBookingCandidateTitle = computed(() => cancelBookingCandidate.value?.event?.title || t("common_booking"));
 const cancelBookingCandidateRaw = computed(() => cancelBookingCandidate.value?.event?.raw || cancelBookingCandidate.value?.event || {});
 const cancelBookingIsGroupEvent = computed(() => {
-  const event = cancelBookingCandidate.value?.event || {};
-  const raw = cancelBookingCandidateRaw.value;
-  return event.isGroup === true || raw.isGroupedGroupSlot === true
-    || String(event.type || raw.eventSnapshot?.type || raw.eventSnapshot?.eventType || raw.type || raw.eventType || '').toLowerCase() === 'group-event';
+  return isGroupEventBooking(cancelBookingCandidate.value?.event);
 });
 const cancelBookingFanUsername = computed(() => String(cancelBookingCandidateRaw.value?.fanUsername || cancelBookingCandidateRaw.value?.username || cancelBookingCandidateRaw.value?.fanDisplayName || cancelBookingCandidateRaw.value?.userDisplayName || "fan"));
 const cancelBookingRefundTokens = computed(() => {
@@ -3352,6 +3407,10 @@ const cancelBookingCandidateTime = computed(() => {
 });
 
 const closeCancelBookingPopup = () => {
+  if (cancelBookingLoading.value) return;
+  fanWithdrawalGeneration++;
+  fanWithdrawalLoading.value = false;
+  fanWithdrawalDecision.reset();
   pendingDirectCreatorCancellationDetails.value = null;
   cancelBookingPopupOpen.value = false;
   cancelBookingCandidate.value = null;
@@ -3700,6 +3759,10 @@ const handleWidgetMenuAction = (payload) => {
   const event = payload?.event?.sourceEvent || payload?.event || null;
 
   if (action === "cancel_call") {
+	if (isCreator.value && (event?.raw?.isGroupedGroupSlot || String(event?.type || event?.raw?.eventSnapshot?.type || event?.raw?.eventType || '').includes('group'))) {
+	  mainCalendarRef.value?.openEventDetails?.({ ...event, initialGroupCancel: true });
+	  return;
+	}
 	if (isSettlementPendingEvent(event)) return;
     const bookingId = resolveBookingIdFromPayload({ event });
     if (!bookingId) {
@@ -3716,6 +3779,7 @@ const handleWidgetMenuAction = (payload) => {
       openDetailsOnSuccess: isCreator.value,
     };
     cancelBookingPopupOpen.value = true;
+    if (isFan.value && cancelBookingIsGroupEvent.value) openFanWithdrawal();
     return;
   }
 
@@ -3731,6 +3795,10 @@ const handleWidgetMenuAction = (payload) => {
 const onCancelBookingFromCalendar = (payload) => {
   const bookingId = resolveBookingIdFromPayload(payload || {});
   const event = payload?.event || null;
+	if (isCreator.value && (event?.raw?.isGroupedGroupSlot || String(event?.type || event?.raw?.eventSnapshot?.type || event?.raw?.eventType || '').includes('group'))) {
+	  mainCalendarRef.value?.openEventDetails?.({ ...event, initialGroupCancel: true });
+	  return;
+	}
 	if (isSettlementPendingEvent(event)) return;
   if (!bookingId) {
     showToast({
@@ -3748,13 +3816,15 @@ const onCancelBookingFromCalendar = (payload) => {
     openDetailsOnSuccess: isCreator.value && payload?.origin !== "booking-details",
   };
   cancelBookingPopupOpen.value = true;
+  if (isFan.value && cancelBookingIsGroupEvent.value) openFanWithdrawal();
 };
 
 const handleBookingDetailsClosed = () => {
   const pending = pendingFanCancellationToast.value;
   if (!pending) return;
   pendingFanCancellationToast.value = null;
-  showFanBookingCancellationToast({ booking: pending.item, event: pending.event, t, locale });
+  showFanBookingCancellationToast({ booking: pending.item, event: pending.event, t, locale,
+    onDetail: () => mainCalendarRef.value?.openEventDetails?.(mergeApprovedBookingEvent(pending.event || {}, pending.item)) });
 };
 
 const isCancelledBookingSnapshot = (item) => {
@@ -3815,6 +3885,7 @@ const confirmCancelBooking = async () => {
   const candidate = cancelBookingCandidate.value;
   const bookingId = candidate?.bookingId;
   if (!bookingId || cancelBookingLoading.value) return;
+  if (isFan.value && cancelBookingIsGroupEvent.value && (fanWithdrawalPopupProps.value.balanceLoading || fanWithdrawalPopupProps.value.balanceError)) return;
 
   const cancellationRequest = isFan.value
     ? {
@@ -3853,6 +3924,7 @@ const confirmCancelBooking = async () => {
         title: t("dashboard_booking_cancel_failed_title"),
         message,
       });
+      if (isFan.value && cancelBookingIsGroupEvent.value) fanWithdrawalDecision.reportError(message);
       return;
     }
 
@@ -3881,6 +3953,7 @@ const confirmCancelBooking = async () => {
     }
 
     cancelBookingPopupOpen.value = false;
+    fanWithdrawalDecision.reset({ force: true });
     cancelBookingCandidate.value = null;
 
     if (retainCreatorDetails) {
@@ -3907,7 +3980,8 @@ const confirmCancelBooking = async () => {
         pendingFanCancellationToast.value = toastPayload;
         mainCalendarRef.value?.closeEventDetails?.();
       } else {
-        showFanBookingCancellationToast({ booking: toastPayload.item, event: toastPayload.event, t, locale });
+        showFanBookingCancellationToast({ booking: toastPayload.item, event: toastPayload.event, t, locale,
+          onDetail: () => mainCalendarRef.value?.openEventDetails?.(mergeApprovedBookingEvent(toastPayload.event || {}, toastPayload.item)) });
       }
     }
 
@@ -4042,6 +4116,7 @@ watch(() => state.view, async (nextView, previousView) => {
 });
 
 onUnmounted(() => {
+  fanWithdrawalGeneration++;
   if (topupResumeController) topupResumeController.abort();
   if (removeTopupListener) removeTopupListener();
   hideScheduleTitleTooltip();

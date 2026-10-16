@@ -14,6 +14,7 @@
         <div class="self-stretch inline-flex justify-start items-start gap-2">
           <div class="flex-1 justify-start text-slate-700 text-base font-medium leading-6" data-test="booking-adjustment-decision-heading">
             <span>{{ headingParts.before }}</span><span class="font-bold">{{ headingParts.highlight }}</span><span>{{ headingParts.after }}</span>
+            <span v-if="isCreatorGroupCancellation && !balanceLoading && !balanceError">{{ ' ' }}{{ t('group_event_cancel_refund', { tokens: formatAmount(netRefund), count: participantCount }) }}</span>
           </div>
           <button type="button" data-svg-wrapper class="relative cursor-pointer" :aria-label="t('common_close')" data-test="booking-adjustment-decision-close" @click="closePopup">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -41,7 +42,14 @@
         </div>
 
         <div v-if="isCreatorGroupCancellation" class="self-stretch text-slate-800 text-sm" data-test="booking-adjustment-group-cancel-summary">
-          {{ t('dashboard_cancel_group_event_refund') }}
+          <p v-if="balanceLoading">{{ t('common_loading') }}</p>
+          <template v-else-if="!balanceError">
+            <div class="self-stretch inline-flex w-full justify-between items-center gap-4">
+              <div class="text-sm font-medium leading-5">{{ t('group_event_total_refunded') }}</div>
+              <div class="inline-flex items-center gap-1 font-bold"><img :src="TokenIcon" alt="" class="h-6 w-6" />{{ formatAmount(netRefund) }}</div>
+            </div>
+          </template>
+          <p v-if="balanceError || actionError" class="mt-2 text-sm text-red-600" role="alert">{{ balanceError || actionError }}</p>
         </div>
         <div v-else-if="isCreatorRefundDecision" class="self-stretch flex flex-col gap-3 px-2" data-test="booking-adjustment-creator-cancel-summary">
           <div class="self-stretch inline-flex justify-between items-center gap-4">
@@ -169,6 +177,7 @@ const props = defineProps({
   eventTitle: { type: String, default: '' },
   actorRole: { type: String, default: 'fan' },
   isGroupEvent: { type: Boolean, default: false },
+  participantCount: { type: Number, default: 0 },
   fanUsername: { type: String, default: '' },
   netRefundTokens: { type: [Number, String], default: null },
   balanceLoading: { type: Boolean, default: false },
@@ -207,6 +216,7 @@ const isCancellationMode = computed(() => normalizedMode.value === 'decline' || 
 const isReviewRejection = computed(() => normalizedMode.value === 'reject');
 const isCreatorRefundDecision = computed(() => (isCancellationMode.value || isReviewRejection.value) && String(props.actorRole).toLowerCase() === 'creator');
 const isCreatorGroupCancellation = computed(() => normalizedMode.value === 'cancel' && isCreatorRefundDecision.value && props.isGroupEvent);
+const isFanGroupWithdrawal = computed(() => normalizedMode.value === 'cancel' && !isCreatorRefundDecision.value && props.isGroupEvent);
 const originalPrice = computed(() => finiteAmount(props.originalTokens));
 const proposedPrice = computed(() => finiteAmount(props.proposedTokens));
 const balanceAvailable = computed(() => props.walletBalance !== '' && props.walletBalance != null && Number.isFinite(Number(props.walletBalance)));
@@ -245,6 +255,7 @@ const fanLabel = computed(() => {
 const balanceDisplay = computed(() => balanceAvailable.value ? formatAmount(balance.value) : '—');
 const headingKey = computed(() => {
   if (isCreatorGroupCancellation.value) return 'dashboard_cancel_group_event_heading';
+  if (isFanGroupWithdrawal.value) return retainedCancellationFee.value > 0 ? 'fan_event_withdraw_fee_heading' : 'fan_event_withdraw_heading';
   if (isCreatorRefundDecision.value) return 'booking_adjustment_creator_cancel_heading';
   if (isReviewRejection.value) return 'calendar_event_decline_confirm';
   if (isCancellationMode.value) {
@@ -293,10 +304,11 @@ const primaryButtonClass = computed(() => {
 });
 const primaryButtonText = computed(() => {
   if (props.processing) return t('fan_booking_processing');
+  if (isCreatorGroupCancellation.value) return t(props.balanceLoading ? 'common_loading' : props.balanceError ? 'common_retry' : 'dashboard_cancel_group_event');
   if (props.balanceLoading) return t('booking_adjustment_checking_balance');
   if (props.topupCompleted) return t('booking_adjustment_check_again');
   if (props.balanceError) return t('booking_adjustment_retry_balance');
-  if (isCreatorGroupCancellation.value) return t('dashboard_cancel_group_event');
+  if (isFanGroupWithdrawal.value) return t('fan_event_withdraw_action');
   if (isCreatorRefundDecision.value) return t('booking_adjustment_creator_cancel_action', { fan: fanLabel.value });
   if (isReviewRejection.value) return t('calendar_event_decline_booking');
   if (isCancellationMode.value) return t('booking_adjustment_proceed_cancel');

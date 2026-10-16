@@ -4910,66 +4910,45 @@ describe("DashboardEventsFeature", () => {
     ]));
   });
 
-  it("cancels grouped group sessions through the existing cancel booking flow", async () => {
-    callFlow
-      .mockResolvedValueOnce({
-        ok: true,
-        data: {
-          events: [],
-          bookedSlots: [],
-          bookedSlotsIndex: {},
-        },
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        data: {
-          bookingId: "booking_group_1",
-          cancelledCount: 2,
-        },
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        data: {
-          events: [],
-          bookedSlots: [],
-          bookedSlotsIndex: {},
-        },
-      });
-
+  it("opens the existing group popup for widget cancellation without submitting a single-booking refund", async () => {
+    callFlow.mockResolvedValue({ ok: true, data: { events: [], bookedSlots: [], bookedSlotsIndex: {} } });
     const { default: DashboardEventsFeature } = await import("@/features/events/DashboardEventsFeature.vue");
     const wrapper = mount(DashboardEventsFeature, {
-      props: {
-        creatorId: 77,
-        userRole: "creator",
-      },
-      global: {
-        provide: {
-          [bookingTranslationSymbol]: createBookingTranslator(),
-        },
-      },
+      props: { creatorId: 77, userRole: "creator" },
+      global: { provide: { [bookingTranslationSymbol]: createBookingTranslator() } },
     });
-
     await flushPromises();
-    await wrapper.find("[data-test='widget-cancel-group']").trigger("click");
+    await wrapper.find("[data-test=widget-cancel-group]").trigger("click");
     await flushPromises();
+    expect(mainCalendarOpenEventDetails).toHaveBeenCalledWith(expect.objectContaining({
+      bookingId: "booking_group_1", eventId: "evt_group", initialGroupCancel: true,
+    }));
+    expect(wrapper.getComponent({ name: 'BookingAdjustmentDecisionPopup' }).props('modelValue')).toBe(false);
+    expect(callFlow.mock.calls.some(([id]) => id === "bookings.cancelBooking")).toBe(false);
+  });
 
-    const confirmButton = wrapper.get("[data-test='booking-adjustment-decision-primary']");
-    expect(confirmButton.text()).toBe('Cancel Group Event');
-    expect(wrapper.get("[data-test='booking-adjustment-decision-heading']").text()).toContain('all fan bookings for this date and time');
-    expect(wrapper.find('[data-testid="group-decline-fan"]').exists()).toBe(false);
-    await confirmButton.trigger("click");
-    await flushPromises();
-
-    const cancelCall = callFlow.mock.calls.find(([flowName]) => flowName === "bookings.cancelBooking");
-    expect(cancelCall).toEqual(expect.arrayContaining([
-      "bookings.cancelBooking",
-      expect.objectContaining({
-        bookingId: "booking_group_1",
-        actor: "creator",
-        intent: "normal",
-        reason: "creator_cancelled_from_events_widget",
-      }),
-    ]));
+  it("uses the existing detailed fan group withdrawal confirmation and only cancels the selected booking", async () => {
+    const { default: TokenHandler } = await import('@/utils/TokenHandler.js');
+    const balance = vi.spyOn(TokenHandler, 'get').mockResolvedValue(1000);
+    const booking = { bookingId: 'booking_group_1', userId: 99, creatorId: 77, status: 'confirmed',
+      startAtIso: '2026-03-23T10:00:00Z', endAtIso: '2026-03-23T11:00:00Z',
+      creatorUsername: 'host', eventSnapshot: { type: 'group-event' },
+      payment: { total: 115, allocations: { service: 100, bookingFee: 10, cancellationFee: 5 } } };
+    callFlow.mockImplementation(async id => id === 'bookings.fetchBooking' ? { ok: true, data: { item: booking } }
+      : id === 'bookings.cancelBooking' ? { ok: true, data: { item: { ...booking, status: 'cancelled_user', paymentStatus: 'partial_refunded' } } }
+      : { ok: true, data: { events: [], bookedSlots: [], bookedSlotsIndex: {} } });
+    const wrapper = await mountDashboardEventsFeature({ creatorId: 77, fanId: 99, userRole: 'fan' });
+    await wrapper.get('[data-test=widget-cancel-group]').trigger('click');
+    for (let i = 0; i < 4; i++) await flushPromises();
+    const decision = wrapper.findAllComponents({ name: 'BookingAdjustmentDecisionPopup' }).find(w => w.props('modelValue'));
+    expect(decision.props()).toEqual(expect.objectContaining({ actorRole: 'fan', isGroupEvent: true, sessionRefundTokens: 115, bookingFeeTokens: 10, cancellationFeeTokens: 5 }));
+    decision.vm.$emit('confirm');
+    for (let i = 0; i < 4; i++) await flushPromises();
+    expect(callFlow.mock.calls.find(([id]) => id === 'bookings.cancelBooking')[1]).toEqual(expect.objectContaining({ bookingId: 'booking_group_1', actor: 'fan' }));
+    expect(callFlow.mock.calls.some(([id]) => id === 'bookings.cancelGroupSlot')).toBe(false);
+    expect(requestFanTokenBalanceRefresh).toHaveBeenCalled();
+    expect(showToast).toHaveBeenCalledWith(expect.objectContaining({ variant: 'booking-decision', detailAction: expect.any(Object) }));
+    wrapper.unmount(); balance.mockRestore();
   });
 
   it("keeps private widget cancellation on the same single-booking flow", async () => {
