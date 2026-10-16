@@ -1,5 +1,7 @@
 import { resolveBookingRefundState } from "@/services/bookings/utils/bookingRefundUtils.js";
 import { showToast } from "@/utils/toastBus.js";
+import { showBookingDecisionToast } from "@/utils/bookingDecisionToast.js";
+import { isGroupEventBooking } from "@/services/bookings/utils/bookingCalendarEvent.js";
 
 function asDate(value) {
   if (!value) return null;
@@ -30,7 +32,7 @@ function formatSchedule(event = {}, locale = "en") {
   return `${date} ${time(start)}-${time(end)}`;
 }
 
-export function showFanBookingCancellationToast({ booking = null, event = null, t, locale = "en" } = {}) {
+export function showFanBookingCancellationToast({ booking = null, event = null, t, locale = "en", onDetail = null } = {}) {
   const source = booking && typeof booking === "object"
     ? booking
     : (event?.raw && typeof event.raw === "object" ? event.raw : event || {});
@@ -41,6 +43,15 @@ export function showFanBookingCancellationToast({ booking = null, event = null, 
     source?.eventSnapshot?.creatorUsername,
     source?.eventSnapshot?.creatorDisplayName,
   ) || (typeof t === "function" ? t("common_creator") : "Creator");
+  if (isGroupEventBooking(source) || isGroupEventBooking(event)) {
+    return showBookingDecisionToast({
+      decision: "cancelled", booking: { ...event, ...source }, t,
+      locale: typeof locale === "string" ? locale : locale?.value,
+      counterpartyName: creator,
+      counterpartyAvatarUrl: firstText(source.creatorAvatarUrl, source.creatorAvatar, source.eventSnapshot?.creatorAvatarUrl, event?.raw?.creatorAvatarUrl),
+      onDetail,
+    });
+  }
   const refundState = resolveBookingRefundState(source);
   const schedule = formatSchedule(event || source, typeof locale === "string" ? locale : locale?.value);
   const titleKey = refundState === "partial"

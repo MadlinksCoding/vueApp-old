@@ -2,6 +2,7 @@ import { computed, onBeforeUnmount, ref, unref, watch } from "vue";
 import { fetchUserProfileData } from "@/services/users/userProfileApi.js";
 import { useBookingTranslations } from "@/i18n/bookingTranslations.js";
 import TokenHandler from "@/utils/TokenHandler.js";
+import { isGroupEventBooking } from "@/services/bookings/utils/bookingCalendarEvent.js";
 
 function finiteNonNegative(value, fallback = 0) {
   if (value === "" || value == null) return fallback;
@@ -328,6 +329,7 @@ export function useBookingAdjustmentDecision(booking, options = {}) {
     creatorName: creatorName.value,
     eventTitle: eventTitle.value,
     actorRole: viewerRole.value,
+    isGroupEvent: viewerRole.value === "fan" && (isGroupEventBooking(bookingValue.value) || isGroupEventBooking(eventValue.value)),
     fanUsername: fanUsername.value || t("common_fan"),
     netRefundTokens: netRefundTokens.value,
     balanceLoading: balanceLoading.value,

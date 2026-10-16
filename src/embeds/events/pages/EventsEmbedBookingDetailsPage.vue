@@ -34,6 +34,7 @@
         v-if="useCompactMobileDetails"
         v-model="compactDetailsOpen"
         :booking="booking"
+        :api-base-url="bootstrap.apiBaseUrl"
         :event="calendarEvent"
         :user-role="viewerRole"
         :can-review-pending="true"
@@ -45,6 +46,7 @@
         @join-call="handleJoin"
         @open-chat="openChat"
         @cancel-booking="requestCancelBooking"
+        @group-updated="handleGroupEventUpdated"
         @accept-adjustment="acceptPriceAdjustment"
         @decline-adjustment="requestDeclineAdjustment"
         @approve-booking="approveBooking"
@@ -61,6 +63,7 @@
         v-else
         :booking="booking"
         :event="calendarEvent"
+        :api-base-url="bootstrap.apiBaseUrl"
         :user-role="viewerRole"
         :can-review-pending="viewerRole === 'creator'"
         :action-loading="actionLoading"
@@ -71,6 +74,7 @@
         @join-call="handleJoin"
         @open-chat="openChat"
         @cancel-booking="requestCancelBooking"
+        @group-updated="handleGroupEventUpdated"
         @accept-adjustment="acceptPriceAdjustment"
         @decline-adjustment="requestDeclineAdjustment"
         @approve-booking="approveBooking"
@@ -137,7 +141,7 @@ import MoreTimeRequestPopup from "@/components/ui/chat/MoreTimeRequestPopup.vue"
 import RescheduleRequestPopup from "@/components/ui/chat/RescheduleRequestPopup.vue";
 import ToastHost from "@/components/ui/toast/ToastHost.vue";
 import FlowHandler from "@/services/flow-system/FlowHandler.js";
-import { toCalendarEvent as bookingToCalendarEvent } from "@/services/bookings/utils/bookingCalendarEvent.js";
+import { toCalendarEvent as bookingToCalendarEvent, isGroupEventBooking } from "@/services/bookings/utils/bookingCalendarEvent.js";
 import { buildBookingChatMessage, resolveBookingChatMessage } from "@/services/bookings/utils/bookingChatMessage.js";
 import { useEventsEmbedBootstrap } from "@/embeds/events/bootstrap.js";
 import {
@@ -209,8 +213,13 @@ const useCompactMobileDetails = computed(() => compactDetailsSession.value);
 const directCancelOpened = ref(false);
 const directCreatorCancellationResolved = ref(false);
 const showBookingDetails = computed(() => (
-  !isDirectCancelLaunch.value || directCreatorCancellationResolved.value
+  !isDirectCancelLaunch.value || directCreatorCancellationResolved.value || creatorGroupDetails.value
 ));
+const creatorGroupDetails = computed(() => viewerRole.value === 'creator'
+  && String(booking.value?.eventSnapshot?.type || booking.value?.eventType || '').includes('group'));
+function handleGroupEventUpdated(summary) {
+  notifyBookingDetailsUpdated({ bookingId: bootstrap.bookingId, action: 'cancel', eventId: summary.eventId, groupSlotId: summary.groupSlotId });
+}
 
 function finiteNonNegative(value, fallback = 0) {
   if (value === "" || value == null) return fallback;
@@ -306,6 +315,7 @@ function buildBookingUpdateNotification(updatedItem = null, counterparty = null)
     startAtIso: String(firstDefined(sources, ["startAtIso", "startIso", "startAt", "start"]) || "").trim(),
     endAtIso: String(firstDefined(sources, ["endAtIso", "endIso", "endAt", "end"]) || "").trim(),
     refundState: resolveBookingRefundState(updatedItem || {}),
+    isGroupEvent: isGroupEventBooking(updatedItem || booking.value),
     fanUsername: String(counterparty?.username || firstDefined(sources, ["fanUsername", "userUsername", "username"]) || "").trim(),
     fanAvatarUrl: String(counterparty?.avatarUrl || firstDefined(sources, [
       "fanAvatar",
@@ -469,7 +479,8 @@ async function loadBooking() {
       errorMessage.value = t("fan_event_details_schedule_unavailable");
     } else if (isDirectCancelLaunch.value && !directCancelOpened.value) {
       directCancelOpened.value = true;
-      openAdjustmentDecision("cancel", { bookingId });
+      if (creatorGroupDetails.value) calendarEvent.value.initialGroupCancel = true;
+      else openAdjustmentDecision("cancel", { bookingId });
     }
   } catch (error) {
     errorMessage.value = error?.message || t("fan_event_details_load_failed");

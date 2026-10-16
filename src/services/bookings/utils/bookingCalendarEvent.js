@@ -1,5 +1,12 @@
 import { mapBookedSlotsToCalendarEvents } from "@/services/bookings/utils/bookingSlotUtils.js";
 
+export function isGroupEventBooking(value = {}) {
+  const raw = value?.raw || value;
+  return value?.isGroup === true || raw?.isGroupedGroupSlot === true
+    || [raw, raw?.eventSnapshot, raw?.eventCurrent, value].some(source =>
+      ['group-event', 'group'].includes(String(source?.eventType || source?.type || '').trim().toLowerCase()));
+}
+
 /**
  * Flattens the nested `eventSnapshot` / `eventCurrent` shape a booking comes back
  * with into the flat keys `mapBookedSlotsToCalendarEvents` expects.

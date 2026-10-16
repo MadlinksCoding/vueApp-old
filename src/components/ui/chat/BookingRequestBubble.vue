@@ -60,7 +60,7 @@
                     <path d="M13.5 4.5L4.5 13.5M4.5 4.5L13.5 13.5" stroke="#F04438" stroke-width="1.5" stroke-linecap="round" />
                   </svg>
                 </span>
-              Cancel Booking
+              {{ isFanGroupBooking ? t('fan_event_withdraw_action') : 'Cancel Booking' }}
             </button>
           </div>
         </div>
@@ -422,9 +422,13 @@ import { hktDateTimeToLocalDate } from '@/services/events/eventsApiUtils'
 import { openScheduledMeetingOverlay, getBookingJoinState } from '@/utils/bookingJoinUtils.js'
 import { shouldShowBookingOptionsMenu } from '@/services/bookings/utils/bookingMenuVisibility.js'
 import { showToast } from '@/utils/toastBus.js'
+import { isGroupEventBooking } from '@/services/bookings/utils/bookingCalendarEvent.js'
+import { useBookingTranslations } from '@/i18n/bookingTranslations.js'
 import CloseIcon from '@/assets/images/icons/x-close-white.svg';
 
 const chatStore = useChatStore()
+const { t } = useBookingTranslations()
+const isFanGroupBooking = computed(() => !props.isCreator && isGroupEventBooking(booking.value))
 
 const props = defineProps({
   message:    { type: Object, required: true },
@@ -700,7 +704,7 @@ const resolvedAction = computed(() => {
 const showOptionsMenu = computed(() => shouldShowBookingOptionsMenu({
   viewerRole: props.isCreator ? 'creator' : 'fan',
   status: resolvedAction.value,
-  isPassed: isPassCall.value,
+  isPassed: isPassCall.value || (isFanGroupBooking.value && !!startDate.value && now.value >= startDate.value.getTime()),
 }))
 
 const cancelledReason = computed(() => booking.value?.meta?.cancelled?.reason)

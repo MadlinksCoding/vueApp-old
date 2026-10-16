@@ -53,6 +53,7 @@ import { getBlocksForUserFlow } from "@/services/block-users/flows/getBlocksForU
 import { reviewPendingBookingFlow } from "@/services/bookings/flows/reviewPendingBookingFlow.js";
 import { cancelBookingFlow } from "@/services/bookings/flows/cancelBookingFlow.js";
 import { fetchBookingFlow } from "@/services/bookings/flows/fetchBookingFlow.js";
+import { fetchGroupSlotSummaryFlow, cancelGroupSlotFlow } from "@/services/bookings/flows/groupSlotFlow.js";
 import { checkBookingAdjustmentAvailabilityFlow } from "@/services/bookings/flows/checkBookingAdjustmentAvailabilityFlow.js";
 import { updateBookingFlow } from "@/services/bookings/flows/updateBookingFlow.js";
 import { mapCreateTemporaryHoldToRequest } from "@/services/bookings/mappers/createTemporaryHoldMapper.js";
@@ -831,6 +832,16 @@ export const flowRegistry = {
       retry: { enabled: true, maxAttempts: 2, baseDelayMs: 200 },
       concurrency: { policy: "latestWins", dedupe: true, keyByPayload: true },
     },
+  },
+
+  "bookings.fetchGroupSlotSummary": {
+    flowKind: "read", flow: fetchGroupSlotSummaryFlow,
+    pipeline: { timeouts: { requestMs: 10000, totalFlowMs: 15000 }, retry: { enabled: false } },
+  },
+  "bookings.cancelGroupSlot": {
+    flowKind: "write", flow: cancelGroupSlotFlow,
+    pipeline: { timeouts: { requestMs: 12000, totalFlowMs: 20000 }, retry: { enabled: false },
+      destinations: [{ type: "localFlush", key: "dashboard-events:context" }, { type: "localFlush", key: "fan-booking:creator-context" }] },
   },
 
   "bookings.checkAdjustmentAvailability": {

@@ -71,7 +71,7 @@
               data-test="mobile-join-card-cancel"
               @click.stop="$emit('menu-action', 'cancel_call')"
             >
-              {{ showsGroup ? t('dashboard_cancel_group_event') : t('dashboard_cancel_call') }}
+              {{ event.isGroup ? t(isCreatorViewer ? 'dashboard_cancel_group_event' : 'fan_event_withdraw_action') : t('dashboard_cancel_call') }}
             </button>
           </div>
         </div>
@@ -206,6 +206,8 @@ const isPending = computed(() => (
 const showOptionsMenu = computed(() => shouldShowBookingOptionsMenu({
   viewerRole: viewerRole.value,
   status: bookingStatus.value || (isPending.value ? 'pending' : 'confirmed'),
+  isPassed: !isCreatorViewer.value && props.event?.isGroup === true
+    && Date.now() >= Date.parse(sourceEvent.value?.start || rawEvent.value.startAtIso || rawEvent.value.startIso || ''),
   hasPendingPriceAdjustment: hasPendingPriceAdjustment.value,
 }));
 
